@@ -126,13 +126,14 @@ export class Instruments {
       readonly Uics?: undefined | ReadonlyArray<number>
     } = {},
   ): Promise<ReadonlyArray<InstrumentSummaryInfoType>> {
-    const { limit, Keywords, AssetTypes, IncludeNonTradable, ...rest } = options
+    const { limit, Keywords, AssetTypes, IncludeNonTradable, ...rest } = { IncludeNonTradable: false, ...options }
 
     const searchParams = {
       ...rest,
       ...(AssetTypes === undefined || AssetTypes.length === 0 ? { AssetTypes: AssetTypeValues } : { AssetTypes }),
       ...(Keywords === undefined || Keywords.length === 0 ? {} : { Keywords: Keywords.join(' ') }),
-      ...(IncludeNonTradable === undefined ? { IncludeNonTradable: false } : { IncludeNonTradable }),
+      IncludeNonTradable,
+      isTradableOrDefaultNonTradable: IncludeNonTradable === false,
     }
 
     const instrumentsUnverified = await this.#client.getPaginated<InstrumentSummaryInfoType>({
