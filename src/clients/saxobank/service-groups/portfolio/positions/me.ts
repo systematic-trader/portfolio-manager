@@ -2,6 +2,15 @@ import type { ServiceGroupClient } from '../../../service-group-client.ts'
 import type { PositionFieldGroup } from '../../../types/derives/position-field-group.ts'
 import { PositionResponse } from '../../../types/records/position-response.ts'
 
+const FieldGroups: PositionFieldGroup[] = [
+  'Costs',
+  'DisplayAndFormat',
+  'ExchangeInfo',
+  'Greeks',
+  'PositionBase',
+  'PositionIdOnly',
+  'PositionView',
+]
 export class Me {
   readonly #client: ServiceGroupClient
 
@@ -9,18 +18,8 @@ export class Me {
     this.#client = client.appendPath('me')
   }
 
-  async get(): Promise<ReadonlyArray<PositionResponse>> {
-    const FieldGroups: PositionFieldGroup[] = [
-      'Costs',
-      'DisplayAndFormat',
-      'ExchangeInfo',
-      'Greeks',
-      'PositionBase',
-      'PositionIdOnly',
-      'PositionView',
-    ]
-
-    return await this.#client.getPaginated({
+  async *get(): AsyncIterable<PositionResponse, void, undefined> {
+    yield* this.#client.getPaginated({
       searchParams: {
         FieldGroups,
       },

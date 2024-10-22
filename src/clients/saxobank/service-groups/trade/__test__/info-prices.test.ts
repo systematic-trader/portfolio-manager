@@ -1,3 +1,4 @@
+import { toArray } from '../../../../../utils/async-iterable.ts'
 import { describe, expect, test } from '../../../../../utils/testing.ts'
 import { HTTPClientError } from '../../../../http-client.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
@@ -60,10 +61,10 @@ describe('trade/info-prices', () => {
         continue
       }
 
-      const instruments = await app.referenceData.instruments.get({
+      const instruments = await toArray(app.referenceData.instruments.get({
         AssetTypes: [assetType] as const,
         limit: ASSET_TYPE_INSTRUMENTS_LIMIT,
-      })
+      }))
 
       await step(assetType, async ({ step }) => {
         let instrumentCount = 0
@@ -160,9 +161,9 @@ describe('trade/info-prices', () => {
               }
 
               case 'FxForwards': {
-                const forwardDates = await app.referenceData.standarddates.forwardTenor.get({
+                const forwardDates = await toArray(app.referenceData.standarddates.forwardTenor.get({
                   Uic: instrument.Identifier,
-                })
+                }))
 
                 expect(forwardDates.length).toBeGreaterThan(0)
 
@@ -185,9 +186,9 @@ describe('trade/info-prices', () => {
               }
 
               case 'FxSwap': {
-                const forwardDates = await app.referenceData.standarddates.forwardTenor.get({
+                const forwardDates = await toArray(app.referenceData.standarddates.forwardTenor.get({
                   Uic: instrument.Identifier,
-                })
+                }))
 
                 expect(forwardDates.length).toBeGreaterThan(1)
 
@@ -224,9 +225,9 @@ describe('trade/info-prices', () => {
               }
 
               case 'FxVanillaOption': {
-                const expiryDates = await app.referenceData.standarddates.fxOptionExpiry.get({
+                const expiryDates = await toArray(app.referenceData.standarddates.fxOptionExpiry.get({
                   Uic: instrument.Identifier,
-                })
+                }))
 
                 expect(expiryDates.length).toBeGreaterThan(0)
 

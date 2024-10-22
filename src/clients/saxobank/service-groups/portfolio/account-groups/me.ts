@@ -9,8 +9,8 @@ export class Me {
   }
 
   /** Get all accounts gropus under a particular client to which the logged in user belongs. */
-  async get(): Promise<ReadonlyArray<AccountGroupResponse>> {
-    return await this.#client.getPaginated({
+  async *get(): AsyncIterable<AccountGroupResponse, void, undefined> {
+    yield* this.#client.getPaginated({
       searchParams: {
         $inlinecount: 'AllPages',
       },

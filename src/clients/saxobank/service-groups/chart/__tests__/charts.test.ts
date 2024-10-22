@@ -1,3 +1,4 @@
+import { toArray } from '../../../../../utils/async-iterable.ts'
 import { describe, expect, test } from '../../../../../utils/testing.ts'
 import { HTTPClientError } from '../../../../http-client.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
@@ -37,10 +38,10 @@ describe('chart/charts', () => {
     ] as const
 
     for (const assetType of assetTypeCandidates) {
-      const instruments = await app.referenceData.instruments.get({
+      const instruments = await toArray(app.referenceData.instruments.get({
         AssetTypes: [assetType] as const,
         limit: MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE,
-      })
+      }))
 
       await step(assetType, async ({ step: substep }) => {
         let index = 0

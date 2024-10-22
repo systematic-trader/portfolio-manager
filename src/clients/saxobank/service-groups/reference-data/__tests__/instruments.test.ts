@@ -1,3 +1,4 @@
+import { toArray } from '../../../../../utils/async-iterable.ts'
 import { expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { AssetTypeValues } from '../../../types/derives/asset-type.ts'
@@ -10,12 +11,12 @@ test('reference-data/instruments', async ({ step }) => {
     await step({
       name: assetType,
       async fn() {
-        const instruments = await app.referenceData.instruments.get({
+        const instruments = await toArray(app.referenceData.instruments.get({
           AssetTypes: [assetType],
           IncludeNonTradable: true,
-        })
+        }))
 
-        expect(instruments).toBeDefined()
+        expect(instruments.length).not.toBe(0)
       },
     })
   }

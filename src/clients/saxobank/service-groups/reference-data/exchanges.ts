@@ -8,16 +8,13 @@ export class Exchanges {
     this.#client = client.appendPath('v1/exchanges')
   }
 
-  async get({ exchangeId }: { exchangeId: string }): Promise<ExchangeDetails>
-  async get({ exchangeId }: { exchangeId?: undefined }): Promise<ReadonlyArray<ExchangeDetails>>
-  async get(): Promise<ReadonlyArray<ExchangeDetails>>
-  async get(
+  async *get(
     { exchangeId }: { exchangeId?: undefined | string } = {},
-  ): Promise<ReadonlyArray<ExchangeDetails> | ExchangeDetails> {
+  ): AsyncGenerator<ExchangeDetails, void, undefined> {
     if (exchangeId === undefined) {
-      return await this.#client.getPaginated({ guard: ExchangeDetails })
+      yield* this.#client.getPaginated({ guard: ExchangeDetails })
     }
 
-    return await this.#client.get({ guard: ExchangeDetails, path: exchangeId })
+    yield this.#client.get({ guard: ExchangeDetails, path: exchangeId })
   }
 }

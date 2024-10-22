@@ -10,11 +10,11 @@ export class AccountGroup {
   }
 
   /** Get details about a single account group */
-  async get({ AccountGroupKey, ClientKey }: {
+  async *get({ AccountGroupKey, ClientKey }: {
     readonly AccountGroupKey: string
     readonly ClientKey: string
-  }): Promise<ReadonlyArray<AccountGroupResponse>> {
-    return await this.#client.getPaginated({
+  }): AsyncIterable<AccountGroupResponse, void, undefined> {
+    yield* this.#client.getPaginated({
       path: AccountGroupKey,
       searchParams: {
         ClientKey,

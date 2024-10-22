@@ -1,13 +1,14 @@
+import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
 
 test('reference-data/standard-dates/fxoptionexpiry', async ({ step }) => {
   using app = new SaxoBankApplication()
 
-  const instruments = await app.referenceData.instruments.get({
+  const instruments = await toArray(app.referenceData.instruments.get({
     AssetTypes: ['FxSpot'],
     limit: 25,
-  })
+  }))
 
   const sortedByUic = instruments.toSorted((left, right) => left.Identifier - right.Identifier)
 
@@ -18,9 +19,9 @@ test('reference-data/standard-dates/fxoptionexpiry', async ({ step }) => {
       name:
         `${++count} / ${instruments.length}: Uic=${instrument.Identifier} Symbol=${instrument.Symbol}, ${instrument.Description}`,
       async fn() {
-        const dates = await app.referenceData.standarddates.fxOptionExpiry.get({ Uic: instrument.Identifier })
+        const dates = await toArray(app.referenceData.standarddates.fxOptionExpiry.get({ Uic: instrument.Identifier }))
 
-        expect(dates.length > 0).toBe(true)
+        expect(dates.length).not.toBe(0)
       },
     })
   }

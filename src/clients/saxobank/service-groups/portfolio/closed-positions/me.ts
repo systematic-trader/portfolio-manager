@@ -2,6 +2,12 @@ import type { ServiceGroupClient } from '../../../service-group-client.ts'
 import type { ClosedPositionFieldGroup } from '../../../types/derives/closed-position-field-group.ts'
 import { ClosedPositionResponse } from '../../../types/records/closed-position-response.ts'
 
+const FieldGroups: ClosedPositionFieldGroup[] = [
+  'ClosedPosition',
+  'ClosedPositionDetails',
+  'DisplayAndFormat',
+  'ExchangeInfo',
+]
 export class Me {
   readonly #client: ServiceGroupClient
 
@@ -10,15 +16,8 @@ export class Me {
   }
 
   /** Returns a list of closed positions fulfilling the criteria specified by the query string parameters. */
-  async get(): Promise<ReadonlyArray<ClosedPositionResponse>> {
-    const FieldGroups: ClosedPositionFieldGroup[] = [
-      'ClosedPosition',
-      'ClosedPositionDetails',
-      'DisplayAndFormat',
-      'ExchangeInfo',
-    ]
-
-    return await this.#client.getPaginated({
+  async *get(): AsyncIterable<ClosedPositionResponse, void, undefined> {
+    yield* this.#client.getPaginated({
       searchParams: {
         FieldGroups,
       },

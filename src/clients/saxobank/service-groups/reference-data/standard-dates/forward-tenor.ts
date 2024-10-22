@@ -9,14 +9,14 @@ export class ForwardTenor {
     this.#client = client.appendPath('forwardtenor')
   }
 
-  async get(
+  async *get(
     { Uic, AccountKey }: {
       readonly Uic: number | string
       readonly AccountKey?: undefined | string
     },
-  ): Promise<ReadonlyArray<StandardDate>> {
+  ): AsyncIterable<StandardDate, void, undefined> {
     try {
-      return await this.#client.getPaginated({
+      yield* this.#client.getPaginated({
         path: String(Uic),
         searchParams: {
           AccountKey: AccountKey === undefined ? undefined : String(AccountKey),
@@ -25,7 +25,7 @@ export class ForwardTenor {
       })
     } catch (error) {
       if (error instanceof HTTPClientError && error.statusCode === 404) {
-        return []
+        return
       }
 
       throw error

@@ -1,3 +1,4 @@
+import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
 import type { ContractOptionEntry } from '../../../../types/records/contract-option-entry.ts'
@@ -57,17 +58,17 @@ describe('client-services/trading-conditions/cost', () => {
       'StockOption',
     ] as const
 
-    const [account] = await app.portfolio.accounts.me.get()
+    const [account] = await toArray(app.portfolio.accounts.me.get())
     if (account === undefined) {
       throw new Error('No account found')
     }
 
     for (const assetType of assetTypeCandidates) {
       await step(assetType, async ({ step }) => {
-        const instruments = await app.referenceData.instruments.get({
+        const instruments = await toArray(app.referenceData.instruments.get({
           AssetTypes: [assetType] as const,
           limit: MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE,
-        })
+        }))
 
         let index = 0
         for (const instrument of instruments) {

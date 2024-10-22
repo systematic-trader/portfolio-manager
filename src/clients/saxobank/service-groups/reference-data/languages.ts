@@ -8,7 +8,7 @@ export class Languages {
     this.#client = client.appendPath('v1/languages')
   }
 
-  async get(): Promise<ReadonlyArray<LanguageDetails>> {
-    return await this.#client.getPaginated({ guard: LanguageDetails })
+  async *get(): AsyncIterable<LanguageDetails, void, undefined> {
+    yield* this.#client.getPaginated({ guard: LanguageDetails })
   }
 }

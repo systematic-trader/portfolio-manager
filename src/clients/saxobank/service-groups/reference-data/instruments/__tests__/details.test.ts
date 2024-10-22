@@ -1,3 +1,4 @@
+import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
 import { AssetTypeValues } from '../../../../types/derives/asset-type.ts'
@@ -7,19 +8,19 @@ test('reference-data/instruments/details', async ({ step }) => {
 
   for (const assetType of AssetTypeValues.toSorted()) {
     await step(assetType, async () => {
-      const instruments = await app.referenceData.instruments.details.get({ AssetTypes: [assetType] })
+      const instruments = await toArray(app.referenceData.instruments.details.get({ AssetTypes: [assetType] }))
 
-      expect(instruments).toBeDefined()
+      expect(instruments.length).not.toBe(0)
 
       const firstInstrument = instruments[0]
 
       if (firstInstrument !== undefined) {
-        const instruments2 = await app.referenceData.instruments.details.get({
+        const instruments2 = await toArray(app.referenceData.instruments.details.get({
           AssetTypes: [assetType],
           Uics: [firstInstrument.Uic],
-        })
+        }))
 
-        expect(instruments2).toBeDefined()
+        expect(instruments2.length).not.toBe(0)
       }
     })
   }

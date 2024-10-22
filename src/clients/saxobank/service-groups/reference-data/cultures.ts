@@ -8,7 +8,7 @@ export class Cultures {
     this.#client = client.appendPath('v1/cultures')
   }
 
-  async get(): Promise<ReadonlyArray<CultureDetails>> {
-    return await this.#client.getPaginated({ guard: CultureDetails })
+  async *get(): AsyncIterable<CultureDetails, void, undefined> {
+    yield* this.#client.getPaginated({ guard: CultureDetails })
   }
 }

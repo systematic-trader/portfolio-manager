@@ -60,7 +60,7 @@ export class Instruments {
     this.tradingschedule = new TradingSchedule({ client: this.#client })
   }
 
-  async get<T extends AssetType>(
+  get<T extends AssetType>(
     options: {
       readonly limit?: undefined | number
       readonly AccountKey?: undefined | string
@@ -73,16 +73,16 @@ export class Instruments {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly Uics?: undefined | ReadonlyArray<number>
     },
-  ): Promise<
-    ReadonlyArray<
-      Extract<
-        InstrumentSummaryInfoType,
-        { readonly AssetType: T }
-      >
-    >
+  ): AsyncIterable<
+    Extract<
+      InstrumentSummaryInfoType,
+      { readonly AssetType: T }
+    >,
+    void,
+    undefined
   >
 
-  async get(
+  get(
     options?: undefined | {
       readonly limit?: undefined | number
       readonly AccountKey?: undefined | string
@@ -95,9 +95,9 @@ export class Instruments {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly Uics?: undefined | ReadonlyArray<number>
     },
-  ): Promise<ReadonlyArray<InstrumentSummaryInfoType>>
+  ): AsyncIterable<InstrumentSummaryInfoType, void, undefined>
 
-  async get(
+  get(
     options?: undefined | {
       readonly limit?: undefined | number
       readonly AccountKey?: undefined | string
@@ -110,9 +110,9 @@ export class Instruments {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly Uics?: undefined | ReadonlyArray<number>
     },
-  ): Promise<ReadonlyArray<InstrumentSummaryInfoType>>
+  ): AsyncIterable<InstrumentSummaryInfoType, void, undefined>
 
-  async get(
+  async *get(
     options: undefined | {
       readonly limit?: undefined | number
       readonly AccountKey?: undefined | string
@@ -125,7 +125,7 @@ export class Instruments {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly Uics?: undefined | ReadonlyArray<number>
     } = {},
-  ): Promise<ReadonlyArray<InstrumentSummaryInfoType>> {
+  ): AsyncIterable<InstrumentSummaryInfoType, void, undefined> {
     const { limit, Keywords, AssetTypes, IncludeNonTradable, ...rest } = { IncludeNonTradable: false, ...options }
 
     const searchParams = {
@@ -136,181 +136,208 @@ export class Instruments {
       isTradableOrDefaultNonTradable: IncludeNonTradable === false,
     }
 
-    const instrumentsUnverified = await this.#client.getPaginated<InstrumentSummaryInfoType>({
-      searchParams,
-      limit,
-    })
+    for await (
+      const instrument of this.#client.getPaginated<InstrumentSummaryInfoType>({
+        searchParams,
+        limit,
+      })
+    ) {
+      try {
+        const { AssetType } = instrument
 
-    const instruments = instrumentsUnverified.map(
-      (instrument) => {
-        try {
-          const { AssetType } = instrument
-
-          switch (AssetType) {
-            case 'Bond': {
-              return assertReturn(InstrumentSummaryInfoBond, instrument)
-            }
-
-            case 'CfdIndexOption': {
-              return assertReturn(InstrumentSummaryInfoCfdIndexOption, instrument)
-            }
-
-            case 'CfdOnCompanyWarrant': {
-              return assertReturn(
-                InstrumentSummaryInfoCfdOnCompanyWarrant,
-                instrument,
-              )
-            }
-
-            case 'CfdOnEtc': {
-              return assertReturn(InstrumentSummaryInfoCfdOnEtc, instrument)
-            }
-
-            case 'CfdOnEtf': {
-              return assertReturn(InstrumentSummaryInfoCfdOnEtf, instrument)
-            }
-
-            case 'CfdOnEtn': {
-              return assertReturn(InstrumentSummaryInfoCfdOnEtn, instrument)
-            }
-
-            case 'CfdOnFund': {
-              return assertReturn(InstrumentSummaryInfoCfdOnFund, instrument)
-            }
-
-            case 'CfdOnFutures': {
-              return assertReturn(InstrumentSummaryInfoCfdOnFutures, instrument)
-            }
-
-            case 'CfdOnIndex': {
-              return assertReturn(InstrumentSummaryInfoCfdOnIndex, instrument)
-            }
-
-            case 'CfdOnRights': {
-              return assertReturn(InstrumentSummaryInfoCfdOnRights, instrument)
-            }
-
-            case 'CfdOnStock': {
-              return assertReturn(InstrumentSummaryInfoCfdOnStock, instrument)
-            }
-
-            case 'CompanyWarrant': {
-              return assertReturn(
-                InstrumentSummaryInfoCompanyWarrant,
-                instrument,
-              )
-            }
-
-            case 'ContractFutures': {
-              return assertReturn(
-                InstrumentSummaryInfoContractFutures,
-                instrument,
-              )
-            }
-
-            case 'Etc': {
-              return assertReturn(InstrumentSummaryInfoEtc, instrument)
-            }
-
-            case 'Etf': {
-              return assertReturn(InstrumentSummaryInfoEtf, instrument)
-            }
-
-            case 'Etn': {
-              return assertReturn(InstrumentSummaryInfoEtn, instrument)
-            }
-
-            case 'Fund': {
-              return assertReturn(InstrumentSummaryInfoFund, instrument)
-            }
-
-            case 'FuturesOption': {
-              return assertReturn(
-                InstrumentSummaryInfoFuturesOption,
-                instrument,
-              )
-            }
-
-            case 'FuturesStrategy': {
-              return assertReturn(
-                InstrumentSummaryInfoFuturesStrategy,
-                instrument,
-              )
-            }
-
-            case 'FxSpot': {
-              return assertReturn(InstrumentSummaryInfoFxSpot, instrument)
-            }
-
-            case 'FxSwap': {
-              return assertReturn(InstrumentSummaryInfoFxSwap, instrument)
-            }
-
-            case 'FxForwards': {
-              return assertReturn(InstrumentSummaryInfoFxForwards, instrument)
-            }
-
-            case 'FxNoTouchOption': {
-              return assertReturn(InstrumentSummaryInfoFxNoTouchOption, instrument)
-            }
-
-            case 'FxOneTouchOption': {
-              return assertReturn(InstrumentSummaryInfoFxOneTouchOption, instrument)
-            }
-
-            case 'FxVanillaOption': {
-              return assertReturn(
-                InstrumentSummaryInfoFxVanillaOption,
-                instrument,
-              )
-            }
-
-            case 'MutualFund': {
-              return assertReturn(InstrumentSummaryInfoMutualFund, instrument)
-            }
-
-            case 'Rights': {
-              return assertReturn(InstrumentSummaryInfoRights, instrument)
-            }
-
-            case 'StockIndexOption': {
-              return assertReturn(
-                InstrumentSummaryInfoStockIndexOption,
-                instrument,
-              )
-            }
-
-            case 'StockIndex': {
-              return assertReturn(InstrumentSummaryInfoStockIndex, instrument)
-            }
-
-            case 'StockOption': {
-              return assertReturn(InstrumentSummaryInfoStockOption, instrument)
-            }
-
-            case 'Stock': {
-              return assertReturn(InstrumentSummaryInfoStock, instrument)
-            }
-
-            default: {
-              throw new Error(`Unknown asset type: ${AssetType as string}`)
-            }
-          }
-        } catch (error) {
-          // deno-lint-ignore no-console
-          console.error(instrument)
-          throw error
+        if (
+          options.AssetTypes !== undefined && options.AssetTypes.length > 0 &&
+          options.AssetTypes.includes(AssetType) === false
+        ) {
+          continue
         }
-      },
-    )
 
-    if (options.AssetTypes === undefined || options.AssetTypes.length === 0) {
-      return instruments
+        switch (AssetType) {
+          case 'Bond': {
+            yield assertReturn(InstrumentSummaryInfoBond, instrument)
+            break
+          }
+
+          case 'CfdIndexOption': {
+            yield assertReturn(InstrumentSummaryInfoCfdIndexOption, instrument)
+            break
+          }
+
+          case 'CfdOnCompanyWarrant': {
+            yield assertReturn(
+              InstrumentSummaryInfoCfdOnCompanyWarrant,
+              instrument,
+            )
+            break
+          }
+
+          case 'CfdOnEtc': {
+            yield assertReturn(InstrumentSummaryInfoCfdOnEtc, instrument)
+            break
+          }
+
+          case 'CfdOnEtf': {
+            yield assertReturn(InstrumentSummaryInfoCfdOnEtf, instrument)
+            break
+          }
+
+          case 'CfdOnEtn': {
+            yield assertReturn(InstrumentSummaryInfoCfdOnEtn, instrument)
+            break
+          }
+
+          case 'CfdOnFund': {
+            yield assertReturn(InstrumentSummaryInfoCfdOnFund, instrument)
+            break
+          }
+
+          case 'CfdOnFutures': {
+            yield assertReturn(InstrumentSummaryInfoCfdOnFutures, instrument)
+            break
+          }
+
+          case 'CfdOnIndex': {
+            yield assertReturn(InstrumentSummaryInfoCfdOnIndex, instrument)
+            break
+          }
+
+          case 'CfdOnRights': {
+            yield assertReturn(InstrumentSummaryInfoCfdOnRights, instrument)
+            break
+          }
+
+          case 'CfdOnStock': {
+            yield assertReturn(InstrumentSummaryInfoCfdOnStock, instrument)
+            break
+          }
+
+          case 'CompanyWarrant': {
+            yield assertReturn(
+              InstrumentSummaryInfoCompanyWarrant,
+              instrument,
+            )
+            break
+          }
+
+          case 'ContractFutures': {
+            yield assertReturn(
+              InstrumentSummaryInfoContractFutures,
+              instrument,
+            )
+            break
+          }
+
+          case 'Etc': {
+            yield assertReturn(InstrumentSummaryInfoEtc, instrument)
+            break
+          }
+
+          case 'Etf': {
+            yield assertReturn(InstrumentSummaryInfoEtf, instrument)
+            break
+          }
+
+          case 'Etn': {
+            yield assertReturn(InstrumentSummaryInfoEtn, instrument)
+            break
+          }
+
+          case 'Fund': {
+            yield assertReturn(InstrumentSummaryInfoFund, instrument)
+            break
+          }
+
+          case 'FuturesOption': {
+            yield assertReturn(
+              InstrumentSummaryInfoFuturesOption,
+              instrument,
+            )
+            break
+          }
+
+          case 'FuturesStrategy': {
+            yield assertReturn(
+              InstrumentSummaryInfoFuturesStrategy,
+              instrument,
+            )
+            break
+          }
+
+          case 'FxSpot': {
+            yield assertReturn(InstrumentSummaryInfoFxSpot, instrument)
+            break
+          }
+
+          case 'FxSwap': {
+            yield assertReturn(InstrumentSummaryInfoFxSwap, instrument)
+            break
+          }
+
+          case 'FxForwards': {
+            yield assertReturn(InstrumentSummaryInfoFxForwards, instrument)
+            break
+          }
+
+          case 'FxNoTouchOption': {
+            yield assertReturn(InstrumentSummaryInfoFxNoTouchOption, instrument)
+            break
+          }
+
+          case 'FxOneTouchOption': {
+            yield assertReturn(InstrumentSummaryInfoFxOneTouchOption, instrument)
+            break
+          }
+
+          case 'FxVanillaOption': {
+            yield assertReturn(
+              InstrumentSummaryInfoFxVanillaOption,
+              instrument,
+            )
+            break
+          }
+
+          case 'MutualFund': {
+            yield assertReturn(InstrumentSummaryInfoMutualFund, instrument)
+            break
+          }
+
+          case 'Rights': {
+            yield assertReturn(InstrumentSummaryInfoRights, instrument)
+            break
+          }
+
+          case 'StockIndexOption': {
+            yield assertReturn(
+              InstrumentSummaryInfoStockIndexOption,
+              instrument,
+            )
+            break
+          }
+
+          case 'StockIndex': {
+            yield assertReturn(InstrumentSummaryInfoStockIndex, instrument)
+            break
+          }
+
+          case 'StockOption': {
+            yield assertReturn(InstrumentSummaryInfoStockOption, instrument)
+            break
+          }
+
+          case 'Stock': {
+            yield assertReturn(InstrumentSummaryInfoStock, instrument)
+            break
+          }
+
+          default: {
+            throw new Error(`Unknown asset type: ${AssetType as string}`)
+          }
+        }
+      } catch (error) {
+        // deno-lint-ignore no-console
+        console.error(instrument)
+        throw error
+      }
     }
-
-    const assetTypesSet = new Set<string>(options.AssetTypes)
-
-    // Saxobank API filtering by asset type cannot be trusted
-    return instruments.filter((instrument) => assetTypesSet.has(instrument.AssetType))
   }
 }

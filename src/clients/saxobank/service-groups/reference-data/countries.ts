@@ -8,7 +8,7 @@ export class Countries {
     this.#client = client.appendPath('v1/countries')
   }
 
-  async get(): Promise<ReadonlyArray<CountryDetails>> {
-    return await this.#client.getPaginated({ guard: CountryDetails })
+  async *get(): AsyncIterable<CountryDetails, void, undefined> {
+    yield* this.#client.getPaginated({ guard: CountryDetails })
   }
 }

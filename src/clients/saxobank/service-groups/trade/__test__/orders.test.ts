@@ -1,3 +1,4 @@
+import { toArray } from '../../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import type { InstrumentDetailsType } from '../../../types/records/instrument-details.ts'
@@ -44,10 +45,10 @@ async function findSuiteablePrice({ app, assetType, uic, forwardDate }: {
   }
 
   // todo we should acceot this as a parameter
-  const [instrument] = await app.referenceData.instruments.details.get({
+  const [instrument] = await toArray(app.referenceData.instruments.details.get({
     AssetTypes: [assetType],
     Uics: [uic],
-  })
+  }))
   if (instrument === undefined) {
     throw new Error(`Could not determine instrument for ${assetType} ${uic}`)
   }
@@ -145,7 +146,7 @@ describe('trade/orders', () => {
     // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
     balance = 10_000_000,
   }: { balance?: undefined | number } = {}) {
-    const [account] = await app.portfolio.accounts.me.get()
+    const [account] = await toArray(app.portfolio.accounts.me.get())
     if (account === undefined) {
       throw new Error(`Could not determine client for simulation user`)
     }
@@ -665,10 +666,10 @@ describe('trade/orders', () => {
           case 'Rights':
           case 'Stock':
           case 'Fund': {
-            const instruments = await app.referenceData.instruments.details.get({
+            const instruments = await toArray(app.referenceData.instruments.details.get({
               AssetTypes: [assetType],
               limit: Math.max(MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE, 1000),
-            })
+            }))
 
             const filteredInstruments = instruments.filter((candidate) => {
               if ('IsTradable' in candidate && candidate.IsTradable === false) {
@@ -686,10 +687,10 @@ describe('trade/orders', () => {
 
             for (const instrument of instrumentsToTest) {
               await step(`${instrument.Description} (UIC ${instrument.Uic})`, async () => {
-                const [instrumentDetails] = await app.referenceData.instruments.details.get({
+                const [instrumentDetails] = await toArray(app.referenceData.instruments.details.get({
                   AssetTypes: [assetType],
                   Uics: [instrument.Uic],
-                })
+                }))
                 if (instrumentDetails === undefined) {
                   throw new Error(
                     `Could not determine details for ${instrument.Description} (UIC ${instrument.Uic})`,
@@ -721,10 +722,10 @@ describe('trade/orders', () => {
           }
 
           case 'FxForwards': {
-            const instruments = await app.referenceData.instruments.details.get({
+            const instruments = await toArray(app.referenceData.instruments.details.get({
               AssetTypes: [assetType],
               limit: Math.max(MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE, 1000),
-            })
+            }))
 
             const filteredInstruments = instruments.filter((candidate) => {
               if ('IsTradable' in candidate && candidate.IsTradable === false) {
@@ -754,10 +755,10 @@ describe('trade/orders', () => {
                   forwardDate,
                 })
 
-                const [instrumentDetails] = await app.referenceData.instruments.details.get({
+                const [instrumentDetails] = await toArray(app.referenceData.instruments.details.get({
                   AssetTypes: [assetType],
                   Uics: [instrument.Uic],
-                })
+                }))
                 if (instrumentDetails === undefined) {
                   throw new Error(
                     `Could not determine details for ${instrument.Description} (UIC ${instrument.Uic})`,
@@ -801,7 +802,7 @@ describe('trade/orders', () => {
 
   describe('cancelling orders', () => {
     test('Deleting order by order id', async () => {
-      const [account] = await app.portfolio.accounts.me.get()
+      const [account] = await toArray(app.portfolio.accounts.me.get())
       if (account === undefined) {
         throw new Error(`Could not determine account for simulation user`)
       }
@@ -840,7 +841,7 @@ describe('trade/orders', () => {
     })
 
     test('Deleting orders by asset type', async () => {
-      const [account] = await app.portfolio.accounts.me.get()
+      const [account] = await toArray(app.portfolio.accounts.me.get())
       if (account === undefined) {
         throw new Error(`Could not determine account for simulation user`)
       }
@@ -893,7 +894,7 @@ describe('trade/orders', () => {
 
       expect(placeEURUSDOrderResponse.OrderId).not.toEqual(placeEURDKKOrderResponse.OrderId)
 
-      const ordersBeforeDeletingOrder = await app.portfolio.orders.me.get()
+      const ordersBeforeDeletingOrder = await toArray(app.portfolio.orders.me.get())
       expect(ordersBeforeDeletingOrder).toHaveLength(2)
 
       const deleteOrderResponse = await app.trade.orders.delete({
@@ -904,7 +905,7 @@ describe('trade/orders', () => {
 
       expect(deleteOrderResponse).toBeUndefined()
 
-      const ordersAfterDeletingOrder = await app.portfolio.orders.me.get()
+      const ordersAfterDeletingOrder = await toArray(app.portfolio.orders.me.get())
       expect(ordersAfterDeletingOrder).toHaveLength(1)
     })
   })

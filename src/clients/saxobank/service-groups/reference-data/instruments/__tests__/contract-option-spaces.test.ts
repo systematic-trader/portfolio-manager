@@ -1,3 +1,4 @@
+import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
 import { OptionAssetTypeValues } from '../../../../types/records/option-details.ts'
@@ -5,7 +6,7 @@ import { OptionAssetTypeValues } from '../../../../types/records/option-details.
 test('reference-data/instruments/contractoptionspaces', async ({ step }) => {
   using app = new SaxoBankApplication()
 
-  const optionsInstruments = await app.referenceData.instruments.get({ AssetTypes: OptionAssetTypeValues })
+  const optionsInstruments = await toArray(app.referenceData.instruments.get({ AssetTypes: OptionAssetTypeValues }))
 
   const sortedByUic = optionsInstruments.toSorted((left, right) => left.Identifier - right.Identifier)
 

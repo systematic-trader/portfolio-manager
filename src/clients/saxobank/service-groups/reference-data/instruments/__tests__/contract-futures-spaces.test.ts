@@ -1,10 +1,11 @@
+import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
 
 test('reference-data/instruments/futuresspaces', async ({ step }) => {
   using app = new SaxoBankApplication()
 
-  const instruments = await app.referenceData.instruments.get({ AssetTypes: ['ContractFutures'] })
+  const instruments = await toArray(app.referenceData.instruments.get({ AssetTypes: ['ContractFutures'] }))
 
   let count = 0
 
@@ -14,7 +15,7 @@ test('reference-data/instruments/futuresspaces', async ({ step }) => {
       async fn() {
         const spaces = await app.referenceData.instruments.futuresspaces.get({ Uic: instrument.Identifier })
 
-        expect(spaces).toBeDefined()
+        expect(spaces.length).not.toBe(0)
       },
     })
   }

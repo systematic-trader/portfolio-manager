@@ -1,10 +1,11 @@
+import { toArray } from '../../../../../utils/async-iterable.ts'
 import { expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 
 test('reference-data/timezones', async () => {
   using app = new SaxoBankApplication()
 
-  const timezones = await app.referenceData.timezones.get()
+  const timezones = await toArray(app.referenceData.timezones.get())
 
-  expect(timezones).toBeDefined()
+  expect(timezones.length).not.toBe(0)
 })

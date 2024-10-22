@@ -7,7 +7,6 @@ import {
   string,
   unknown,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { AsyncIterablePromise } from '../../utils/async-iterable.ts'
 import { ensureError } from '../../utils/error.ts'
 import { type JSONReadonlyRecord, stringifyJSON } from '../../utils/json.ts'
 import { Timeout } from '../../utils/timeout.ts'
@@ -74,7 +73,7 @@ export class ServiceGroupClient {
     })
   }
 
-  async *#getPaginated<T = unknown>(options: {
+  async *getPaginated<T = unknown>(options: {
     readonly limit?: undefined | number
     readonly path?: undefined | string
     readonly headers?: undefined | Record<string, string>
@@ -123,17 +122,6 @@ export class ServiceGroupClient {
       onError: this.#onError,
       timeout: options.timeout,
     })
-  }
-
-  getPaginated<T = unknown>(options: {
-    readonly limit?: undefined | number
-    readonly path?: undefined | string
-    readonly headers?: undefined | Record<string, string>
-    readonly searchParams?: undefined | SearchParamsRecord
-    readonly guard?: undefined | Guard<T>
-    readonly timeout?: undefined | number
-  } = {}): AsyncIterablePromise<T> {
-    return new AsyncIterablePromise<T>(this.#getPaginated(options))
   }
 
   async post<T = unknown>(options: {
@@ -369,10 +357,10 @@ const FetchPaginatedDataGuards = new WeakMap<
   Guard<unknown>,
   Guard<
     undefined | {
-      readonly Data: readonly unknown[]
-      readonly __count: number | undefined
-      readonly __next: string | undefined
-      readonly MaxRows: number | undefined
+      readonly Data: undefined | readonly unknown[]
+      readonly __count: undefined | number
+      readonly __next: undefined | string
+      readonly MaxRows: undefined | number
     }
   >
 >()
@@ -402,7 +390,7 @@ async function* fetchPaginatedData<T = unknown>({
     | undefined
     | Guard<
       undefined | {
-        readonly Data: readonly T[]
+        readonly Data: undefined | readonly T[]
         readonly __count: number | undefined
         readonly __next: string | undefined
         readonly MaxRows: number | undefined
@@ -411,7 +399,7 @@ async function* fetchPaginatedData<T = unknown>({
 
   if (bodyGuard === undefined) {
     bodyGuard = optional(props({
-      Data: array(guard),
+      Data: optional(array(guard)),
       __count: optional(integer()),
       __next: optional(string()),
       MaxRows: optional(integer()),
@@ -437,6 +425,10 @@ async function* fetchPaginatedData<T = unknown>({
   }
 
   const { __next, Data } = resourceBody
+
+  if (Data === undefined) {
+    return
+  }
 
   if (__next === undefined) {
     if (limit !== undefined && Data.length > limit) {

@@ -8,7 +8,7 @@ export class CurrencyPairs {
     this.#client = client.appendPath('v1/currencypairs')
   }
 
-  async get(): Promise<ReadonlyArray<CurrencyPairDetails>> {
-    return await this.#client.getPaginated({ guard: CurrencyPairDetails })
+  async *get(): AsyncIterable<CurrencyPairDetails, void, undefined> {
+    yield* this.#client.getPaginated({ guard: CurrencyPairDetails })
   }
 }

@@ -211,3 +211,17 @@ export class AsyncIterablePromise<R> implements AsyncIterable<R>, PromiseLike<re
     return this.#resolve().then(onFulfilled, onRejected)
   }
 }
+
+export const toArray = async <T>(iterable: AsyncIterable<T>): Promise<T[]> => {
+  if (isAsyncIterable(iterable)) {
+    const array: T[] = []
+
+    for await (const item of iterable) {
+      array.push(item)
+    }
+
+    return array
+  }
+
+  throw new TypeError('Expected an AsyncIterable.')
+}

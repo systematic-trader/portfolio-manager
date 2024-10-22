@@ -37,37 +37,35 @@ import {
 export class InstrumentsDetails {
   readonly #client: ServiceGroupClient
 
-  #resourceURLValid: undefined | boolean = undefined
-
   constructor({ client }: { readonly client: ServiceGroupClient }) {
     this.#client = client.appendPath('details')
   }
 
-  async get<T extends AssetType>(options: {
+  get<T extends AssetType>(options: {
     readonly AssetTypes: readonly [T, ...ReadonlyArray<T>]
     readonly Uics?: undefined | ReadonlyArray<number | string>
     readonly AccountKey?: undefined | string
     readonly Tags?: undefined | ReadonlyArray<string>
     readonly limit?: undefined | number
-  }): Promise<
-    ReadonlyArray<
-      Extract<
-        InstrumentDetailsType,
-        { readonly AssetType: T }
-      >
-    >
+  }): AsyncIterable<
+    Extract<
+      InstrumentDetailsType,
+      { readonly AssetType: T }
+    >,
+    void,
+    undefined
   >
 
-  async get(
+  get(
     options?: undefined | {
       readonly AssetTypes?: undefined | readonly []
       readonly AccountKey?: undefined | string
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly limit?: undefined | number
     },
-  ): Promise<ReadonlyArray<InstrumentDetailsType>>
+  ): AsyncIterable<InstrumentDetailsType, void, undefined>
 
-  async get(
+  async *get(
     options?: undefined | {
       readonly AssetTypes?: undefined | ReadonlyArray<AssetType>
       readonly Uics?: undefined | ReadonlyArray<number | string>
@@ -75,7 +73,7 @@ export class InstrumentsDetails {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly limit?: undefined | number
     },
-  ): Promise<ReadonlyArray<InstrumentDetailsType>> {
+  ): AsyncIterable<InstrumentDetailsType, void, undefined> {
     const { AssetTypes, Uics, AccountKey, Tags, limit } = options ?? {}
 
     if (Uics !== undefined && Uics.length > 0 && (AssetTypes === undefined || AssetTypes.length === 0)) {
@@ -90,44 +88,22 @@ export class InstrumentsDetails {
       Tags,
     }
 
-    const instrumentsUnverified = await this.#client.getPaginated<InstrumentDetailsType>({ searchParams, limit }).catch(
-      async (error) => {
-        // Saxobank API response with a 404 if an asset type has no instruments in their database
-        if (error instanceof HTTPClientError && error.statusCode === 404) {
-          if (this.#resourceURLValid === undefined) {
-            // Assumes "Stock" as asset type always exists
-            // Ensure a invalid URL is not the cause of the 404
-            this.#resourceURLValid = await this.#client.getPaginated<InstrumentDetailsType>({
-              searchParams: { AssetTypes: ['Stock'] },
-              limit: 100, // AssetTypes: ['Stock'] might contain other asset types since Saxobank API cannot be trusted to return the correct asset type if the asset type is specified in searchParams
-            }).then(() => true).catch(() => false)
-          }
-
-          if (this.#resourceURLValid) {
-            return []
-          }
-        }
-
-        throw error
-      },
-    )
-
-    if (this.#resourceURLValid === undefined) {
-      this.#resourceURLValid = true
-    }
-
     const assetTypesSet = AssetTypes === undefined || AssetTypes.length === 0 ? undefined : new Set<string>(AssetTypes)
 
-    const instruments = instrumentsUnverified.reduce<InstrumentDetailsType[]>((accumulation, instrument) => {
-      // Saxobank API cannot be trusted to return the correct asset type if the asset type is specified in searchParams
-      if (assetTypesSet === undefined || assetTypesSet.has(instrument.AssetType)) {
-        accumulation.push(assertReturnInstrumentDetails(instrument))
+    try {
+      for await (const instrument of this.#client.getPaginated<InstrumentDetailsType>({ searchParams, limit })) {
+        if (assetTypesSet === undefined || assetTypesSet.has(instrument.AssetType)) {
+          yield assertReturnInstrumentDetails(instrument)
+        }
+      }
+    } catch (error) {
+      // Saxobank API response with a 404 if an asset type has no instruments in their database
+      if (error instanceof HTTPClientError && error.statusCode === 404) {
+        return
       }
 
-      return accumulation
-    }, [])
-
-    return instruments
+      throw error
+    }
   }
 }
 

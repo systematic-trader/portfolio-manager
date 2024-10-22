@@ -8,14 +8,11 @@ export class AlgoStrategies {
     this.#client = client.appendPath('v1/algostrategies')
   }
 
-  async get({ name }: { name: string }): Promise<Strategy>
-  async get({ name }: { name?: undefined }): Promise<ReadonlyArray<Strategy>>
-  async get(): Promise<ReadonlyArray<Strategy>>
-  async get({ name }: { name?: undefined | string } = {}): Promise<ReadonlyArray<Strategy> | Strategy> {
+  async *get({ name }: { name?: undefined | string } = {}): AsyncIterable<Strategy> {
     if (name === undefined) {
-      return await this.#client.getPaginated({ guard: Strategy })
+      return yield* this.#client.getPaginated({ guard: Strategy })
     }
 
-    return await this.#client.get({ guard: Strategy, path: name })
+    yield this.#client.get({ guard: Strategy, path: name })
   }
 }
