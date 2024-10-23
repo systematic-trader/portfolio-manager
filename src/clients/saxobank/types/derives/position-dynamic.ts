@@ -7,8 +7,8 @@ import {
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { CalculationReliability } from './calculation-reliability.ts'
-import { PriceType } from './price-type.ts'
 import { MarketState } from './market-state.ts'
+import { PriceType } from './price-type.ts'
 import { SettlementInstructions } from './settlement-instructions.ts'
 
 export interface PositionDynamic extends GuardType<typeof PositionDynamic> {}
@@ -98,8 +98,8 @@ export const PositionDynamic = props({
   UnderlyingCurrentPrice: optional(number()),
 
   /** Not documented */
-  ProfitLossOnTradeIntraday: number(),
+  ProfitLossOnTradeIntraday: optional(number()),
 
   /** Not documented */
-  ProfitLossOnTradeIntradayInBaseCurrency: number(),
+  ProfitLossOnTradeIntradayInBaseCurrency: optional(number()),
 })

@@ -11,6 +11,7 @@ const FieldGroups: PositionFieldGroup[] = [
   'PositionIdOnly',
   'PositionView',
 ]
+
 export class Me {
   readonly #client: ServiceGroupClient
 

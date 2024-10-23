@@ -1,5 +1,6 @@
 import { AssertionError } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { toArray } from '../../../../../utils/async-iterable.ts'
+import { Environment } from '../../../../../utils/environment.ts'
 import { describe, expect, test } from '../../../../../utils/testing.ts'
 import { HTTPClientError } from '../../../../http-client.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
@@ -31,7 +32,10 @@ function findSuitableOptionInstrument(optionSpaces: readonly ContractOptionEntry
 
 describe('trade/info-prices', () => {
   test('Getting info prices for asset type', async ({ step }) => {
-    using app = new SaxoBankApplication()
+    using app = new SaxoBankApplication({
+      key: Environment['ROVER_SAXOBANK_LIVE_APP_KEY'],
+      secret: Environment['ROVER_SAXOBANK_LIVE_APP_SECRET'],
+    })
 
     const assetTypeCandidates: InfoPricesParameters[keyof InfoPricesParameters]['AssetType'][] = [
       'Bond',
