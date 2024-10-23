@@ -145,7 +145,7 @@ describe('trade/orders', () => {
   async function resetAccount({
     // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
     balance = 10_000_000,
-  }: { balance?: undefined | number } = {}) {
+  }: { readonly balance?: undefined | number } = {}) {
     const [account] = await toArray(app.portfolio.accounts.me.get())
     if (account === undefined) {
       throw new Error(`Could not determine client for simulation user`)
