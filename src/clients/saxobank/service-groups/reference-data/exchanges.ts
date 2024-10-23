@@ -12,7 +12,7 @@ export class Exchanges {
     { exchangeId }: { exchangeId?: undefined | string } = {},
   ): AsyncGenerator<ExchangeDetails, void, undefined> {
     if (exchangeId === undefined) {
-      yield* this.#client.getPaginated({ guard: ExchangeDetails })
+      return yield* this.#client.getPaginated({ guard: ExchangeDetails })
     }
 
     yield this.#client.get({ guard: ExchangeDetails, path: exchangeId })
