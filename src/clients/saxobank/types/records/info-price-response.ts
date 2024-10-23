@@ -131,24 +131,24 @@ export interface InfoPriceResponseCfdOnCompanyWarrant extends GuardType<typeof I
 export const InfoPriceResponseStock = props({
   AssetType: literal('Stock'),
   Uic: integer(),
-  PriceInfo: PriceInfo,
-  PriceInfoDetails: PriceInfoDetails,
+  PriceInfo: optional(PriceInfo),
+  PriceInfoDetails: optional(PriceInfoDetails),
   DisplayAndFormat,
   LastUpdated: string({ format: 'date-iso8601' }),
   MarketDepth: optional(MarketDepth),
   PriceSource: optional(string()),
   Quote: Quote,
   ErrorCode: optional(TradingErrorCode),
-  Commissions: Commissions,
-  HistoricalChanges: HistoricalChanges,
-  InstrumentPriceDetails: InstrumentPriceDetails.pick([
+  Commissions: optional(Commissions),
+  HistoricalChanges: optional(HistoricalChanges),
+  InstrumentPriceDetails: optional(InstrumentPriceDetails.pick([
     'AverageVolume',
     'AverageVolume30Days',
     'IsMarketOpen',
     'RelativeVolume',
     'ShortTradeDisabled',
     'ValueDate',
-  ]),
+  ])),
 })
 
 export interface InfoPriceResponseStock extends GuardType<typeof InfoPriceResponseStock> {}
@@ -156,17 +156,17 @@ export interface InfoPriceResponseStock extends GuardType<typeof InfoPriceRespon
 export const InfoPriceResponseCfdOnStock = props({
   AssetType: literal('CfdOnStock'),
   Uic: integer(),
-  PriceInfo: PriceInfo,
-  PriceInfoDetails: PriceInfoDetails,
+  PriceInfo: optional(PriceInfo),
+  PriceInfoDetails: optional(PriceInfoDetails),
   DisplayAndFormat,
   LastUpdated: string({ format: 'date-iso8601' }),
-  MarketDepth: MarketDepth,
+  MarketDepth: optional(MarketDepth),
   PriceSource: optional(string()),
   Quote: Quote,
   ErrorCode: optional(TradingErrorCode),
-  Commissions: Commissions,
-  HistoricalChanges: HistoricalChanges,
-  InstrumentPriceDetails: InstrumentPriceDetails.pick([
+  Commissions: optional(Commissions),
+  HistoricalChanges: optional(HistoricalChanges),
+  InstrumentPriceDetails: optional(InstrumentPriceDetails.pick([
     'AverageVolume',
     'AverageVolume30Days',
     'CfdBorrowingCost',
@@ -176,7 +176,8 @@ export const InfoPriceResponseCfdOnStock = props({
     'RelativeVolume',
     'ShortTradeDisabled',
     'ValueDate',
-  ]),
+    'CfdPriceAdjustment',
+  ])),
 })
 
 export interface InfoPriceResponseCfdOnStock extends GuardType<typeof InfoPriceResponseCfdOnStock> {}
@@ -325,6 +326,7 @@ export const InfoPriceResponseCfdOnEtc = props({
     'RelativeVolume',
     'ShortTradeDisabled',
     'ValueDate',
+    'CfdPriceAdjustment',
   ]),
 })
 
@@ -342,7 +344,7 @@ export const InfoPriceResponseEtf = props({
   Quote: Quote,
   ErrorCode: optional(TradingErrorCode),
   Commissions: Commissions,
-  HistoricalChanges: HistoricalChanges,
+  HistoricalChanges: optional(HistoricalChanges),
   InstrumentPriceDetails: InstrumentPriceDetails.pick([
     'AverageVolume',
     'AverageVolume30Days',
@@ -378,6 +380,7 @@ export const InfoPriceResponseCfdOnEtf = props({
     'RelativeVolume',
     'ShortTradeDisabled',
     'ValueDate',
+    'CfdPriceAdjustment',
   ]),
 })
 
@@ -484,6 +487,7 @@ export const InfoPriceResponseCfdOnFund = props({
     'RelativeVolume',
     'ShortTradeDisabled',
     'ValueDate',
+    'CfdPriceAdjustment',
   ]),
 })
 

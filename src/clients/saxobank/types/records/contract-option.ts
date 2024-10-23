@@ -1,4 +1,9 @@
-import { integer, number, props } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import {
+  type GuardType,
+  integer,
+  number,
+  props,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { PutCall } from '../derives/put-call.ts'
 import { TradingStatus } from '../derives/trading-status.ts'
 
@@ -15,3 +20,5 @@ export const ContractOption = props({
   /** Uic of the underlying instrument for this particular option */
   UnderlyingUic: integer(),
 })
+
+export interface ContractOption extends GuardType<typeof ContractOption> {}
