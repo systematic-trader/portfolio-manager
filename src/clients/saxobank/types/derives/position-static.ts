@@ -12,8 +12,8 @@ import { AssetType } from './asset-type.ts'
 import { CorrelationType } from './correlation-type.ts'
 import { FixedIncomeData } from './fixed-income-data.ts'
 import { OptionsData } from './options-data.ts'
-import { RelatedOrderInfo } from './related-order-info.ts'
 import { PositionStatus } from './position-status.ts'
+import { RelatedOrderInfo } from './related-order-info.ts'
 import { ToOpenClose } from './to-open-close.ts'
 
 export interface PositionStatic extends GuardType<typeof PositionStatic> {}
@@ -101,7 +101,7 @@ export const PositionStatic = props({
   OriginatingAlgoOrderStrategyId: optional(string()),
 
   /** List of information about related open orders. */
-  RelatedOpenOrders: array(RelatedOrderInfo),
+  RelatedOpenOrders: optional(array(RelatedOrderInfo)),
 
   /** Id of possible related position. */
   RelatedPositionId: optional(string()),
