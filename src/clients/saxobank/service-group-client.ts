@@ -80,7 +80,7 @@ export class ServiceGroupClient {
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
     readonly timeout?: undefined | number
-  }): AsyncGenerator<T, void, undefined> {
+  } = {}): AsyncGenerator<T, void, undefined> {
     if (typeof options.limit === 'number') {
       if (options.limit === 0) {
         return
