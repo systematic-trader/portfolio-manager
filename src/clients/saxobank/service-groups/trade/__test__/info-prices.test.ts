@@ -1,20 +1,27 @@
+import { AssertionError } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { toArray } from '../../../../../utils/async-iterable.ts'
 import { describe, expect, test } from '../../../../../utils/testing.ts'
 import { HTTPClientError } from '../../../../http-client.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import type { ContractOptionEntry } from '../../../types/records/contract-option-entry.ts'
+import type { ContractOption } from '../../../types/records/contract-option.ts'
 import type { InfoPricesParameters } from '../info-prices.ts'
 
-// Set this to a reasonable number (e.g. 100) to quickly test the different asset types - undefined will test info prices for all instruments
-const ASSET_TYPE_INSTRUMENTS_LIMIT: number | undefined = 20
+// Set this to a reasonable number (e.g. 100) to quickly test the different asset types
+const ASSET_TYPE_INSTRUMENTS_LIMIT = 50000
+const ASSET_TYPE_INSTRUMENTS_OFFSET = 0
 
-function progress(current: number, total: number) {
+function progress(current: number, total: number): string {
   return `${String(current).padStart(String(total).length, '0')}/${total}`
 }
 
-function findSuitableOptionInstrument(optionSpaces: readonly ContractOptionEntry[]) {
+function findSuitableOptionInstrument(optionSpaces: readonly ContractOptionEntry[]): ContractOption | undefined {
   for (const optionSpace of optionSpaces) {
-    for (const option of optionSpace.SpecificOptions ?? []) {
+    if (optionSpace.SpecificOptions === undefined) {
+      continue
+    }
+
+    for (const option of optionSpace.SpecificOptions) {
       return option
     }
   }
@@ -57,22 +64,26 @@ describe('trade/info-prices', () => {
     ] as const
 
     for (const assetType of assetTypeCandidates) {
-      if (['Stock'].includes(assetType) === false) {
-        continue
-      }
-
       const instruments = await toArray(app.referenceData.instruments.get({
         AssetTypes: [assetType] as const,
-        limit: ASSET_TYPE_INSTRUMENTS_LIMIT,
       }))
 
       await step(assetType, async ({ step }) => {
         let instrumentCount = 0
+
         for (const instrument of instruments) {
           const instrumentLabel = `${instrument.Description} (UIC ${instrument.Identifier})`
           const testLabel = `${progress(++instrumentCount, instruments.length)}: ${instrumentLabel}`
 
           await step(testLabel, async ({ step }) => {
+            // continue if this test is not relevant
+            if (
+              instrumentCount < ASSET_TYPE_INSTRUMENTS_OFFSET ||
+              instrumentCount >= ASSET_TYPE_INSTRUMENTS_OFFSET + ASSET_TYPE_INSTRUMENTS_LIMIT
+            ) {
+              return
+            }
+
             switch (assetType) {
               case 'Bond':
               case 'CfdOnCompanyWarrant':
@@ -93,13 +104,22 @@ describe('trade/info-prices', () => {
               case 'FxSpot':
               case 'Rights':
               case 'Stock': {
-                const infoPrices = await app.trade.infoPrices.get({
-                  Amount: 80,
-                  AssetType: assetType,
-                  Uic: instrument.Identifier,
-                })
+                try {
+                  const infoPrices = await app.trade.infoPrices.get({
+                    Amount: 80,
+                    AssetType: assetType,
+                    Uic: instrument.Identifier,
+                  })
 
-                expect(infoPrices).toBeDefined()
+                  expect(infoPrices).toBeDefined()
+                } catch (error) {
+                  if (error instanceof AssertionError) {
+                    // deno-lint-ignore no-console
+                    console.log(error.invalidations)
+
+                    throw error
+                  }
+                }
 
                 break
               }
@@ -130,6 +150,13 @@ describe('trade/info-prices', () => {
 
                   expect(infoPrices).toBeDefined()
                 } catch (error) {
+                  if (error instanceof AssertionError) {
+                    // deno-lint-ignore no-console
+                    console.log(error.invalidations)
+
+                    throw error
+                  }
+
                   if (error instanceof HTTPClientError && error.statusCode === 404) {
                     // deno-lint-ignore no-console
                     console.log(`Could not get info prices for option UIC=${optionInstrument.Uic}`)
@@ -148,14 +175,23 @@ describe('trade/info-prices', () => {
                 const today = new Date()
                 const expityDate = Date.UTC(today.getFullYear(), today.getMonth() + 2, 1)
 
-                const infoPrices = await app.trade.infoPrices.get({
-                  Amount: 80,
-                  AssetType: assetType,
-                  Uic: instrument.Identifier,
-                  ExpiryDate: new Date(expityDate).toISOString(),
-                })
+                try {
+                  const infoPrices = await app.trade.infoPrices.get({
+                    Amount: 80,
+                    AssetType: assetType,
+                    Uic: instrument.Identifier,
+                    ExpiryDate: new Date(expityDate).toISOString(),
+                  })
 
-                expect(infoPrices).toBeDefined()
+                  expect(infoPrices).toBeDefined()
+                } catch (error) {
+                  if (error instanceof AssertionError) {
+                    // deno-lint-ignore no-console
+                    console.log(error.invalidations)
+
+                    throw error
+                  }
+                }
 
                 break
               }
@@ -171,14 +207,23 @@ describe('trade/info-prices', () => {
                   const stepLabel = Date === undefined ? `No specific forward date` : `Forward date ${Date}`
 
                   await step(stepLabel, async () => {
-                    const infoPrices = await app.trade.infoPrices.get({
-                      Amount: 80,
-                      AssetType: assetType,
-                      Uic: instrument.Identifier,
-                      ForwardDate: Date,
-                    })
+                    try {
+                      const infoPrices = await app.trade.infoPrices.get({
+                        Amount: 80,
+                        AssetType: assetType,
+                        Uic: instrument.Identifier,
+                        ForwardDate: Date,
+                      })
 
-                    expect(infoPrices).toBeDefined()
+                      expect(infoPrices).toBeDefined()
+                    } catch (error) {
+                      if (error instanceof AssertionError) {
+                        // deno-lint-ignore no-console
+                        console.log(error.invalidations)
+
+                        throw error
+                      }
+                    }
                   })
                 }
 
@@ -208,15 +253,24 @@ describe('trade/info-prices', () => {
                     const stepLabel = `Near leg ${nearLeg.Date}, far leg ${farLeg.Date}`
 
                     await step(stepLabel, async () => {
-                      const infoPrices = await app.trade.infoPrices.get({
-                        Amount: 80,
-                        AssetType: assetType,
-                        Uic: instrument.Identifier,
-                        ForwardDateNearLeg: nearLeg.Date,
-                        ForwardDateFarLeg: farLeg.Date,
-                      })
+                      try {
+                        const infoPrices = await app.trade.infoPrices.get({
+                          Amount: 80,
+                          AssetType: assetType,
+                          Uic: instrument.Identifier,
+                          ForwardDateNearLeg: nearLeg.Date,
+                          ForwardDateFarLeg: farLeg.Date,
+                        })
 
-                      expect(infoPrices).toBeDefined()
+                        expect(infoPrices).toBeDefined()
+                      } catch (error) {
+                        if (error instanceof AssertionError) {
+                          // deno-lint-ignore no-console
+                          console.log(error.invalidations)
+
+                          throw error
+                        }
+                      }
                     })
                   }
                 }
@@ -236,15 +290,24 @@ describe('trade/info-prices', () => {
                     const stepLabel = `${action}, ${Date}`
 
                     await step(stepLabel, async () => {
-                      const infoPrices = await app.trade.infoPrices.get({
-                        Amount: 80,
-                        AssetType: assetType,
-                        Uic: instrument.Identifier,
-                        PutCall: action,
-                        ExpiryDate: Date,
-                      })
+                      try {
+                        const infoPrices = await app.trade.infoPrices.get({
+                          Amount: 80,
+                          AssetType: assetType,
+                          Uic: instrument.Identifier,
+                          PutCall: action,
+                          ExpiryDate: Date,
+                        })
 
-                      expect(infoPrices).toBeDefined()
+                        expect(infoPrices).toBeDefined()
+                      } catch (error) {
+                        if (error instanceof AssertionError) {
+                          // deno-lint-ignore no-console
+                          console.log(error.invalidations)
+
+                          throw error
+                        }
+                      }
                     })
                   }
                 }

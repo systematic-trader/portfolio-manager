@@ -1,6 +1,7 @@
 import {
   type GuardType,
   integer,
+  literal,
   number,
   optional,
   props,
@@ -36,6 +37,9 @@ const Base = props({
 
   /** Not documented */
   PriceSourceType: PriceSourceType,
+
+  /** Not documented */
+  PriceValueType: optional(literal('AuctionPrice')),
 })
 
 /**

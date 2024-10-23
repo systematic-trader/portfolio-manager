@@ -1,6 +1,7 @@
 import {
   type GuardType,
   number,
+  optional,
   props,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
@@ -18,7 +19,7 @@ export const PriceInfo = props({
   Low: number(),
 
   /** The net change in price (Mid price – LastClose price) */
-  NetChange: number(),
+  NetChange: optional(number()),
 
   /**
    * The percent change in price
@@ -26,5 +27,5 @@ export const PriceInfo = props({
    * If NetChange less than 0, value = -100
    * If NetChange equal to 0, value = 0
    * If NetChange greater than 100, value = +100 */
-  PercentChange: number(),
+  PercentChange: optional(number()),
 })

@@ -65,7 +65,7 @@ export const Greeks = props({
   InstrumentVega: optional(number()),
 
   /** The mid rate for the implied volatility used in pricing this option */
-  MidVol: number(),
+  MidVol: optional(number()),
 
   /** InstrumentTheta of the position in account currency */
   PositionThetaInAccountCurrency: optional(number()),
