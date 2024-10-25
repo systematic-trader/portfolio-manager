@@ -214,7 +214,7 @@ export const BalanceResponse = props({
    * Current value of unrealized positions incl.
    * costs, cash balance and transactions not booked.
    */
-  TotalValue: (number()),
+  TotalValue: number(),
 
   /** The utilization state and maximum trading credit limit */
   TradingLine: optional(LineStatus),
