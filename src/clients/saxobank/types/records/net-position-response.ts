@@ -4,11 +4,11 @@ import {
   props,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { Greeks } from '../derives/greeks.ts'
 import { InstrumentDisplayAndFormat } from '../derives/instrument-display-and-format.ts'
 import { InstrumentExchangeDetails } from '../derives/instrument-exchange-details.ts'
-import { Greeks } from '../derives/greeks.ts'
-import { NetPositionStatic } from '../derives/net-position-static.ts'
 import { NetPositionDynamic } from '../derives/net-position-dynamic.ts'
+import { NetPositionStatic } from '../derives/net-position-static.ts'
 
 export interface NetPositionResponse extends GuardType<typeof NetPositionResponse> {}
 
