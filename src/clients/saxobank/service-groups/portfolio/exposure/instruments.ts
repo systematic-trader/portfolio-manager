@@ -1,5 +1,5 @@
 import type { ServiceGroupClient } from '../../../service-group-client.ts'
-import { Me } from './currency/me.ts'
+import { Me } from './instruments/me.ts'
 
 export class Instruments {
   readonly me: Me

@@ -2,11 +2,25 @@ import { describe, expect, test } from '../../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../../saxobank-application.ts'
 
 describe('portfolio/exposure/currency/me', () => {
-  test('response passes guard', async () => {
-    using app = new SaxoBankApplication()
+  describe('live', () => {
+    using appLive = new SaxoBankApplication({
+      type: 'Live',
+    })
 
-    const me = await app.portfolio.exposure.currency.me.get()
+    test('response passes guard', async () => {
+      const me = await appLive.portfolio.exposure.currency.me.get()
+      expect(me).toBeDefined()
+    })
+  })
 
-    expect(me).toBeDefined()
+  describe('simulation', () => {
+    using appSimulation = new SaxoBankApplication({
+      type: 'Simulation',
+    })
+
+    test('response passes guard', async () => {
+      const me = await appSimulation.portfolio.exposure.currency.me.get()
+      expect(me).toBeDefined()
+    })
   })
 })
