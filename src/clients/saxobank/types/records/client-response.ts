@@ -138,5 +138,5 @@ export const ClientResponse = props({
   CountryOfResidence: optional(CountryCodeA2),
 
   /** Not documented */
-  PartnerPlatformId: (string()),
+  PartnerPlatformId: string(),
 })
