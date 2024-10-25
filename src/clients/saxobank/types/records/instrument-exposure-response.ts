@@ -18,48 +18,55 @@ export const InstrumentExposureResponse = props({
   /** Sum exposure of positions in instrument */
   Amount: number(),
 
-  /** The AssetType. */
+  /** The AssetType */
+  // todo this is probably a union type - looks like it's most relevant for options and fx forwards
   AssetType: AssetType,
 
-  /** The average price of all the positions that make up the exposure. */
+  /** The average price of all the positions that make up the exposure */
   AverageOpenPrice: number(),
 
-  /** If an error was encountered this code indicates source of the calculation error. */
+  /** If an error was encountered this code indicates source of the calculation error */
   CalculationReliability: CalculationReliability,
 
-  /** Indicates if the exposure may be closed. */
+  /** Indicates if the exposure may be closed */
   CanBeClosed: boolean(),
 
-  /** Information about the instrument and how to display it. */
+  /** Information about the instrument and how to display it */
   DisplayAndFormat: InstrumentDisplayAndFormat,
 
-  /** The ExpiryDate. */
+  /** The ExpiryDate */
   ExpiryDate: optional(string({ format: 'date-iso8601' })),
 
-  /** Percent change in instrument's price between Previous Close and current Last Traded price. */
+  /** Percent change in instrument's price between Previous Close and current Last Traded price */
   InstrumentPriceDayPercentChange: number(),
 
-  /** LowerBarrier for digital option. */
+  /** LowerBarrier for digital option */
   LowerBarrier: optional(number()),
 
-  /** The exposure net position id. May be used to fetch the net position or open positions of the net position from the Open Positions service. */
+  /**
+   * The exposure net position id.
+   * May be used to fetch the net position or open positions of the net position from the Open Positions service
+   */
   NetPositionId: string(),
 
-  /** The P/L on the trade in the currency in which the instrument is traded. */
+  /** The P/L on the trade in the currency in which the instrument is traded */
   ProfitLossOnTrade: number(),
 
-  /** The Put/Call value of the option. */
+  /** The Put/Call value of the option */
   PutCall: optional(PutCall),
 
-  /** The strike price of the option. */
+  /** The strike price of the option */
   Strike: optional(number()),
 
-  /** Unique id of the instrument. */
+  /** Unique id of the instrument */
   Uic: integer(),
 
-  /** UpperBarrier for digital option. */
+  /** UpperBarrier for digital option */
   UpperBarrier: optional(number()),
 
-  /** The value date. Only used to distinguish FxForwards. */
+  /**
+   * The value date.
+   * Only used to distinguish FxForwards.
+   */
   ValueDate: optional(string({ format: 'date-iso8601' })),
 })

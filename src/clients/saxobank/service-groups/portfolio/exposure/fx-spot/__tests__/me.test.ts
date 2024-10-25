@@ -1,12 +1,26 @@
 import { describe, expect, test } from '../../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../../saxobank-application.ts'
 
-describe('portfolio/exposure/fxSpot/me', () => {
-  test('response passes guard', async () => {
-    using app = new SaxoBankApplication()
+describe('portfolio/exposure/fx-spot/me', () => {
+  describe('live', () => {
+    using appLive = new SaxoBankApplication({
+      type: 'Live',
+    })
 
-    const me = await app.portfolio.exposure.fxSpot.me.get()
+    test('response passes guard', async () => {
+      const me = await appLive.portfolio.exposure.fxSpot.me.get()
+      expect(me).toBeDefined()
+    })
+  })
 
-    expect(me).toBeDefined()
+  describe('simulation', () => {
+    using appSimulation = new SaxoBankApplication({
+      type: 'Simulation',
+    })
+
+    test('response passes guard', async () => {
+      const me = await appSimulation.portfolio.exposure.fxSpot.me.get()
+      expect(me).toBeDefined()
+    })
   })
 })

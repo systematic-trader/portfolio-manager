@@ -1,6 +1,6 @@
-import { array } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { array, optional } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { ServiceGroupClient } from '../../../../service-group-client.ts'
-import { CurrencyExposuresResponse } from '../../../../types/records/currency-exposures-response.ts'
+import { InstrumentExposureResponse } from '../../../../types/records/instrument-exposure-response.ts'
 
 export class Me {
   readonly #client: ServiceGroupClient
@@ -10,9 +10,11 @@ export class Me {
   }
 
   /** Returns a list instruments and net exposures. */
-  async get(): Promise<ReadonlyArray<CurrencyExposuresResponse>> {
-    return await this.#client.get({
-      guard: array(CurrencyExposuresResponse),
+  async get(): Promise<ReadonlyArray<InstrumentExposureResponse>> {
+    const exposure = await this.#client.get({
+      guard: optional(array(InstrumentExposureResponse)),
     })
+
+    return exposure ?? []
   }
 }
