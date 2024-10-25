@@ -7,6 +7,7 @@ import {
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { AssetType } from '../derives/asset-type.ts'
+import { LanguageCodeA2 } from '../derives/language.ts'
 import { LoginStatus } from '../derives/login-status.ts'
 
 export interface UserResponse extends GuardType<typeof UserResponse> {}
@@ -18,11 +19,18 @@ export const UserResponse = props({
   /** Unique key identifying the client that owns the user. */
   ClientKey: string(),
 
-  /** Selected culture for this user. Five letter language culture name. Fx. en-GB */
-  Culture: string(), // todo update when reference data is done
+  /**
+   * Selected culture for this user.
+   * Five letter language culture name.
+   * Fx. en-GB
+   */
+  Culture: string(),
 
-  /** Selected language for this user. The two letter ISO 639-1 language code. See Reference Data Languages endpoint for supported languages. */
-  Language: string(), // todo update when reference data is done
+  /**
+   * Selected language for this user. The two letter ISO 639-1 language code.
+   * See Reference Data Languages endpoint for supported languages.
+   */
+  Language: LanguageCodeA2,
 
   /* Status of last login or login attempt */
   LastLoginStatus: LoginStatus,
