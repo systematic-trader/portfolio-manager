@@ -3,11 +3,25 @@ import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
 
 describe('portfolio/account-groups/me', () => {
-  test('response passes guard', async () => {
-    using app = new SaxoBankApplication()
+  describe('live', () => {
+    using appLive = new SaxoBankApplication({
+      type: 'Live',
+    })
 
-    const [me] = await toArray(app.portfolio.accountGroups.me.get())
+    test('response passes guard', async () => {
+      const [me] = await toArray(appLive.portfolio.accountGroups.me.get())
+      expect(me).toBeDefined()
+    })
+  })
 
-    expect(me).toBeDefined()
+  describe('simulation', () => {
+    using appSimulation = new SaxoBankApplication({
+      type: 'Simulation',
+    })
+
+    test('response passes guard', async () => {
+      const accountGroups = await toArray(appSimulation.portfolio.accountGroups.me.get())
+      expect(accountGroups).toStrictEqual([]) // there are no account groups in simulation
+    })
   })
 })
