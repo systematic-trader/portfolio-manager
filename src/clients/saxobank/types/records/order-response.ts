@@ -210,7 +210,7 @@ export const OrderResponse = props({
   OwnerId: optional(string()),
 
   /** Price at which the order is triggered. */
-  Price: number(),
+  Price: optional(number()),
 
   /**
    * List of information about related open orders.
