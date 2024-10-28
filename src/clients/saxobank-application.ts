@@ -116,6 +116,8 @@ export class SaxoBankApplication implements Disposable {
     return this.#httpClient
   }
 
+  readonly type: SaxoBankApplicationType
+
   readonly chart: Chart
   readonly clientServices: ClientServices
   readonly portfolio: Portfolio
@@ -129,32 +131,32 @@ export class SaxoBankApplication implements Disposable {
       throw new Error('Invalid SAXOBANK_APP_TYPE environment variable. Must be "Live" or "Simulation"')
     }
 
-    const type = settings.type ?? envType ?? 'Live'
+    this.type = settings.type ?? envType ?? 'Live'
 
     const sessionCredentialsPath = settings.authentication?.store === false
       ? undefined
       : settings.authentication?.store === undefined || settings.authentication.store === true
-      ? Config[type].storedAuthenticationFile
+      ? Config[this.type].storedAuthenticationFile
       : settings.authentication.store
 
-    const authenticationURL = new URL(Config[type].authenticationURL)
+    const authenticationURL = new URL(Config[this.type].authenticationURL)
 
-    const key = settings.key ?? Environment[Config[type].env.key]
+    const key = settings.key ?? Environment[Config[this.type].env.key]
 
     if (key === undefined) {
       throw new Error(
         `No SaxoBank application key provided. Did you forget to set the "${
-          Config[type].env.key
+          Config[this.type].env.key
         }" environment variable?`,
       )
     }
 
-    const secret = settings.secret ?? Environment[Config[type].env.secret]
+    const secret = settings.secret ?? Environment[Config[this.type].env.secret]
 
     if (secret === undefined) {
       throw new Error(
         `No SaxoBank application secret provided. Did you forget to set the "${
-          Config[type].env.secret
+          Config[this.type].env.secret
         }" environment variable?`,
       )
     }
@@ -166,12 +168,12 @@ export class SaxoBankApplication implements Disposable {
         ? settings.redirectURL
         : settings.redirectURL instanceof URL
         ? settings.redirectURL
-        : settings.redirectURL.public) ?? Environment[Config[type].env.redirectURL]
+        : settings.redirectURL.public) ?? Environment[Config[this.type].env.redirectURL]
 
     if (redirectURL === undefined) {
       throw new Error(
         `No SaxoBank redirect URL provided. Did you forget to set the "${
-          Config[type].env.redirectURL
+          Config[this.type].env.redirectURL
         }" environment variable?`,
       )
     }
@@ -186,13 +188,13 @@ export class SaxoBankApplication implements Disposable {
       (settings.redirectURL instanceof URL || typeof settings.redirectURL === 'string'
         ? undefined
         : settings.redirectURL?.listener?.hostname) ??
-        Environment[Config[type].env.listenerHostname] ?? redirectURL.hostname
+        Environment[Config[this.type].env.listenerHostname] ?? redirectURL.hostname
 
     const listenerPort = Number.parseInt(
       (settings.redirectURL instanceof URL || typeof settings.redirectURL === 'string'
         ? undefined
         : settings.redirectURL?.listener?.port?.toString()) ??
-        Environment[Config[type].env.listenerPort] ?? redirectURL.port,
+        Environment[Config[this.type].env.listenerPort] ?? redirectURL.port,
       10,
     )
 
@@ -200,7 +202,7 @@ export class SaxoBankApplication implements Disposable {
       throw new Error('Invalid listener port for SaxoBank redirect URL')
     }
 
-    const serviceURL = new URL(Config[type].serviceURL)
+    const serviceURL = new URL(Config[this.type].serviceURL)
 
     this.#httpClient = new HTTPClient({
       headers: async () => {
@@ -233,7 +235,7 @@ export class SaxoBankApplication implements Disposable {
     })
 
     if (settings.authentication?.refresh ?? true) {
-      this.#refreshAuth = Timeout.repeat(Config[type].refreshTokenTimeout, async (signal) => {
+      this.#refreshAuth = Timeout.repeat(Config[this.type].refreshTokenTimeout, async (signal) => {
         try {
           await this.#auth.refresh(signal)
         } catch (error) {
