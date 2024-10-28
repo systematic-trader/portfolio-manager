@@ -1,6 +1,7 @@
 import { toArray } from '../../../../../../utils/async-iterable.ts'
-import { beforeEach, describe, expect, test } from '../../../../../../utils/testing.ts'
+import { afterAll, beforeEach, describe, expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
+import { createResetSimulationAccount } from '../../../../__tests__/create-reset-simulation-account.ts'
 
 describe('portfolio/positions/me', () => {
   describe('live', () => {
@@ -21,23 +22,13 @@ describe('portfolio/positions/me', () => {
       type: 'Simulation',
     })
 
-    async function resetAccount({
-      balance = 10_000_000,
-    }: {
-      readonly balance?: undefined | number
-    } = {}) {
-      const [account] = await toArray(appSimulation.portfolio.accounts.me.get())
-      if (account === undefined) {
-        throw new Error(`Could not determine client for simulation user`)
-      }
+    const { resetSimulationAccount } = createResetSimulationAccount({
+      app: appSimulation,
+      balance: 10_000_000,
+    })
 
-      await appSimulation.portfolio.accounts.account.reset.put({
-        AccountKey: account.AccountKey,
-        NewBalance: balance,
-      })
-    }
-
-    beforeEach(resetAccount)
+    beforeEach(resetSimulationAccount)
+    afterAll(resetSimulationAccount)
 
     test('response passes guard', async () => {
       const me = await toArray(appSimulation.portfolio.positions.me.get())

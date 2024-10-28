@@ -1,6 +1,7 @@
 import { toArray } from '../../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
+import { createResetSimulationAccount } from '../../../__tests__/create-reset-simulation-account.ts'
 import type { InstrumentDetailsType } from '../../../types/records/instrument-details.ts'
 import type { InfoPricesParameters } from '../info-prices.ts'
 
@@ -142,24 +143,13 @@ describe('trade/orders', () => {
     type: 'Simulation',
   })
 
-  async function resetAccount({
-    // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
-    balance = 10_000_000,
-  }: { readonly balance?: undefined | number } = {}) {
-    const [account] = await toArray(app.portfolio.accounts.me.get())
-    if (account === undefined) {
-      throw new Error(`Could not determine client for simulation user`)
-    }
+  const { resetSimulationAccount } = createResetSimulationAccount({
+    app,
+    balance: 10_000_000, // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
+  })
 
-    await app.portfolio.accounts.account.reset.put({
-      AccountKey: account.AccountKey,
-      NewBalance: balance,
-    })
-  }
-
-  beforeEach(resetAccount)
-
-  afterAll(resetAccount)
+  beforeEach(resetSimulationAccount)
+  afterAll(resetSimulationAccount)
 
   describe('placing orders using different methods', () => {
     test('Method 1: Placing a single order, with no related orders', async () => {
@@ -568,7 +558,8 @@ describe('trade/orders', () => {
 
             expect(placeOrderResponse).toBeDefined()
 
-            await resetAccount()
+            // This works as a "beforeEach" + "afterAll"
+            await resetSimulationAccount()
           },
         )
       }
@@ -715,7 +706,7 @@ describe('trade/orders', () => {
                 expect(placeOrderResponse).toBeDefined()
               })
 
-              await resetAccount()
+              await resetSimulationAccount()
             }
 
             break
@@ -786,7 +777,7 @@ describe('trade/orders', () => {
               })
 
               // todo only do this every few orders to speed things up
-              await resetAccount()
+              await resetSimulationAccount()
             }
 
             break
