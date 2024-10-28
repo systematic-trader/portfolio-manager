@@ -25,6 +25,12 @@ export class Me {
      * Default is "Working" (i.e. orders related to working orders are excluded).
      */
     readonly Status?: undefined | OrderStatusFilter
+  } = {}, {
+    timeout,
+    signal,
+  }: {
+    readonly timeout?: undefined | number
+    readonly signal?: undefined | AbortSignal
   } = {}): AsyncIterable<OrderResponse, void, undefined> {
     yield* this.#client.getPaginated({
       searchParams: {
@@ -33,6 +39,8 @@ export class Me {
         Status,
       },
       guard: OrderResponse,
+      signal,
+      timeout,
     })
   }
 }
