@@ -58,6 +58,7 @@ export class ServiceGroupClient {
     readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
+    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
@@ -69,6 +70,7 @@ export class ServiceGroupClient {
       guard: options.guard,
       coerce: sanitize,
       onError: this.#onError,
+      signal: options.signal,
       timeout: options.timeout,
     })
   }
@@ -79,6 +81,7 @@ export class ServiceGroupClient {
     readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
+    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): AsyncGenerator<T, void, undefined> {
     if (typeof options.limit === 'number') {
@@ -120,6 +123,7 @@ export class ServiceGroupClient {
       guard: options.guard,
       limit: options.limit,
       onError: this.#onError,
+      signal: options.signal,
       timeout: options.timeout,
     })
   }
@@ -130,6 +134,7 @@ export class ServiceGroupClient {
     readonly searchParams?: undefined | SearchParamsRecord
     readonly body?: JSONReadonlyRecord
     readonly guard?: undefined | Guard<T>
+    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
@@ -155,6 +160,7 @@ export class ServiceGroupClient {
       guard: options.guard,
       coerce: sanitize,
       onError: this.#onError,
+      signal: options.signal,
       timeout: options.timeout,
     })
   }
@@ -165,6 +171,7 @@ export class ServiceGroupClient {
     readonly searchParams?: undefined | SearchParamsRecord
     readonly body?: JSONReadonlyRecord
     readonly guard?: undefined | Guard<T>
+    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
@@ -190,6 +197,7 @@ export class ServiceGroupClient {
       guard: options.guard,
       coerce: sanitize,
       onError: this.#onError,
+      signal: options.signal,
       timeout: options.timeout,
     })
   }
@@ -199,6 +207,7 @@ export class ServiceGroupClient {
     readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
+    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
@@ -210,6 +219,7 @@ export class ServiceGroupClient {
       guard: options.guard,
       coerce: sanitize,
       onError: this.#onError,
+      signal: options.signal,
       timeout: options.timeout,
     })
   }
@@ -372,6 +382,7 @@ async function* fetchPaginatedData<T = unknown>({
   guard = unknown() as Guard<T>,
   limit,
   onError,
+  signal,
   timeout,
 }: {
   readonly client: HTTPClient
@@ -380,6 +391,7 @@ async function* fetchPaginatedData<T = unknown>({
   readonly guard?: undefined | Guard<T>
   readonly limit?: undefined | number
   readonly onError?: HTTPClientOnErrorHandler
+  readonly signal?: undefined | AbortSignal
   readonly timeout?: undefined | number
 }): AsyncGenerator<T, void, undefined> {
   if (limit !== undefined && limit <= 0) {
@@ -415,6 +427,7 @@ async function* fetchPaginatedData<T = unknown>({
     coerce: sanitize,
     guard: bodyGuard,
     onError,
+    signal,
     timeout,
   })
 
