@@ -41,13 +41,19 @@ export class InstrumentsDetails {
     this.#client = client.appendPath('details')
   }
 
-  get<T extends AssetType>(options: {
-    readonly AssetTypes: readonly [T, ...ReadonlyArray<T>]
-    readonly Uics?: undefined | ReadonlyArray<number | string>
-    readonly AccountKey?: undefined | string
-    readonly Tags?: undefined | ReadonlyArray<string>
-    readonly limit?: undefined | number
-  }): AsyncIterable<
+  get<T extends AssetType>(
+    parameters: {
+      readonly AssetTypes: readonly [T, ...ReadonlyArray<T>]
+      readonly Uics?: undefined | ReadonlyArray<number | string>
+      readonly AccountKey?: undefined | string
+      readonly Tags?: undefined | ReadonlyArray<string>
+      readonly limit?: undefined | number
+    },
+    options?: {
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+    },
+  ): AsyncIterable<
     Extract<
       InstrumentDetailsType,
       { readonly AssetType: T }
@@ -57,24 +63,32 @@ export class InstrumentsDetails {
   >
 
   get(
-    options?: undefined | {
+    parameters?: undefined | {
       readonly AssetTypes?: undefined | readonly []
       readonly AccountKey?: undefined | string
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly limit?: undefined | number
     },
+    options?: {
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+    },
   ): AsyncIterable<InstrumentDetailsType, void, undefined>
 
   async *get(
-    options?: undefined | {
+    parameters?: undefined | {
       readonly AssetTypes?: undefined | ReadonlyArray<AssetType>
       readonly Uics?: undefined | ReadonlyArray<number | string>
       readonly AccountKey?: undefined | string
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly limit?: undefined | number
     },
+    options: {
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+    } = {},
   ): AsyncIterable<InstrumentDetailsType, void, undefined> {
-    const { AssetTypes, Uics, AccountKey, Tags, limit } = options ?? {}
+    const { AssetTypes, Uics, AccountKey, Tags, limit } = parameters ?? {}
 
     if (Uics !== undefined && Uics.length > 0 && (AssetTypes === undefined || AssetTypes.length === 0)) {
       throw new Error('AssetTypes must be specified if Uics are specified')
@@ -91,7 +105,14 @@ export class InstrumentsDetails {
     const assetTypesSet = AssetTypes === undefined || AssetTypes.length === 0 ? undefined : new Set<string>(AssetTypes)
 
     try {
-      for await (const instrument of this.#client.getPaginated<InstrumentDetailsType>({ searchParams, limit })) {
+      for await (
+        const instrument of this.#client.getPaginated<InstrumentDetailsType>({
+          searchParams,
+          limit,
+          signal: options?.signal,
+          timeout: options?.timeout,
+        })
+      ) {
         if (assetTypesSet === undefined || assetTypesSet.has(instrument.AssetType)) {
           yield assertReturnInstrumentDetails(instrument)
         }
