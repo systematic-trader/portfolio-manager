@@ -19,16 +19,14 @@ export class Me {
     this.#client = client.appendPath('me')
   }
 
-  async *get(options: {
-    readonly timeout?: undefined | number
-    readonly signal?: undefined | AbortSignal
-  } = {}): AsyncIterable<PositionResponse, void, undefined> {
+  async *get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<PositionResponse, void, undefined> {
     yield* this.#client.getPaginated({
       searchParams: {
         FieldGroups,
       },
       guard: PositionResponse,
-      signal: options.signal,
       timeout: options.timeout,
     })
   }

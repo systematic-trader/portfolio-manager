@@ -11,7 +11,12 @@ import { ensureError } from '../../utils/error.ts'
 import { type JSONReadonlyRecord, stringifyJSON } from '../../utils/json.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { urlJoin } from '../../utils/url.ts'
-import { type HTTPClient, HTTPClientError, type HTTPClientOnErrorHandler } from '../http-client.ts'
+import {
+  type HTTPClient,
+  HTTPClientError,
+  type HTTPClientOnErrorHandler,
+  HTTPClientRequestAbortError,
+} from '../http-client.ts'
 
 type SearchParamsRecord = Record<string, undefined | boolean | number | string | ReadonlyArray<number | string>>
 
@@ -58,7 +63,6 @@ export class ServiceGroupClient {
     readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
-    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
@@ -70,7 +74,6 @@ export class ServiceGroupClient {
       guard: options.guard,
       coerce: sanitize,
       onError: this.#onError,
-      signal: options.signal,
       timeout: options.timeout,
     })
   }
@@ -81,7 +84,6 @@ export class ServiceGroupClient {
     readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
-    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): AsyncGenerator<T, void, undefined> {
     if (typeof options.limit === 'number') {
@@ -116,16 +118,23 @@ export class ServiceGroupClient {
 
     setSearchParams(url, searchParams)
 
-    yield* fetchPaginatedData({
-      client: this.#client,
-      headers,
-      url,
-      guard: options.guard,
-      limit: options.limit,
-      onError: this.#onError,
-      signal: options.signal,
-      timeout: options.timeout,
-    })
+    try {
+      yield* fetchPaginatedData({
+        client: this.#client,
+        headers,
+        url,
+        guard: options.guard,
+        limit: options.limit,
+        onError: this.#onError,
+        timeout: options.timeout,
+      })
+    } catch (error) {
+      if (error instanceof HTTPClientRequestAbortError) {
+        return
+      }
+
+      throw error
+    }
   }
 
   async post<T = unknown>(options: {
@@ -134,7 +143,6 @@ export class ServiceGroupClient {
     readonly searchParams?: undefined | SearchParamsRecord
     readonly body?: JSONReadonlyRecord
     readonly guard?: undefined | Guard<T>
-    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
@@ -160,7 +168,6 @@ export class ServiceGroupClient {
       guard: options.guard,
       coerce: sanitize,
       onError: this.#onError,
-      signal: options.signal,
       timeout: options.timeout,
     })
   }
@@ -171,7 +178,6 @@ export class ServiceGroupClient {
     readonly searchParams?: undefined | SearchParamsRecord
     readonly body?: JSONReadonlyRecord
     readonly guard?: undefined | Guard<T>
-    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
@@ -197,7 +203,6 @@ export class ServiceGroupClient {
       guard: options.guard,
       coerce: sanitize,
       onError: this.#onError,
-      signal: options.signal,
       timeout: options.timeout,
     })
   }
@@ -207,7 +212,6 @@ export class ServiceGroupClient {
     readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
-    readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
@@ -219,7 +223,6 @@ export class ServiceGroupClient {
       guard: options.guard,
       coerce: sanitize,
       onError: this.#onError,
-      signal: options.signal,
       timeout: options.timeout,
     })
   }

@@ -9,12 +9,15 @@ export class Me {
   }
 
   /** Get balance data for logged-in client. */
-  async get(): Promise<BalanceResponse> {
+  async get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): Promise<BalanceResponse> {
     return await this.#client.get({
       searchParams: {
         $inlinecount: 'AllPages',
       },
       guard: BalanceResponse,
+      timeout: options.timeout,
     })
   }
 }

@@ -8,11 +8,21 @@ export class AlgoStrategies {
     this.#client = client.appendPath('v1/algostrategies')
   }
 
-  async *get({ name }: { name?: undefined | string } = {}): AsyncIterable<Strategy> {
+  async *get(
+    { name }: { name?: undefined | string } = {},
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<Strategy> {
     if (name === undefined) {
-      return yield* this.#client.getPaginated({ guard: Strategy })
+      return yield* this.#client.getPaginated({
+        guard: Strategy,
+        timeout: options.timeout,
+      })
     }
 
-    yield this.#client.get({ guard: Strategy, path: name })
+    yield this.#client.get({
+      guard: Strategy,
+      path: name,
+      timeout: options.timeout,
+    })
   }
 }

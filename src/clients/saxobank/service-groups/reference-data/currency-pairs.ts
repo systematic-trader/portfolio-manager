@@ -8,7 +8,12 @@ export class CurrencyPairs {
     this.#client = client.appendPath('v1/currencypairs')
   }
 
-  async *get(): AsyncIterable<CurrencyPairDetails, void, undefined> {
-    yield* this.#client.getPaginated({ guard: CurrencyPairDetails })
+  async *get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<CurrencyPairDetails, void, undefined> {
+    yield* this.#client.getPaginated({
+      guard: CurrencyPairDetails,
+      timeout: options.timeout,
+    })
   }
 }

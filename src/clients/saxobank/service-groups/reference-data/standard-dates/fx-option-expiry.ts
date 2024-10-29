@@ -9,11 +9,15 @@ export class FxOptionExpiry {
     this.#client = client.appendPath('fxoptionexpiry')
   }
 
-  async *get({ Uic }: { readonly Uic: number | string }): AsyncIterable<StandardDate, void, undefined> {
+  async *get(
+    { Uic }: { readonly Uic: number | string },
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<StandardDate, void, undefined> {
     try {
       yield* this.#client.getPaginated({
         path: `${Uic}`,
         guard: StandardDate,
+        timeout: options.timeout,
       })
     } catch (error) {
       if (error instanceof HTTPClientError && error.statusCode === 404) {

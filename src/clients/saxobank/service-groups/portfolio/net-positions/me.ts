@@ -21,12 +21,15 @@ export class Me {
    * Returns a list of net positions fulfilling the criteria specified by the query string parameters.
    * Each net position may include all related sub positions if fieldGroups includes SubPositions.
    */
-  async *get(): AsyncIterable<NetPositionResponse, void, undefined> {
+  async *get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<NetPositionResponse, void, undefined> {
     yield* this.#client.getPaginated({
       searchParams: {
         FieldGroups,
       },
       guard: NetPositionResponse,
+      timeout: options.timeout,
     })
   }
 }

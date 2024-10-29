@@ -9,12 +9,15 @@ export class Me {
   }
 
   /** Returns all accounts under a particular client to which the logged in user belongs. */
-  async *get(): AsyncIterable<AccountResponse, void, undefined> {
+  async *get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<AccountResponse, void, undefined> {
     yield* this.#client.getPaginated({
       searchParams: {
         $inlinecount: 'AllPages',
       },
       guard: AccountResponse,
+      timeout: options.timeout,
     })
   }
 }

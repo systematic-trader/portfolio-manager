@@ -10,16 +10,20 @@ export class AccountGroup {
   }
 
   /** Get details about a single account group */
-  async *get({ AccountGroupKey, ClientKey }: {
-    readonly AccountGroupKey: string
-    readonly ClientKey: string
-  }): AsyncIterable<AccountGroupResponse, void, undefined> {
+  async *get(
+    { AccountGroupKey, ClientKey }: {
+      readonly AccountGroupKey: string
+      readonly ClientKey: string
+    },
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<AccountGroupResponse, void, undefined> {
     yield* this.#client.getPaginated({
       path: AccountGroupKey,
       searchParams: {
         ClientKey,
       },
       guard: AccountGroupResponse,
+      timeout: options.timeout,
     })
   }
 }

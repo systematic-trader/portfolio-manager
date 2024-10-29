@@ -8,7 +8,12 @@ export class Countries {
     this.#client = client.appendPath('v1/countries')
   }
 
-  async *get(): AsyncIterable<CountryDetails, void, undefined> {
-    yield* this.#client.getPaginated({ guard: CountryDetails })
+  async *get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<CountryDetails, void, undefined> {
+    yield* this.#client.getPaginated({
+      guard: CountryDetails,
+      timeout: options.timeout,
+    })
   }
 }

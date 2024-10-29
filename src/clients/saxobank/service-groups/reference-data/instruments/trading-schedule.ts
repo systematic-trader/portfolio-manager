@@ -15,11 +15,13 @@ export class TradingSchedule {
 
   async get(
     { AssetType, Uic }: { readonly AssetType: AssetType; readonly Uic: number },
+    options: { readonly timeout?: undefined | number } = {},
   ): Promise<undefined | TradingScheduleType> {
     try {
       return await this.#client.get({
         path: `${Uic}/${AssetType}`,
         guard: TradingScheduleGuard,
+        timeout: options.timeout,
       })
     } catch (error) {
       if (error instanceof HTTPClientError && error.statusCode === 404) {

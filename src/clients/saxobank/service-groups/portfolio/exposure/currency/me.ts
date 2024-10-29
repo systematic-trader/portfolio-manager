@@ -10,9 +10,12 @@ export class Me {
   }
 
   /** Returns a list of currencies and net exposures. */
-  async get(): Promise<ReadonlyArray<CurrencyExposuresResponse>> {
+  async get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): Promise<ReadonlyArray<CurrencyExposuresResponse>> {
     const exposure = await this.#client.get({
       guard: optional(array(CurrencyExposuresResponse)),
+      timeout: options.timeout,
     })
 
     return exposure ?? []

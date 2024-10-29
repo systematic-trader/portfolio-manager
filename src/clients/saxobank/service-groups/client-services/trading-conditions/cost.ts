@@ -55,10 +55,12 @@ export class Cost {
       /** The uic for the instrument to lookup */
       readonly Uic: CostParameters['Uic']
     },
+    options?: { readonly timeout?: undefined | number },
   ): Promise<CostResponse[AssetType]>
 
   async get(
     parameters: CostParameters,
+    options: { readonly timeout?: undefined | number } = {},
   ): Promise<CostResponse[keyof CostResponse]> {
     const { AccountKey, Amount, HoldingPeriodInDays, Price, Uic } = assertReturn(CostParametersGuard, parameters)
 
@@ -76,6 +78,7 @@ export class Cost {
     const response = await this.#client.get({
       path,
       searchParams,
+      timeout: options.timeout,
     })
 
     switch (parameters.AssetType) {

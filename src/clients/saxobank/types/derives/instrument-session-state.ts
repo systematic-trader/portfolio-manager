@@ -1,4 +1,4 @@
-import { enums } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { enums, type GuardType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
 export const InstrumentSessionState = enums([
   /**
@@ -56,4 +56,4 @@ export const InstrumentSessionState = enums([
   'TradingAtLast',
 ])
 
-export type InstrumentSessionState = typeof InstrumentSessionState
+export type InstrumentSessionState = GuardType<typeof InstrumentSessionState>

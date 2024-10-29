@@ -83,10 +83,7 @@ export class InstrumentsDetails {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly limit?: undefined | number
     },
-    options: {
-      readonly signal?: undefined | AbortSignal
-      readonly timeout?: undefined | number
-    } = {},
+    options: { readonly timeout?: undefined | number } = {},
   ): AsyncIterable<InstrumentDetailsType, void, undefined> {
     const { AssetTypes, Uics, AccountKey, Tags, limit } = parameters ?? {}
 
@@ -109,8 +106,7 @@ export class InstrumentsDetails {
         const instrument of this.#client.getPaginated<InstrumentDetailsType>({
           searchParams,
           limit,
-          signal: options?.signal,
-          timeout: options?.timeout,
+          timeout: options.timeout,
         })
       ) {
         if (assetTypesSet === undefined || assetTypesSet.has(instrument.AssetType)) {

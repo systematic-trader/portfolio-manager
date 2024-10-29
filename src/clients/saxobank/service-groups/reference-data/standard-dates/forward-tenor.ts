@@ -14,6 +14,7 @@ export class ForwardTenor {
       readonly Uic: number | string
       readonly AccountKey?: undefined | string
     },
+    options: { readonly timeout?: undefined | number } = {},
   ): AsyncIterable<StandardDate, void, undefined> {
     try {
       yield* this.#client.getPaginated({
@@ -22,6 +23,7 @@ export class ForwardTenor {
           AccountKey: AccountKey === undefined ? undefined : String(AccountKey),
         },
         guard: StandardDate,
+        timeout: options.timeout,
       })
     } catch (error) {
       if (error instanceof HTTPClientError && error.statusCode === 404) {

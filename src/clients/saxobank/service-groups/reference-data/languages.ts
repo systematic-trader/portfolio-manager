@@ -8,7 +8,12 @@ export class Languages {
     this.#client = client.appendPath('v1/languages')
   }
 
-  async *get(): AsyncIterable<LanguageDetails, void, undefined> {
-    yield* this.#client.getPaginated({ guard: LanguageDetails })
+  async *get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<LanguageDetails, void, undefined> {
+    yield* this.#client.getPaginated({
+      guard: LanguageDetails,
+      timeout: options.timeout,
+    })
   }
 }
