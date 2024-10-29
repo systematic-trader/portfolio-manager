@@ -1,36 +1,57 @@
 import { enums } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
 export const InstrumentSessionState = enums([
-  /** Participants place orders to buy or sell units at certain buying or selling prices. Orders collected during an auction are matched to form a contract */
+  /**
+   * Participants place orders to buy or sell units at certain buying or selling prices.
+   * Orders collected during an auction are matched to form a contract.
+   */
   'Auction',
+
   /** Normal trading */
   'AutomatedTrading',
-  /** Break in instrument opening hours */
+
+  /** Break in exchange opening hours */
   'Break',
-  /** Participants place orders to buy or sell units at certain buying or selling prices. Orders collected during an auction are matched to form a contract */
+
+  /**
+   * Participants place orders to buy or sell units at certain buying or selling prices.
+   * Orders collected during an auction are matched to form a contract
+   */
   'CallAuctionTrading',
-  /** Closed for trading */
+
+  /** Exchange is closed */
   'Closed',
-  /** Trading is halted for an instrument */
+
+  /** Trading is halted on the Exchange */
   'Halt',
+
   /** Opening auction exchange state */
   'OpeningAuction',
+
   /** Transactions are conducted in trading pits on the floor of the Exchange */
   'PitTrading',
-  /** Legacy trade state. It will be decommissioned and should not be used */
+
+  /** Extended trading session after normal opening hours */
   'PostAutomatedTrading',
-  /** Extended trading session after the regular trading session. Specify the orders ExecuteAtTradingSession field to trade in this session */
+
+  /** Extended trading session after normal opening hours */
   'PostMarket',
-  /** The exchange is accepting orders which will be traded in the OpeningAuction or AutomatedTrading session of the following day */
+
+  /** Extended trading session after normal opening hours */
   'PostTrading',
-  /** Legacy trade state. It will be decommissioned and should not be used */
+
+  /** Extended trading session before normal opening hours */
   'PreAutomatedTrading',
-  /** Extended trading session before the regular trading session. Specify the orders ExecuteAtTradingSession field to trade in this session */
+
+  /** Extended trading session before normal opening hours */
   'PreMarket',
-  /** */
+
+  /** Extended trading session before normal opening hours */
   'PreTrading',
-  /** Trading is suspended for an instrument */
+
+  /** Trading is suspended on the Exchange */
   'Suspended',
+
   /** Orders collected at last price in absence of closing auction price */
   'TradingAtLast',
 ])
