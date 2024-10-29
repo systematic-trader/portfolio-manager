@@ -1,7 +1,7 @@
 import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
-import { createResetSimulationAccount } from '../../../../__tests__/create-reset-simulation-account.ts'
+import { TestingUtilities } from '../../../../__tests__/testing-utilities.ts'
 
 describe('portfolio/positions/me', () => {
   describe('live', () => {
@@ -22,13 +22,10 @@ describe('portfolio/positions/me', () => {
       type: 'Simulation',
     })
 
-    const { resetSimulationAccount } = createResetSimulationAccount({
-      app: appSimulation,
-      balance: 10_000_000,
-    })
+    const { resetSimulationAccount } = new TestingUtilities({ app: appSimulation })
 
-    beforeEach(resetSimulationAccount)
-    afterAll(resetSimulationAccount)
+    beforeEach(() => resetSimulationAccount({ balance: 10_000_000 }))
+    afterAll(() => resetSimulationAccount({ balance: 10_000_000 }))
 
     test('response passes guard', async () => {
       const me = await toArray(appSimulation.portfolio.positions.me.get())

@@ -25,10 +25,7 @@ export class Me {
      * Default is "Working" (i.e. orders related to working orders are excluded).
      */
     readonly Status?: undefined | OrderStatusFilter
-  } = {}, {
-    timeout,
-    signal,
-  }: {
+  } = {}, options: {
     readonly timeout?: undefined | number
     readonly signal?: undefined | AbortSignal
   } = {}): AsyncIterable<OrderResponse, void, undefined> {
@@ -39,8 +36,8 @@ export class Me {
         Status,
       },
       guard: OrderResponse,
-      signal,
-      timeout,
+      signal: options.signal,
+      timeout: options.timeout,
     })
   }
 }
