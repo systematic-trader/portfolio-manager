@@ -4,67 +4,56 @@ export type ExchangeSessionState = GuardType<typeof ExchangeSessionState>
 
 export const ExchangeSessionState = enums([
   /**
-   * Participants place orders to buy or sell units at certain buying or selling prices. Orders collected during an auction are matched to form a contract
+   * Participants place orders to buy or sell units at certain buying or selling prices.
+   * Orders collected during an auction are matched to form a contract.
    */
   'Auction',
-  /**
-   * Normal trading
-   */
+
+  /** Normal trading */
   'AutomatedTrading',
-  /**
-   * Break in exchange opening hours
-   */
+
+  /** Break in exchange opening hours */
   'Break',
+
   /**
-   * Participants place orders to buy or sell units at certain buying or selling prices. Orders collected during an auction are matched to form a contract
+   * Participants place orders to buy or sell units at certain buying or selling prices.
+   * Orders collected during an auction are matched to form a contract
    */
   'CallAuctionTrading',
-  /**
-   * Exchange is closed
-   */
+
+  /** Exchange is closed */
   'Closed',
-  /**
-   * Trading is halted on the Exchange
-   */
+
+  /** Trading is halted on the Exchange */
   'Halt',
-  /**
-   * Opening auction exchange state
-   */
+
+  /** Opening auction exchange state */
   'OpeningAuction',
-  /**
-   * Transactions are conducted in trading pits on the floor of the Exchange
-   */
+
+  /** Transactions are conducted in trading pits on the floor of the Exchange */
   'PitTrading',
-  /**
-   * Extended trading session after normal opening hours
-   */
+
+  /** Extended trading session after normal opening hours */
   'PostAutomatedTrading',
-  /**
-   * Extended trading session after normal opening hours
-   */
+
+  /** Extended trading session after normal opening hours */
   'PostMarket',
-  /**
-   * Extended trading session after normal opening hours
-   */
+
+  /** Extended trading session after normal opening hours */
   'PostTrading',
-  /**
-   * Extended trading session before normal opening hours
-   */
+
+  /** Extended trading session before normal opening hours */
   'PreAutomatedTrading',
-  /**
-   * Extended trading session before normal opening hours
-   */
+
+  /** Extended trading session before normal opening hours */
   'PreMarket',
-  /**
-   * Extended trading session before normal opening hours
-   */
+
+  /** Extended trading session before normal opening hours */
   'PreTrading',
-  /**
-   * Trading is suspended on the Exchange
-   */
+
+  /** Trading is suspended on the Exchange */
   'Suspended',
-  /**
-   * Orders collected at last price in absence of closing auction price
-   */
+
+  /** Orders collected at last price in absence of closing auction price */
   'TradingAtLast',
 ])
