@@ -10,9 +10,12 @@ export class Me {
   }
 
   /** Returns a list of currency exposures from FxSpot positions for the client, to which the logged in user belongs. */
-  async get(): Promise<ReadonlyArray<CurrencyExposuresResponse>> {
+  async get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): Promise<ReadonlyArray<CurrencyExposuresResponse>> {
     return await this.#client.get({
       guard: array(CurrencyExposuresResponse),
+      timeout: options.timeout,
     })
   }
 }

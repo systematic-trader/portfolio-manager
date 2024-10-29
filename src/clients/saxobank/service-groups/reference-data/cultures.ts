@@ -8,7 +8,12 @@ export class Cultures {
     this.#client = client.appendPath('v1/cultures')
   }
 
-  async *get(): AsyncIterable<CultureDetails, void, undefined> {
-    yield* this.#client.getPaginated({ guard: CultureDetails })
+  async *get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<CultureDetails, void, undefined> {
+    yield* this.#client.getPaginated({
+      guard: CultureDetails,
+      timeout: options.timeout,
+    })
   }
 }

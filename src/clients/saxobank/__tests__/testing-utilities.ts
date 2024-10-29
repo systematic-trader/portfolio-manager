@@ -2,6 +2,7 @@ import { toArray } from '../../../utils/async-iterable.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
 import type { AssetType } from '../types/derives/asset-type.ts'
+import type { InstrumentSessionState } from '../types/derives/instrument-session-state.ts'
 import type { InstrumentDetailsType } from '../types/records/instrument-details.ts'
 
 const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
@@ -67,14 +68,15 @@ export class TestingUtilities {
     const startTime = Date.now()
     while (true) {
       const elapsed = Date.now() - startTime
+      const remaining = timeout - elapsed
 
-      const orders = await Timeout.run(timeout - elapsed, async (signal) => {
-        return await toArray(this.#app.portfolio.orders.me.get({}, { signal }))
-      })
-
-      if (orders === undefined) {
-        throw new Error('Timeout waiting for orders count')
+      if (remaining <= 0) {
+        throw new Error(`Timeout waiting for order count to be ${count}`)
       }
+
+      const orders = await toArray(this.#app.portfolio.orders.me.get({}, {
+        timeout: remaining,
+      }))
 
       if (orders.length === count) {
         return
@@ -103,14 +105,15 @@ export class TestingUtilities {
     const startTime = Date.now()
     while (true) {
       const elapsed = Date.now() - startTime
+      const remaining = timeout - elapsed
 
-      const positions = await Timeout.run(timeout - elapsed, async (signal) => {
-        return await toArray(this.#app.portfolio.positions.me.get({ signal }))
-      })
-
-      if (positions === undefined) {
-        throw new Error('Timeout waiting for positions count')
+      if (remaining <= 0) {
+        throw new Error(`Timeout waiting for position count to be ${count}`)
       }
+
+      const positions = await toArray(this.#app.portfolio.positions.me.get({
+        timeout: remaining,
+      }))
 
       if (positions.length === count) {
         return
@@ -126,9 +129,13 @@ export class TestingUtilities {
    */
   async *findTradableInstruments<T extends AssetType>({
     assetTypes,
+    uics,
+    sessions,
     limit,
   }: {
-    readonly assetTypes: readonly [T, ...ReadonlyArray<T>]
+    readonly assetTypes: readonly [T, ...readonly T[]]
+    readonly uics?: undefined | readonly number[]
+    readonly sessions?: undefined | readonly InstrumentSessionState[]
     readonly limit?: undefined | number
   }): AsyncGenerator<
     Extract<InstrumentDetailsType, { readonly AssetType: T }>,
@@ -139,12 +146,11 @@ export class TestingUtilities {
       return
     }
 
-    const abortController = new AbortController()
+    const now = new Date().toISOString()
 
     const instruments = this.#app.referenceData.instruments.details.get({
       AssetTypes: assetTypes,
-    }, {
-      signal: abortController.signal,
+      Uics: uics,
     })
 
     let count = 0
@@ -157,10 +163,23 @@ export class TestingUtilities {
         continue
       }
 
+      if (sessions !== undefined) {
+        const currentSession = instrument.TradingSessions.Sessions.find((session) => {
+          return session.StartTime <= now && now <= session.EndTime
+        })
+
+        if (currentSession === undefined) {
+          throw new Error(`Could not determine active session for instrument with uic ${instrument.Uic}`)
+        }
+
+        if (sessions.includes(currentSession.State) === false) {
+          continue
+        }
+      }
+
       yield instrument
 
       if (++count === limit) {
-        abortController.abort()
         break
       }
     }

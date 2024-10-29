@@ -16,12 +16,15 @@ export class Me {
   }
 
   /** Returns a list of closed positions fulfilling the criteria specified by the query string parameters. */
-  async *get(): AsyncIterable<ClosedPositionResponse, void, undefined> {
+  async *get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<ClosedPositionResponse, void, undefined> {
     yield* this.#client.getPaginated({
       searchParams: {
         FieldGroups,
       },
       guard: ClosedPositionResponse,
+      timeout: options.timeout,
     })
   }
 }

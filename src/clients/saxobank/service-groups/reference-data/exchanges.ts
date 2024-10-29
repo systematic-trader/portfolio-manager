@@ -10,11 +10,19 @@ export class Exchanges {
 
   async *get(
     { exchangeId }: { exchangeId?: undefined | string } = {},
+    options: { readonly timeout?: undefined | number } = {},
   ): AsyncGenerator<ExchangeDetails, void, undefined> {
     if (exchangeId === undefined) {
-      return yield* this.#client.getPaginated({ guard: ExchangeDetails })
+      return yield* this.#client.getPaginated({
+        guard: ExchangeDetails,
+        timeout: options.timeout,
+      })
     }
 
-    yield this.#client.get({ guard: ExchangeDetails, path: exchangeId })
+    yield this.#client.get({
+      guard: ExchangeDetails,
+      path: exchangeId,
+      timeout: options.timeout,
+    })
   }
 }

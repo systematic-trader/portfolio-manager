@@ -61,7 +61,7 @@ export class Instruments {
   }
 
   get<T extends AssetType>(
-    options: {
+    parameters: {
       readonly limit?: undefined | number
       readonly AccountKey?: undefined | string
       readonly AssetTypes: readonly [T, ...ReadonlyArray<T>]
@@ -73,6 +73,7 @@ export class Instruments {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly Uics?: undefined | ReadonlyArray<number>
     },
+    options?: { readonly timeout?: undefined | number },
   ): AsyncIterable<
     Extract<
       InstrumentSummaryInfoType,
@@ -83,7 +84,7 @@ export class Instruments {
   >
 
   get(
-    options?: undefined | {
+    parameters?: undefined | {
       readonly limit?: undefined | number
       readonly AccountKey?: undefined | string
       readonly AssetTypes?: undefined | readonly []
@@ -95,10 +96,11 @@ export class Instruments {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly Uics?: undefined | ReadonlyArray<number>
     },
+    options?: { readonly timeout?: undefined | number },
   ): AsyncIterable<InstrumentSummaryInfoType, void, undefined>
 
   get(
-    options?: undefined | {
+    parameters?: undefined | {
       readonly limit?: undefined | number
       readonly AccountKey?: undefined | string
       readonly AssetTypes?: undefined | ReadonlyArray<AssetType>
@@ -110,10 +112,11 @@ export class Instruments {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly Uics?: undefined | ReadonlyArray<number>
     },
+    options?: { readonly timeout?: undefined | number },
   ): AsyncIterable<InstrumentSummaryInfoType, void, undefined>
 
   async *get(
-    options: undefined | {
+    parameters: undefined | {
       readonly limit?: undefined | number
       readonly AccountKey?: undefined | string
       readonly AssetTypes?: undefined | ReadonlyArray<AssetType>
@@ -125,8 +128,9 @@ export class Instruments {
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly Uics?: undefined | ReadonlyArray<number>
     } = {},
+    options: { readonly timeout?: undefined | number } = {},
   ): AsyncIterable<InstrumentSummaryInfoType, void, undefined> {
-    const { limit, Keywords, AssetTypes, IncludeNonTradable, ...rest } = { IncludeNonTradable: false, ...options }
+    const { limit, Keywords, AssetTypes, IncludeNonTradable, ...rest } = { IncludeNonTradable: false, ...parameters }
 
     const searchParams = {
       ...rest,
@@ -140,14 +144,15 @@ export class Instruments {
       const instrument of this.#client.getPaginated<InstrumentSummaryInfoType>({
         searchParams,
         limit,
+        timeout: options.timeout,
       })
     ) {
       try {
         const { AssetType } = instrument
 
         if (
-          options.AssetTypes !== undefined && options.AssetTypes.length > 0 &&
-          options.AssetTypes.includes(AssetType) === false
+          parameters.AssetTypes !== undefined && parameters.AssetTypes.length > 0 &&
+          parameters.AssetTypes.includes(AssetType) === false
         ) {
           continue
         }

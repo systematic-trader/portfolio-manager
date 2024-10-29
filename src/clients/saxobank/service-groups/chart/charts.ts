@@ -87,9 +87,13 @@ export class Charts {
           readonly Time?: undefined
         })
       ),
+    options?: { readonly timeout?: undefined | number },
   ): Promise<ChartResponse[AssetType]>
 
-  async get(parameters: ChartsParameters): Promise<ChartResponse[keyof ChartResponse]> {
+  async get(
+    parameters: ChartsParameters,
+    options: { readonly timeout?: undefined | number } = {},
+  ): Promise<ChartResponse[keyof ChartResponse]> {
     const { AssetType, AccountKey, Count, Horizon, Uic } = assertReturn(ChartsParametersGuard, {
       AssetType: parameters.AssetType,
       AccountKey: parameters.AccountKey,
@@ -137,6 +141,7 @@ export class Charts {
         return await this.#client.get({
           searchParams,
           guard: ChartResponse[parameters.AssetType],
+          timeout: options.timeout,
         })
       }
 
@@ -146,6 +151,7 @@ export class Charts {
         return await this.#client.get({
           searchParams,
           guard: ChartResponse[parameters.AssetType],
+          timeout: options.timeout,
         })
       }
 

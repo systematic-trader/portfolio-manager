@@ -205,7 +205,7 @@ export class Timeout<T = undefined> extends Promise<undefined | T> implements Di
   }
 
   /**
-   *  Abort the timeout by emitting 'abort' to its signal and resolving to undefined or rejecting with the given reason
+   * Abort the timeout by emitting 'abort' to its signal and resolving to undefined or rejecting with the given reason
    * @param reason The reason for aborting the timeout
    */
   abort(reason?: unknown): void {

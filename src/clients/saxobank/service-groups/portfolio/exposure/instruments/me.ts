@@ -10,9 +10,12 @@ export class Me {
   }
 
   /** Returns a list instruments and net exposures. */
-  async get(): Promise<ReadonlyArray<InstrumentExposureResponse>> {
+  async get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): Promise<ReadonlyArray<InstrumentExposureResponse>> {
     const exposure = await this.#client.get({
       guard: optional(array(InstrumentExposureResponse)),
+      timeout: options.timeout,
     })
 
     return exposure ?? []

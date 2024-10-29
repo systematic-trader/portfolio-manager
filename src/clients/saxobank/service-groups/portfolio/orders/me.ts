@@ -16,19 +16,19 @@ export class Me {
   }
 
   /** You can use this operation to get all open orders across all accounts for the client to which the logged-in user belongs. */
-  async *get({ MultiLegOrderId, Status }: {
-    /** Return only multi-leg orders with the given common MultiLegOrderId. */
-    readonly MultiLegOrderId?: undefined | string
+  async *get(
+    { MultiLegOrderId, Status }: {
+      /** Return only multi-leg orders with the given common MultiLegOrderId. */
+      readonly MultiLegOrderId?: undefined | string
 
-    /**
-     * Selects only a subset of open orders to be returned based on status of the open order.
-     * Default is "Working" (i.e. orders related to working orders are excluded).
-     */
-    readonly Status?: undefined | OrderStatusFilter
-  } = {}, options: {
-    readonly timeout?: undefined | number
-    readonly signal?: undefined | AbortSignal
-  } = {}): AsyncIterable<OrderResponse, void, undefined> {
+      /**
+       * Selects only a subset of open orders to be returned based on status of the open order.
+       * Default is "Working" (i.e. orders related to working orders are excluded).
+       */
+      readonly Status?: undefined | OrderStatusFilter
+    } = {},
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<OrderResponse, void, undefined> {
     yield* this.#client.getPaginated({
       searchParams: {
         FieldGroups,
@@ -36,7 +36,6 @@ export class Me {
         Status,
       },
       guard: OrderResponse,
-      signal: options.signal,
       timeout: options.timeout,
     })
   }

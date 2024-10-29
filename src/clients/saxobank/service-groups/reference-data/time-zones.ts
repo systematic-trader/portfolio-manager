@@ -8,7 +8,12 @@ export class TimeZones {
     this.#client = client.appendPath('v1/timezones')
   }
 
-  async *get(): AsyncIterable<TimeZoneDetails, void, undefined> {
-    yield* this.#client.getPaginated({ guard: TimeZoneDetails })
+  async *get(options: {
+    readonly timeout?: undefined | number
+  } = {}): AsyncIterable<TimeZoneDetails, void, undefined> {
+    yield* this.#client.getPaginated({
+      guard: TimeZoneDetails,
+      timeout: options.timeout,
+    })
   }
 }

@@ -407,6 +407,7 @@ export class Orders {
    */
   async post(
     parameters: PlaceOrderParametersEntryWithNoRelatedOrders,
+    options?: { readonly timeout?: undefined | number },
   ): Promise<PlaceOrderResponseEntryWithNoRelatedOrders>
 
   /**
@@ -415,6 +416,7 @@ export class Orders {
    */
   async post(
     parameters: PlaceOrderParametersEntryWithOneRelatedOrder,
+    options?: { readonly timeout?: undefined | number },
   ): Promise<PlaceOrderResponseEntryWithOneRelatedOrder>
 
   /**
@@ -423,6 +425,7 @@ export class Orders {
    */
   async post(
     parameters: PlaceOrderParametersEntryWithTwoRelatedOrders,
+    options?: { readonly timeout?: undefined | number },
   ): Promise<PlaceOrderResponseEntryWithTwoRelatedOrders>
 
   /**
@@ -431,6 +434,7 @@ export class Orders {
    */
   async post(
     parameters: PlaceOrderParametersOneRelatedOrderForOrder,
+    options?: { readonly timeout?: undefined | number },
   ): Promise<PlaceOrderResponseOneRelatedOrderForOrder>
 
   /**
@@ -442,6 +446,7 @@ export class Orders {
    */
   async post(
     parameters: PlaceOrderParametersTwoRelatedOrdersForOrder,
+    options?: { readonly timeout?: undefined | number },
   ): Promise<PlaceOrderResponseTwoRelatedOrdersForOrder>
 
   /**
@@ -452,6 +457,7 @@ export class Orders {
    */
   async post(
     parameters: PlaceOrderParametersOneRelatedOrderForOrder,
+    options?: { readonly timeout?: undefined | number },
   ): Promise<PlaceOrderResponseOneRelatedOrderForOrder>
 
   /**
@@ -465,6 +471,7 @@ export class Orders {
    */
   async post(
     parameters: PlaceOrderParametersTwoRelatedOrdersForOrder,
+    options?: { readonly timeout?: undefined | number },
   ): Promise<PlaceOrderResponseTwoRelatedOrdersForOrder>
 
   /**
@@ -474,6 +481,7 @@ export class Orders {
    */
   async post(
     parameters: PlaceOrderParametersEntryOCOOrders,
+    options?: { readonly timeout?: undefined | number },
   ): Promise<PlaceOrderResponseEntryOCOOrders>
 
   /**
@@ -494,6 +502,7 @@ export class Orders {
       | PlaceOrderParametersOneRelatedOrderForPosition
       | PlaceOrderParametersTwoRelatedOrdersForPosition
       | PlaceOrderParametersEntryOCOOrders,
+    options: { readonly timeout?: undefined | number } = {},
   ): Promise<
     | PlaceOrderResponseEntryWithNoRelatedOrders
     | PlaceOrderResponseEntryWithOneRelatedOrder
@@ -514,42 +523,82 @@ export class Orders {
 
     // Method 1
     if (hasRootExternalReference && relatedOrders === undefined) {
-      return await this.#client.post({ body, headers, guard: PlaceOrderResponseEntryWithNoRelatedOrders })
+      return await this.#client.post({
+        body,
+        headers,
+        guard: PlaceOrderResponseEntryWithNoRelatedOrders,
+        timeout: options.timeout,
+      })
     }
 
     // Method 2
     if (hasRootExternalReference && relatedOrders === 1) {
-      return await this.#client.post({ body, headers, guard: PlaceOrderResponseEntryWithOneRelatedOrder })
+      return await this.#client.post({
+        body,
+        headers,
+        guard: PlaceOrderResponseEntryWithOneRelatedOrder,
+        timeout: options.timeout,
+      })
     }
 
     // Method 3
     if (hasRootExternalReference && relatedOrders === 2) {
-      return await this.#client.post({ body, headers, guard: PlaceOrderResponseEntryWithTwoRelatedOrders })
+      return await this.#client.post({
+        body,
+        headers,
+        guard: PlaceOrderResponseEntryWithTwoRelatedOrders,
+        timeout: options.timeout,
+      })
     }
 
     // Method 4
     if ('OrderId' in parameters && relatedOrders === 1) {
-      return await this.#client.post({ body, headers, guard: PlaceOrderResponseOneRelatedOrderForOrder })
+      return await this.#client.post({
+        body,
+        headers,
+        guard: PlaceOrderResponseOneRelatedOrderForOrder,
+        timeout: options.timeout,
+      })
     }
 
     // Method 5
     if ('OrderId' in parameters && relatedOrders === 2) {
-      return await this.#client.post({ body, headers, guard: PlaceOrderResponseTwoRelatedOrdersForOrder })
+      return await this.#client.post({
+        body,
+        headers,
+        guard: PlaceOrderResponseTwoRelatedOrdersForOrder,
+        timeout: options.timeout,
+      })
     }
 
     // Method 6
     if ('PositionId' in parameters && relatedOrders === 1) {
-      return await this.#client.post({ body, headers, guard: PlaceOrderResponseOneRelatedOrderForPosition })
+      return await this.#client.post({
+        body,
+        headers,
+        guard: PlaceOrderResponseOneRelatedOrderForPosition,
+        timeout: options.timeout,
+      })
     }
 
     // Method 7
     if ('PositionId' in parameters && relatedOrders === 2) {
-      return await this.#client.post({ body, headers, guard: PlaceOrderResponseTwoRelatedOrdersForPosition })
+      return await this.#client.post({
+        body,
+        headers,
+        guard: PlaceOrderResponseTwoRelatedOrdersForPosition,
+        timeout: options.timeout,
+      })
     }
 
     // Method 8
     if (hasRootExternalReference === false && relatedOrders === 2) {
-      return await this.#client.post({ body, headers, guard: PlaceOrderResponseEntryOCOOrders })
+      return await this.#client.post({
+        body,
+        headers,
+        guard: PlaceOrderResponseEntryOCOOrders,
+        timeout: options.timeout,
+      })
     }
 
     throw new Error('Unexpected response')
@@ -564,6 +613,7 @@ export class Orders {
       readonly AssetType: AssetType
       readonly Uic: number
     },
+    options?: { readonly timeout?: undefined | number },
   ): Promise<CancelMatchingOrdersResponse>
 
   /**
@@ -574,6 +624,7 @@ export class Orders {
       readonly AccountKey: string
       readonly OrderIds: readonly string[]
     },
+    options?: { readonly timeout?: undefined | number },
   ): Promise<CancelSpecificOrdersResponse>
 
   async delete(
@@ -585,6 +636,7 @@ export class Orders {
       readonly AssetType: AssetType
       readonly Uic: number
     },
+    options: { readonly timeout?: undefined | number } = {},
   ): Promise<CancelOrdersResponse> {
     if ('Uic' in parameters) {
       return await this.#client.delete({
@@ -593,6 +645,7 @@ export class Orders {
           AssetType: parameters.AssetType,
           Uic: parameters.Uic,
         },
+        timeout: options.timeout,
       })
     }
 
@@ -601,6 +654,7 @@ export class Orders {
       searchParams: {
         AccountKey: parameters.AccountKey,
       },
+      timeout: options.timeout,
     })
   }
 }

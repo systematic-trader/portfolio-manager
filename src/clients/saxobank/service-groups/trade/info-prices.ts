@@ -362,6 +362,7 @@ export class InfoPrices {
 
   async get(
     parameters: InfoPriceResponse[keyof InfoPriceResponse],
+    options: { readonly timeout?: undefined | number } = {},
   ): Promise<InfoPriceResponse[keyof InfoPriceResponse]> {
     const AmountType: OrderAmountType = 'Quantity'
     const FieldGroups: readonly InfoPriceGroupSpec[] = [
@@ -384,7 +385,10 @@ export class InfoPrices {
       ...assertedParameters,
     }
 
-    const response = await this.#client.get<object>({ searchParams })
+    const response = await this.#client.get<object>({
+      searchParams,
+      timeout: options.timeout,
+    })
 
     switch (parameters.AssetType) {
       case 'Bond': {

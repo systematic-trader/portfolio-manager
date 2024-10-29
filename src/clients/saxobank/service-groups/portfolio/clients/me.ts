@@ -9,12 +9,15 @@ export class Me {
   }
 
   /** Get details about logged-in user's client */
-  async get(): Promise<ClientResponse> {
+  async get(
+    options: { readonly timeout?: undefined | number } = {},
+  ): Promise<ClientResponse> {
     return await this.#client.get({
       searchParams: {
         $inlinecount: 'AllPages',
       },
       guard: ClientResponse,
+      timeout: options.timeout,
     })
   }
 }

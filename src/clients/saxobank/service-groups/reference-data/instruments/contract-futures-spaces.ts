@@ -17,11 +17,15 @@ export class ContractFuturesSpaces {
     this.#client = client.appendPath('futuresspaces')
   }
 
-  async get({ Uic }: { readonly Uic: number }): Promise<ReadonlyArray<FuturesSpaceElement>> {
+  async get(
+    { Uic }: { readonly Uic: number },
+    options: { readonly timeout?: undefined | number } = {},
+  ): Promise<ReadonlyArray<FuturesSpaceElement>> {
     try {
       const responseBody = await this.#client.get({
         path: String(Uic),
         guard: ResponseBodyGuard,
+        timeout: options.timeout,
       })
 
       return responseBody.Elements
