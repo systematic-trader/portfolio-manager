@@ -17,6 +17,9 @@ export class TestingUtilities {
     readonly app: SaxoBankApplication
   }) {
     this.#app = app
+    this.resetSimulationAccount = this.resetSimulationAccount.bind(this)
+    this.waitForOrderCount = this.waitForOrderCount.bind(this)
+    this.waitForPositionCount = this.waitForPositionCount.bind(this)
     this.findTradableInstruments = this.findTradableInstruments.bind(this)
   }
 
