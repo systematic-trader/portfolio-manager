@@ -143,7 +143,7 @@ describe('trade/orders', () => {
     type: 'Simulation',
   })
 
-  const { resetSimulationAccount } = new TestingUtilities({ app })
+  const { resetSimulationAccount, findTradableInstruments } = new TestingUtilities({ app })
 
   // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
   beforeEach(() => resetSimulationAccount({ balance: 10_000_000 }))
@@ -655,44 +655,20 @@ describe('trade/orders', () => {
           case 'Rights':
           case 'Stock':
           case 'Fund': {
-            const instruments = await toArray(app.referenceData.instruments.details.get({
-              AssetTypes: [assetType],
-              limit: Math.max(MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE, 1000),
-            }))
-
-            const filteredInstruments = instruments.filter((candidate) => {
-              if ('IsTradable' in candidate && candidate.IsTradable === false) {
-                return false
-              }
-
-              if ('NonTradableReason' in candidate && ['None'].includes(candidate.NonTradableReason) === false) {
-                return false
-              }
-
-              return true
+            const instruments = findTradableInstruments({
+              assetTypes: [assetType],
+              limit: MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE,
             })
 
-            const instrumentsToTest = filteredInstruments.slice(0, MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE)
-
-            for (const instrument of instrumentsToTest) {
+            for await (const instrument of instruments) {
               await step(`${instrument.Description} (UIC ${instrument.Uic})`, async () => {
-                const [instrumentDetails] = await toArray(app.referenceData.instruments.details.get({
-                  AssetTypes: [assetType],
-                  Uics: [instrument.Uic],
-                }))
-                if (instrumentDetails === undefined) {
-                  throw new Error(
-                    `Could not determine details for ${instrument.Description} (UIC ${instrument.Uic})`,
-                  )
-                }
-
                 const placeOrderResponse = await app.trade.orders.post({
                   RequestId: crypto.randomUUID(),
 
                   AssetType: assetType,
                   Uic: instrument.Uic,
                   BuySell: 'Buy',
-                  Amount: calculateMinimumOrderSize(instrumentDetails),
+                  Amount: calculateMinimumOrderSize(instrument),
                   ManualOrder: false,
                   ExternalReference: crypto.randomUUID(),
                   OrderType: 'Market',
@@ -711,26 +687,12 @@ describe('trade/orders', () => {
           }
 
           case 'FxForwards': {
-            const instruments = await toArray(app.referenceData.instruments.details.get({
-              AssetTypes: [assetType],
-              limit: Math.max(MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE, 1000),
-            }))
-
-            const filteredInstruments = instruments.filter((candidate) => {
-              if ('IsTradable' in candidate && candidate.IsTradable === false) {
-                return false
-              }
-
-              if ('NonTradableReason' in candidate && ['None'].includes(candidate.NonTradableReason) === false) {
-                return false
-              }
-
-              return true
+            const instruments = findTradableInstruments({
+              assetTypes: [assetType],
+              limit: MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE,
             })
 
-            const instrumentsToTest = filteredInstruments.slice(0, MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE)
-
-            for (const instrument of instrumentsToTest) {
+            for await (const instrument of instruments) {
               await step(`${instrument.Description} (UIC ${instrument.Uic})`, async () => {
                 // todo find a way to remove this (repeated trade on auto quote)
                 await new Promise((resolve) => setTimeout(resolve, 2000))
