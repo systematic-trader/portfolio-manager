@@ -155,31 +155,39 @@ export class Timeout<T = undefined> extends Promise<undefined | T> implements Di
       }
     }
 
-    const handler: TimerHandler = handle === undefined ? () => instance.#resolve(undefined as T) : () => {
-      if (instance.#status !== 'in-progress') {
-        return instance.#resolve(undefined as T)
-      }
-
-      try {
-        const maybePromise = handle(instance.signal)
-
-        if (maybePromise instanceof Promise) {
-          maybePromise.then(instance.#resolve).catch(instance.#reject)
-        } else {
-          instance.#resolve(maybePromise)
+    const handler: TimerHandler = handle === undefined
+      ? () => {
+        if (instance.#status === 'in-progress') {
+          instance.#status = 'aborted'
         }
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          if (instance.#status === 'in-progress') {
-            instance.#status = 'aborted'
+
+        instance.#resolve(undefined as T)
+      }
+      : () => {
+        if (instance.#status !== 'in-progress') {
+          return instance.#resolve(undefined as T)
+        }
+
+        try {
+          const maybePromise = handle(instance.signal)
+
+          if (maybePromise instanceof Promise) {
+            maybePromise.then(instance.#resolve).catch(instance.#reject)
+          } else {
+            instance.#resolve(maybePromise)
+          }
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') {
+            if (instance.#status === 'in-progress') {
+              instance.#status = 'aborted'
+            }
+
+            return instance.#resolve(undefined)
           }
 
-          return instance.#resolve(undefined)
+          instance.#reject(error)
         }
-
-        instance.#reject(error)
       }
-    }
 
     instance.#timer = setTimeout(handler, timeout)
 
