@@ -14,6 +14,7 @@ describe('portfolio/orders/me', () => {
     })
   })
 
+  // todo place a limit order and test the reponse (we can't use market orders, since they might be filled)
   describe('simulation', () => {
     using appSimulation = new SaxoBankApplication({
       type: 'Simulation',
