@@ -1,39 +1,6 @@
-import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../../utils/testing.ts'
-import { Timeout } from '../../../../../../utils/timeout.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
-import { createResetSimulationAccount } from '../../../../__tests__/create-reset-simulation-account.ts'
-
-async function waitForOrdersToBeFilled(
-  {
-    app,
-    delay = 300, // this is a bit more than the rate limit of 240 requests per minute
-    timeout = 80_000,
-  }: {
-    readonly app: SaxoBankApplication
-    readonly delay?: undefined | number
-    readonly timeout?: undefined | number
-  },
-) {
-  const startTime = Date.now()
-  while (true) {
-    const elapsed = Date.now() - startTime
-
-    const orders = await Timeout.run(timeout - elapsed, async (signal) => {
-      return await toArray(app.portfolio.orders.me.get({}, { signal }))
-    })
-
-    if (orders === undefined) {
-      throw new Error('Timeout waiting for orders to be filled')
-    }
-
-    if (orders.length === 0) {
-      return
-    }
-
-    await Timeout.wait(delay)
-  }
-}
+import { TestingUtilities } from '../../../../__tests__/testing-utilities.ts'
 
 describe('portfolio/balances/me', () => {
   describe('live', () => {
@@ -52,10 +19,7 @@ describe('portfolio/balances/me', () => {
       type: 'Simulation',
     })
 
-    const { resetSimulationAccount } = createResetSimulationAccount({
-      app: appSimulation,
-      balance: 50_000,
-    })
+    const { resetSimulationAccount, waitForOrderCount } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
     afterAll(resetSimulationAccount)
@@ -81,7 +45,7 @@ describe('portfolio/balances/me', () => {
         ExternalReference: crypto.randomUUID(),
       })
 
-      await waitForOrdersToBeFilled({ app: appSimulation })
+      await waitForOrderCount({ count: 0 })
 
       const updatedBalance = await appSimulation.portfolio.balances.me.get()
       expect(updatedBalance).toBeDefined()

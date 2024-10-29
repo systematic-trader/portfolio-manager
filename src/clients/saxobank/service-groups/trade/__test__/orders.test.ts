@@ -1,7 +1,7 @@
 import { toArray } from '../../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
-import { createResetSimulationAccount } from '../../../__tests__/create-reset-simulation-account.ts'
+import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
 import type { InstrumentDetailsType } from '../../../types/records/instrument-details.ts'
 import type { InfoPricesParameters } from '../info-prices.ts'
 
@@ -143,13 +143,11 @@ describe('trade/orders', () => {
     type: 'Simulation',
   })
 
-  const { resetSimulationAccount } = createResetSimulationAccount({
-    app,
-    balance: 10_000_000, // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
-  })
+  const { resetSimulationAccount } = new TestingUtilities({ app })
 
-  beforeEach(resetSimulationAccount)
-  afterAll(resetSimulationAccount)
+  // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
+  beforeEach(() => resetSimulationAccount({ balance: 10_000_000 }))
+  afterAll(() => resetSimulationAccount({ balance: 10_000_000 }))
 
   describe('placing orders using different methods', () => {
     test('Method 1: Placing a single order, with no related orders', async () => {
