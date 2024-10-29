@@ -9,8 +9,8 @@ describe('portfolio/balances/me', () => {
     })
 
     test('response passes guard', async () => {
-      const me = await appLive.portfolio.balances.me.get()
-      expect(me).toBeDefined()
+      const balance = await appLive.portfolio.balances.me.get()
+      expect(balance).toBeDefined()
     })
   })
 
