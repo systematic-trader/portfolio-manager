@@ -1,6 +1,8 @@
 import { toArray } from '../../../utils/async-iterable.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
+import type { AssetType } from '../types/derives/asset-type.ts'
+import type { InstrumentDetailsType } from '../types/records/instrument-details.ts'
 
 const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
   // this is a bit more than the rate limit of 240 requests per minute
@@ -15,6 +17,7 @@ export class TestingUtilities {
     readonly app: SaxoBankApplication
   }) {
     this.#app = app
+    this.findTradableInstruments = this.findTradableInstruments.bind(this)
   }
 
   /**
@@ -111,6 +114,52 @@ export class TestingUtilities {
       }
 
       await Timeout.wait(delay)
+    }
+  }
+
+  /**
+   * Find tradable instruments for the given asset types, based on reference data.
+   * Instruments that are explicitly marked as non-tradable will be excluded (either by `IsTradable` or `NonTradableReason`).
+   */
+  async *findTradableInstruments<T extends AssetType>({
+    assetTypes,
+    limit,
+  }: {
+    readonly assetTypes: readonly [T, ...ReadonlyArray<T>]
+    readonly limit?: undefined | number
+  }): AsyncGenerator<
+    Extract<InstrumentDetailsType, { readonly AssetType: T }>,
+    void,
+    undefined
+  > {
+    if (limit !== undefined && limit <= 0) {
+      return
+    }
+
+    const abortController = new AbortController()
+
+    const instruments = this.#app.referenceData.instruments.details.get({
+      AssetTypes: assetTypes,
+    }, {
+      signal: abortController.signal,
+    })
+
+    let count = 0
+    for await (const instrument of instruments) {
+      if ('IsTradable' in instrument && instrument.IsTradable === false) {
+        continue
+      }
+
+      if ('NonTradableReason' in instrument && ['None'].includes(instrument.NonTradableReason) === false) {
+        continue
+      }
+
+      yield instrument
+
+      if (++count === limit) {
+        abortController.abort()
+        break
+      }
     }
   }
 }
