@@ -10,27 +10,48 @@ describe('portfolio/positions/me', () => {
     })
 
     test('response passes guard', async () => {
-      const me = await toArray(appLive.portfolio.positions.me.get())
-
-      expect(me).toBeDefined()
+      const positions = await toArray(appLive.portfolio.positions.me.get())
+      expect(positions).toBeDefined()
     })
   })
 
-  // todo place some orders, wait for them to be filled, then test the response
   describe('simulation', () => {
     using appSimulation = new SaxoBankApplication({
       type: 'Simulation',
     })
 
-    const { resetSimulationAccount } = new TestingUtilities({ app: appSimulation })
+    const { resetSimulationAccount, waitForOrderCount } = new TestingUtilities({ app: appSimulation })
 
-    beforeEach(() => resetSimulationAccount({ balance: 10_000_000 }))
-    afterAll(() => resetSimulationAccount({ balance: 10_000_000 }))
+    beforeEach(resetSimulationAccount)
+    afterAll(resetSimulationAccount)
 
-    test('response passes guard', async () => {
-      const me = await toArray(appSimulation.portfolio.positions.me.get())
+    test('response passes guard, with no orders or positions', async () => {
+      const positions = await toArray(appSimulation.portfolio.positions.me.get())
+      expect(positions).toBeDefined()
+    })
 
-      expect(me).toBeDefined()
+    test('response passes guard, with an open FxSpot position', async () => {
+      const initialPositions = await toArray(appSimulation.portfolio.positions.me.get())
+      expect(initialPositions).toBeDefined()
+      expect(initialPositions).toHaveLength(0)
+
+      await appSimulation.trade.orders.post({
+        AssetType: 'FxSpot',
+        BuySell: 'Buy',
+        Amount: 50_000,
+        OrderType: 'Market',
+        OrderDuration: { DurationType: 'DayOrder' },
+        ManualOrder: false,
+        Uic: 21, // EUR/USD
+        RequestId: crypto.randomUUID(),
+        ExternalReference: crypto.randomUUID(),
+      })
+
+      await waitForOrderCount({ count: 0 })
+
+      const updatedPositions = await toArray(appSimulation.portfolio.positions.me.get())
+      expect(updatedPositions).toBeDefined()
+      expect(updatedPositions).toHaveLength(1)
     })
   })
 })
