@@ -22,7 +22,7 @@ export class Me {
   async *get(options: {
     readonly timeout?: undefined | number
     readonly signal?: undefined | AbortSignal
-  }): AsyncIterable<PositionResponse, void, undefined> {
+  } = {}): AsyncIterable<PositionResponse, void, undefined> {
     yield* this.#client.getPaginated({
       searchParams: {
         FieldGroups,
