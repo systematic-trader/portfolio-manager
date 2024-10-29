@@ -55,3 +55,5 @@ export const InstrumentSessionState = enums([
   /** Orders collected at last price in absence of closing auction price */
   'TradingAtLast',
 ])
+
+export type InstrumentSessionState = typeof InstrumentSessionState

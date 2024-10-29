@@ -1,7 +1,5 @@
 import { enums, type GuardType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
-export type ExchangeSessionState = GuardType<typeof ExchangeSessionState>
-
 export const ExchangeSessionState = enums([
   /**
    * Participants place orders to buy or sell units at certain buying or selling prices.
@@ -57,3 +55,5 @@ export const ExchangeSessionState = enums([
   /** Orders collected at last price in absence of closing auction price */
   'TradingAtLast',
 ])
+
+export type ExchangeSessionState = GuardType<typeof ExchangeSessionState>
