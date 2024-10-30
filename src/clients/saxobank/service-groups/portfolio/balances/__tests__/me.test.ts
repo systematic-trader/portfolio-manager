@@ -19,7 +19,7 @@ describe('portfolio/balances/me', () => {
       type: 'Simulation',
     })
 
-    const { resetSimulationAccount, waitForOrderCount } = new TestingUtilities({ app: appSimulation })
+    const { resetSimulationAccount, waitForPortfolioState } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
     afterAll(resetSimulationAccount)
@@ -45,7 +45,9 @@ describe('portfolio/balances/me', () => {
         ExternalReference: crypto.randomUUID(),
       })
 
-      await waitForOrderCount({ count: 0 })
+      await waitForPortfolioState({
+        orders: ['=', 0],
+      })
 
       const updatedBalance = await appSimulation.portfolio.balances.me.get()
       expect(updatedBalance).toBeDefined()

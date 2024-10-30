@@ -11,6 +11,8 @@ const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
   timeout: 80_000,
 }
 
+type NumericCondition = readonly ['>' | '≥' | '=' | '≤' | '<', number]
+
 export class TestingUtilities {
   #app: SaxoBankApplication
 
@@ -19,8 +21,7 @@ export class TestingUtilities {
   }) {
     this.#app = app
     this.resetSimulationAccount = this.resetSimulationAccount.bind(this)
-    this.waitForOrderCount = this.waitForOrderCount.bind(this)
-    this.waitForPositionCount = this.waitForPositionCount.bind(this)
+    this.waitForPortfolioState = this.waitForPortfolioState.bind(this)
     this.findTradableInstruments = this.findTradableInstruments.bind(this)
   }
 
@@ -50,76 +51,87 @@ export class TestingUtilities {
   }
 
   /**
-   * Wait for the number of orders to reach the specified count.
-   * This will poll the orders endpoint until the count matches the specified value.
-   * This is useful when you need to wait for orders to be processed before continuing.
+   * Wait for the portfolio to reach the specified state.
+   * This will poll the endpoints continiously until the state matches the specified values.
+   * This is useful when you need to wait for orders to be filled.
    */
-  async waitForOrderCount(
+  async waitForPortfolioState(
     {
-      count,
+      orders,
+      positions,
       delay = PORTFOLIO_RATE_LIMIT_ESTIMATES.delay,
       timeout = PORTFOLIO_RATE_LIMIT_ESTIMATES.timeout,
-    }: {
-      readonly count?: undefined | number
-      readonly delay?: undefined | number
-      readonly timeout?: undefined | number
-    },
+    }:
+      & {
+        readonly orders?: NumericCondition
+        readonly positions?: NumericCondition
+        readonly delay?: number
+        readonly timeout?: number
+      }
+      & (
+        | { readonly orders: NumericCondition }
+        | { readonly positions: NumericCondition }
+      ),
   ): Promise<void> {
+    if (!orders && !positions) {
+      throw new Error("At least one of 'orders' or 'positions' must be specified.")
+    }
+
     const startTime = Date.now()
+
     while (true) {
       const elapsed = Date.now() - startTime
       const remaining = timeout - elapsed
 
       if (remaining <= 0) {
-        throw new Error(`Timeout waiting for order count to be ${count}`)
+        throw new Error(`Timeout waiting for portfolio state.`)
       }
 
-      const orders = await toArray(this.#app.portfolio.orders.me.get({}, {
-        timeout: remaining,
-      }))
+      if (orders) {
+        await Timeout.wait(delay)
 
-      if (orders.length === count) {
-        return
+        const currentOrders = await toArray(this.#app.portfolio.orders.me.get({}, {
+          timeout: remaining,
+        }))
+
+        if (this.#matchesCondition(currentOrders.length, orders)) {
+          return
+        }
       }
 
-      await Timeout.wait(delay)
+      if (positions) {
+        await Timeout.wait(delay)
+
+        const currentPositions = await toArray(this.#app.portfolio.positions.me.get({
+          timeout: remaining,
+        }))
+
+        if (this.#matchesCondition(currentPositions.length, positions)) {
+          return
+        }
+      }
     }
   }
 
-  /**
-   * Wait for the number of positions to reach the specified count.
-   * This will poll the positions endpoint until the count matches the specified value.
-   * This is useful when you need to wait for positions to be processed before continuing.
-   */
-  async waitForPositionCount(
-    {
-      count,
-      delay = PORTFOLIO_RATE_LIMIT_ESTIMATES.delay,
-      timeout = PORTFOLIO_RATE_LIMIT_ESTIMATES.timeout,
-    }: {
-      readonly count?: undefined | number
-      readonly delay?: undefined | number
-      readonly timeout?: undefined | number
-    },
-  ): Promise<void> {
-    const startTime = Date.now()
-    while (true) {
-      const elapsed = Date.now() - startTime
-      const remaining = timeout - elapsed
+  #matchesCondition(value: number, [operator, target]: NumericCondition): boolean {
+    switch (operator) {
+      case '>':
+        return value > target
 
-      if (remaining <= 0) {
-        throw new Error(`Timeout waiting for position count to be ${count}`)
-      }
+      case '≥':
+        return value >= target
 
-      const positions = await toArray(this.#app.portfolio.positions.me.get({
-        timeout: remaining,
-      }))
+      case '=':
+        return value === target
 
-      if (positions.length === count) {
-        return
-      }
+      case '≤':
+        return value <= target
 
-      await Timeout.wait(delay)
+      case '<':
+        return value < target
+
+      default:
+        throw new Error('Unsupported operator')
     }
   }
 
