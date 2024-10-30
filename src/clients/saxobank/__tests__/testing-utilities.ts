@@ -158,8 +158,6 @@ export class TestingUtilities {
       return
     }
 
-    const now = new Date().toISOString()
-
     const instruments = this.#app.referenceData.instruments.details.get({
       AssetTypes: assetTypes,
       Uics: uics,
@@ -167,6 +165,8 @@ export class TestingUtilities {
 
     let count = 0
     for await (const instrument of instruments) {
+      const now = new Date().toISOString()
+
       if ('IsTradable' in instrument && instrument.IsTradable === false) {
         continue
       }
