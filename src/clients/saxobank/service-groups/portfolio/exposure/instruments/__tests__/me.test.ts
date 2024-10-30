@@ -19,7 +19,7 @@ describe('portfolio/exposure/instruments/me', () => {
       type: 'Simulation',
     })
 
-    const { resetSimulationAccount, waitForOrderCount } = new TestingUtilities({ app: appSimulation })
+    const { resetSimulationAccount, waitForPortfolioState } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
     afterAll(resetSimulationAccount)
@@ -46,7 +46,9 @@ describe('portfolio/exposure/instruments/me', () => {
         ExternalReference: crypto.randomUUID(),
       })
 
-      await waitForOrderCount({ count: 0 })
+      await waitForPortfolioState({
+        orders: ['=', 0],
+      })
 
       const updatedExposure = await appSimulation.portfolio.exposure.instruments.me.get()
       expect(updatedExposure).toBeDefined()
