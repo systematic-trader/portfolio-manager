@@ -30,8 +30,11 @@ export class TestingUtilities {
    * This will delete any positions and orders and set the account balance to the specified value.
    */
   async resetSimulationAccount({
-    balance = 50_000,
+    app: appOverride,
+    balance = 1_000_000,
   }: {
+    readonly app?: undefined | SaxoBankApplication
+
     /**
      * The balance to reset the account to.
      * Must be within the range of 0 to 10,000,000.
@@ -39,12 +42,14 @@ export class TestingUtilities {
      */
     readonly balance?: undefined | number
   } = {}): Promise<void> {
-    const [account] = await toArray(this.#app.portfolio.accounts.me.get())
+    const app = appOverride ?? this.#app
+
+    const [account] = await toArray(app.portfolio.accounts.me.get())
     if (account === undefined) {
-      throw new Error(`Could not determine client for simulation user`)
+      throw new Error(`Could not determine account for simulation user`)
     }
 
-    await this.#app.portfolio.accounts.account.reset.put({
+    await app.portfolio.accounts.account.reset.put({
       AccountKey: account.AccountKey,
       NewBalance: balance,
     })
@@ -57,12 +62,14 @@ export class TestingUtilities {
    */
   async waitForPortfolioState(
     {
+      app: appOverride,
       orders,
       positions,
       delay = PORTFOLIO_RATE_LIMIT_ESTIMATES.delay,
       timeout = PORTFOLIO_RATE_LIMIT_ESTIMATES.timeout,
     }:
       & {
+        readonly app?: undefined | SaxoBankApplication
         readonly orders?: NumericCondition
         readonly positions?: NumericCondition
         readonly delay?: number
@@ -73,9 +80,11 @@ export class TestingUtilities {
         | { readonly positions: NumericCondition }
       ),
   ): Promise<void> {
-    if (!orders && !positions) {
-      throw new Error("At least one of 'orders' or 'positions' must be specified.")
+    if (orders === undefined && positions === undefined) {
+      throw new Error(`At least one of 'orders' or 'positions' must be specified.`)
     }
+
+    const app = appOverride ?? this.#app
 
     const startTime = Date.now()
 
@@ -90,7 +99,7 @@ export class TestingUtilities {
       if (orders) {
         await Timeout.wait(delay)
 
-        const currentOrders = await toArray(this.#app.portfolio.orders.me.get({}, {
+        const currentOrders = await toArray(app.portfolio.orders.me.get({}, {
           timeout: remaining,
         }))
 
@@ -102,7 +111,7 @@ export class TestingUtilities {
       if (positions) {
         await Timeout.wait(delay)
 
-        const currentPositions = await toArray(this.#app.portfolio.positions.me.get({
+        const currentPositions = await toArray(app.portfolio.positions.me.get({
           timeout: remaining,
         }))
 
@@ -140,11 +149,13 @@ export class TestingUtilities {
    * Instruments that are explicitly marked as non-tradable will be excluded (either by `IsTradable` or `NonTradableReason`).
    */
   async *findTradableInstruments<T extends AssetType>({
+    app: appOverride,
     assetTypes,
     uics,
     sessions,
     limit,
   }: {
+    readonly app?: undefined | SaxoBankApplication
     readonly assetTypes: readonly [T, ...readonly T[]]
     readonly uics?: undefined | readonly number[]
     readonly sessions?: undefined | readonly InstrumentSessionState[]
@@ -158,7 +169,9 @@ export class TestingUtilities {
       return
     }
 
-    const instruments = this.#app.referenceData.instruments.details.get({
+    const app = appOverride ?? this.#app
+
+    const instruments = app.referenceData.instruments.details.get({
       AssetTypes: assetTypes,
       Uics: uics,
     })
