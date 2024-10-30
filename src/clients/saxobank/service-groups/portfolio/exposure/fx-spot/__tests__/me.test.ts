@@ -19,7 +19,7 @@ describe('portfolio/exposure/fx-spot/me', () => {
       type: 'Simulation',
     })
 
-    const { resetSimulationAccount, waitForOrderCount } = new TestingUtilities({ app: appSimulation })
+    const { resetSimulationAccount, waitForPortfolioState } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
     afterAll(resetSimulationAccount)
@@ -48,7 +48,9 @@ describe('portfolio/exposure/fx-spot/me', () => {
         ExternalReference: crypto.randomUUID(),
       })
 
-      await waitForOrderCount({ count: 0 })
+      await waitForPortfolioState({
+        orders: ['=', 0],
+      })
 
       const updatedExposure = await appSimulation.portfolio.exposure.fxSpot.me.get()
       expect(updatedExposure).toBeDefined()
