@@ -3,6 +3,8 @@ import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
 import type { AssetType } from '../types/derives/asset-type.ts'
 import type { InstrumentSessionState } from '../types/derives/instrument-session-state.ts'
+import type { AccountResponse } from '../types/records/account-response.ts'
+import type { ClientResponse } from '../types/records/client-response.ts'
 import type { InstrumentDetailsType } from '../types/records/instrument-details.ts'
 
 const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
@@ -13,6 +15,8 @@ const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
 
 type NumericCondition = readonly ['>' | '≥' | '=' | '≤' | '<', number]
 
+type ClientKeyArgument = undefined | string | (() => Promise<string>)
+
 export class TestingUtilities {
   #app: SaxoBankApplication
 
@@ -20,9 +24,39 @@ export class TestingUtilities {
     readonly app: SaxoBankApplication
   }) {
     this.#app = app
+    this.getFirstClient = this.getFirstClient.bind(this)
+    this.getFirstAccount = this.getFirstAccount.bind(this)
     this.resetSimulationAccount = this.resetSimulationAccount.bind(this)
     this.waitForPortfolioState = this.waitForPortfolioState.bind(this)
     this.findTradableInstruments = this.findTradableInstruments.bind(this)
+  }
+
+  #clientCached: Promise<ClientResponse> | undefined
+  async getFirstClient(): Promise<ClientResponse> {
+    if (this.#clientCached === undefined) {
+      this.#clientCached = toArray(this.#app.portfolio.clients.get()).then(([client]) => {
+        if (client === undefined) {
+          throw new Error('No clients returned from portfolio endpoint')
+        }
+        return client
+      })
+    }
+
+    return await this.#clientCached
+  }
+
+  #accountCached: Promise<AccountResponse> | undefined
+  async getFirstAccount(): Promise<AccountResponse> {
+    if (this.#accountCached === undefined) {
+      this.#accountCached = toArray(this.#app.portfolio.accounts.get()).then(([account]) => {
+        if (account === undefined) {
+          throw new Error('No accounts returned from portfolio endpoint')
+        }
+        return account
+      })
+    }
+
+    return await this.#accountCached
   }
 
   /**
@@ -44,13 +78,10 @@ export class TestingUtilities {
   } = {}): Promise<void> {
     const app = appOverride ?? this.#app
 
-    const [account] = await toArray(app.portfolio.accounts.me.get())
-    if (account === undefined) {
-      throw new Error(`Could not determine account for simulation user`)
-    }
+    const { AccountKey } = await this.getFirstAccount()
 
     await app.portfolio.accounts.account.reset.put({
-      AccountKey: account.AccountKey,
+      AccountKey,
       NewBalance: balance,
     })
   }
@@ -63,6 +94,7 @@ export class TestingUtilities {
   async waitForPortfolioState(
     {
       app: appOverride,
+      clientKey: clientKeyOverride,
       orders,
       positions,
       delay = PORTFOLIO_RATE_LIMIT_ESTIMATES.delay,
@@ -70,6 +102,7 @@ export class TestingUtilities {
     }:
       & {
         readonly app?: undefined | SaxoBankApplication
+        readonly clientKey?: ClientKeyArgument
         readonly orders?: NumericCondition
         readonly positions?: NumericCondition
         readonly delay?: number
@@ -85,6 +118,11 @@ export class TestingUtilities {
     }
 
     const app = appOverride ?? this.#app
+    const clientKey = clientKeyOverride === undefined
+      ? (await this.getFirstClient()).ClientKey
+      : typeof clientKeyOverride === 'function'
+      ? await clientKeyOverride()
+      : clientKeyOverride
 
     const startTime = Date.now()
 
@@ -99,7 +137,9 @@ export class TestingUtilities {
       if (orders) {
         await Timeout.wait(delay)
 
-        const currentOrders = await toArray(app.portfolio.orders.me.get({}, {
+        const currentOrders = await toArray(app.portfolio.orders.get({
+          ClientKey: clientKey,
+        }, {
           timeout: remaining,
         }))
 
@@ -111,7 +151,9 @@ export class TestingUtilities {
       if (positions) {
         await Timeout.wait(delay)
 
-        const currentPositions = await toArray(app.portfolio.positions.me.get({
+        const currentPositions = await toArray(app.portfolio.positions.get({
+          ClientKey: clientKey,
+        }, {
           timeout: remaining,
         }))
 

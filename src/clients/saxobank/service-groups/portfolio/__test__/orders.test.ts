@@ -1,31 +1,36 @@
-import { toArray } from '../../../../../../utils/async-iterable.ts'
-import { afterAll, beforeEach, describe, expect, test } from '../../../../../../utils/testing.ts'
-import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
-import { TestingUtilities } from '../../../../__tests__/testing-utilities.ts'
+import { toArray } from '../../../../../utils/async-iterable.ts'
+import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
+import { SaxoBankApplication } from '../../../../saxobank-application.ts'
+import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
 
-describe('portfolio/orders/me', () => {
-  describe('live', () => {
-    using appLive = new SaxoBankApplication({
-      type: 'Live',
-    })
-
-    test('response passes guard', async () => {
-      const me = await toArray(appLive.portfolio.orders.me.get())
-      expect(me).toBeDefined()
-    })
-  })
-
+describe('portfolio/orders', () => {
   describe('simulation', () => {
     using appSimulation = new SaxoBankApplication({
       type: 'Simulation',
     })
 
-    const { findTradableInstruments, resetSimulationAccount } = new TestingUtilities({ app: appSimulation })
+    const {
+      findTradableInstruments,
+      resetSimulationAccount,
+      getFirstAccount,
+    } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
     afterAll(resetSimulationAccount)
 
+    test('response passes guard with no orders', async () => {
+      const { ClientKey } = await getFirstAccount()
+
+      const orders = await toArray(appSimulation.portfolio.orders.get({
+        ClientKey,
+      }))
+      expect(orders).toBeDefined()
+      expect(orders).toHaveLength(0)
+    })
+
     test('response passes guard for market stock orders', async ({ step }) => {
+      const { ClientKey } = await getFirstAccount()
+
       const instruments = findTradableInstruments({
         assetTypes: ['Stock'],
         limit: 100,
@@ -47,7 +52,9 @@ describe('portfolio/orders/me', () => {
           })
           expect(placeOrderResponse).toBeDefined()
 
-          const orders = await toArray(appSimulation.portfolio.orders.me.get())
+          const orders = await toArray(appSimulation.portfolio.orders.get({
+            ClientKey,
+          }))
           expect(orders).toBeDefined()
           expect(orders).toHaveLength(1)
 
@@ -60,11 +67,6 @@ describe('portfolio/orders/me', () => {
       if (count === 0) {
         throw new Error('Failed to find any instruments to base the test on')
       }
-    })
-
-    test('response passes guard', async () => {
-      const me = await toArray(appSimulation.portfolio.orders.me.get())
-      expect(me).toBeDefined()
     })
   })
 })

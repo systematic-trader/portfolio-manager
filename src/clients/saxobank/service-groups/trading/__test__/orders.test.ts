@@ -143,7 +143,7 @@ describe('trade/orders', () => {
     type: 'Simulation',
   })
 
-  const { resetSimulationAccount, findTradableInstruments } = new TestingUtilities({ app })
+  const { getFirstAccount, resetSimulationAccount, findTradableInstruments } = new TestingUtilities({ app })
 
   // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
   beforeEach(() => resetSimulationAccount({ balance: 10_000_000 }))
@@ -753,10 +753,7 @@ describe('trade/orders', () => {
 
   describe('cancelling orders', () => {
     test('Deleting order by order id', async () => {
-      const [account] = await toArray(app.portfolio.accounts.me.get())
-      if (account === undefined) {
-        throw new Error(`Could not determine account for simulation user`)
-      }
+      const { AccountKey } = await getFirstAccount()
 
       const price = await findSuiteablePrice({
         app,
@@ -781,7 +778,7 @@ describe('trade/orders', () => {
       expect(placeOrderResponse).toBeDefined()
 
       const deleteOrderResponse = await app.trading.orders.delete({
-        AccountKey: account.AccountKey,
+        AccountKey,
         OrderIds: [placeOrderResponse.OrderId],
       })
 
@@ -792,7 +789,7 @@ describe('trade/orders', () => {
     })
 
     test('Deleting orders by asset type', async () => {
-      const [account] = await toArray(app.portfolio.accounts.me.get())
+      const [account] = await toArray(app.portfolio.accounts.get())
       if (account === undefined) {
         throw new Error(`Could not determine account for simulation user`)
       }
@@ -845,7 +842,9 @@ describe('trade/orders', () => {
 
       expect(placeEURUSDOrderResponse.OrderId).not.toEqual(placeEURDKKOrderResponse.OrderId)
 
-      const ordersBeforeDeletingOrder = await toArray(app.portfolio.orders.me.get())
+      const ordersBeforeDeletingOrder = await toArray(app.portfolio.orders.get({
+        ClientKey: account.ClientKey,
+      }))
       expect(ordersBeforeDeletingOrder).toHaveLength(2)
 
       const deleteOrderResponse = await app.trading.orders.delete({
@@ -856,7 +855,9 @@ describe('trade/orders', () => {
 
       expect(deleteOrderResponse).toBeUndefined()
 
-      const ordersAfterDeletingOrder = await toArray(app.portfolio.orders.me.get())
+      const ordersAfterDeletingOrder = await toArray(app.portfolio.orders.get({
+        ClientKey: account.ClientKey,
+      }))
       expect(ordersAfterDeletingOrder).toHaveLength(1)
     })
   })
