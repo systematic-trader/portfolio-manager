@@ -3,15 +3,21 @@ import { afterAll, beforeEach, describe, expect, test } from '../../../../../../
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../../__tests__/testing-utilities.ts'
 
-describe('portfolio/positions/me', () => {
+describe('portfolio/exposure/instruments', () => {
   describe('live', () => {
     using appLive = new SaxoBankApplication({
       type: 'Live',
     })
 
+    const { getFirstClient } = new TestingUtilities({ app: appLive })
+
     test('response passes guard', async () => {
-      const positions = await toArray(appLive.portfolio.positions.me.get())
-      expect(positions).toBeDefined()
+      const { ClientKey } = await getFirstClient()
+
+      const exposure = await toArray(appLive.portfolio.exposure.instruments.get({
+        ClientKey,
+      }))
+      expect(exposure).toBeDefined()
     })
   })
 
@@ -20,20 +26,32 @@ describe('portfolio/positions/me', () => {
       type: 'Simulation',
     })
 
-    const { resetSimulationAccount, waitForPortfolioState } = new TestingUtilities({ app: appSimulation })
+    const {
+      getFirstClient,
+      resetSimulationAccount,
+      waitForPortfolioState,
+    } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
     afterAll(resetSimulationAccount)
 
     test('response passes guard, with no orders or positions', async () => {
-      const positions = await toArray(appSimulation.portfolio.positions.me.get())
-      expect(positions).toBeDefined()
+      const { ClientKey } = await getFirstClient()
+
+      const exposure = await toArray(appSimulation.portfolio.exposure.instruments.get({
+        ClientKey,
+      }))
+      expect(exposure).toBeDefined()
     })
 
     test('response passes guard, with an open FxSpot position', async () => {
-      const initialPositions = await toArray(appSimulation.portfolio.positions.me.get())
-      expect(initialPositions).toBeDefined()
-      expect(initialPositions).toHaveLength(0)
+      const { ClientKey } = await getFirstClient()
+
+      const initialExposure = await toArray(appSimulation.portfolio.exposure.instruments.get({
+        ClientKey,
+      }))
+      expect(initialExposure).toBeDefined()
+      expect(initialExposure).toHaveLength(0)
 
       await appSimulation.trading.orders.post({
         AssetType: 'FxSpot',
@@ -51,9 +69,12 @@ describe('portfolio/positions/me', () => {
         orders: ['=', 0],
       })
 
-      const updatedPositions = await toArray(appSimulation.portfolio.positions.me.get())
-      expect(updatedPositions).toBeDefined()
-      expect(updatedPositions).toHaveLength(1)
+      const updatedExposure = await toArray(appSimulation.portfolio.exposure.instruments.get({
+        ClientKey,
+      }))
+
+      expect(updatedExposure).toBeDefined()
+      expect(updatedExposure).toHaveLength(1)
     })
   })
 })

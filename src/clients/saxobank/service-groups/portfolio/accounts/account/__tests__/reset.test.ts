@@ -1,18 +1,18 @@
-import { toArray } from '../../../../../../../utils/async-iterable.ts'
 import { describe, test } from '../../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../../saxobank-application.ts'
+import { TestingUtilities } from '../../../../../__tests__/testing-utilities.ts'
 
 describe('portfolio/accounts/account/reset', () => {
   test('response passes guard', async () => {
-    using app = new SaxoBankApplication({ type: 'Simulation' })
+    using app = new SaxoBankApplication({
+      type: 'Simulation',
+    })
 
-    const [account] = await toArray(app.portfolio.accounts.me.get())
-    if (account === undefined) {
-      throw new Error('No account found')
-    }
+    const { getFirstAccount } = new TestingUtilities({ app })
+    const { AccountKey } = await getFirstAccount()
 
     await app.portfolio.accounts.account.reset.put({
-      AccountKey: account.AccountKey,
+      AccountKey,
       NewBalance: 50000, // in euro
     })
   })

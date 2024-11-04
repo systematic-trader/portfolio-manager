@@ -3,6 +3,7 @@ import {
   type GuardType,
   integer,
   number,
+  optional,
   props,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
@@ -15,8 +16,8 @@ export const MarginOverviewContributor = props({
   /** AssetTypes for this contributor */
   AssetTypes: array(AssetType),
 
-  /** Hint to the client application about how it should display the instrument */
-  DisplayHint: DisplayHintType,
+  /** Hint to the client application about how it should display the instrument. */
+  DisplayHint: optional(DisplayHintType),
 
   /**
    * Description of instrument.

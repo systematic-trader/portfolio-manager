@@ -1,6 +1,7 @@
 import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
+import { TestingUtilities } from '../../../../__tests__/testing-utilities.ts'
 import type { ContractOptionEntry } from '../../../../types/records/contract-option-entry.ts'
 import type { CostParameters } from '../cost.ts'
 
@@ -25,8 +26,12 @@ function findSuitableOptionInstrument(optionSpaces: readonly ContractOptionEntry
 }
 
 describe('client-services/trading-conditions/cost', () => {
+  using app = new SaxoBankApplication()
+
+  const { getFirstAccount } = new TestingUtilities({ app })
+
   test('Getting costs for asset type', async ({ step }) => {
-    using app = new SaxoBankApplication()
+    const { AccountKey } = await getFirstAccount()
 
     const assetTypeCandidates: CostParameters['AssetType'][] = [
       'Bond',
@@ -57,11 +62,6 @@ describe('client-services/trading-conditions/cost', () => {
       'StockIndexOption',
       'StockOption',
     ] as const
-
-    const [account] = await toArray(app.portfolio.accounts.me.get())
-    if (account === undefined) {
-      throw new Error('No account found')
-    }
 
     for (const assetType of assetTypeCandidates) {
       await step(assetType, async ({ step }) => {
@@ -112,7 +112,7 @@ describe('client-services/trading-conditions/cost', () => {
                   case 'Rights':
                   case 'Stock': {
                     const cost = await app.clientServices.tradingConditions.cost.get({
-                      AccountKey: account.AccountKey,
+                      AccountKey,
                       Amount: 80,
                       AssetType: instrument.AssetType,
                       Price: 58,
@@ -144,7 +144,7 @@ describe('client-services/trading-conditions/cost', () => {
                     }
 
                     const cost = await app.clientServices.tradingConditions.cost.get({
-                      AccountKey: account.AccountKey,
+                      AccountKey,
                       Amount: 80,
                       AssetType: instrument.AssetType,
                       Price: 58,

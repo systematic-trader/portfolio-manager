@@ -1,15 +1,21 @@
-import { afterAll, beforeEach, describe, expect, test } from '../../../../../../utils/testing.ts'
-import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
-import { TestingUtilities } from '../../../../__tests__/testing-utilities.ts'
+import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
+import { SaxoBankApplication } from '../../../../saxobank-application.ts'
+import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
 
-describe('portfolio/balances/me', () => {
+describe('portfolio/balances', () => {
   describe('live', () => {
     using appLive = new SaxoBankApplication({
       type: 'Live',
     })
 
+    const { getFirstClient } = new TestingUtilities({ app: appLive })
+
     test('response passes guard', async () => {
-      const balance = await appLive.portfolio.balances.me.get()
+      const { ClientKey } = await getFirstClient()
+
+      const balance = await appLive.portfolio.balances.get({
+        ClientKey,
+      })
       expect(balance).toBeDefined()
     })
   })
@@ -19,18 +25,30 @@ describe('portfolio/balances/me', () => {
       type: 'Simulation',
     })
 
-    const { resetSimulationAccount, waitForPortfolioState } = new TestingUtilities({ app: appSimulation })
+    const {
+      getFirstClient,
+      resetSimulationAccount,
+      waitForPortfolioState,
+    } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
     afterAll(resetSimulationAccount)
 
     test('response passes guard, with no orders or positions', async () => {
-      const me = await appSimulation.portfolio.balances.me.get()
-      expect(me).toBeDefined()
+      const { ClientKey } = await getFirstClient()
+
+      const balance = await appSimulation.portfolio.balances.get({
+        ClientKey,
+      })
+      expect(balance).toBeDefined()
     })
 
     test('response passes guard, with an open FxSpot position', async () => {
-      const initialBalance = await appSimulation.portfolio.balances.me.get()
+      const { ClientKey } = await getFirstClient()
+
+      const initialBalance = await appSimulation.portfolio.balances.get({
+        ClientKey,
+      })
       expect(initialBalance).toBeDefined()
 
       await appSimulation.trading.orders.post({
@@ -49,7 +67,9 @@ describe('portfolio/balances/me', () => {
         orders: ['=', 0],
       })
 
-      const updatedBalance = await appSimulation.portfolio.balances.me.get()
+      const updatedBalance = await appSimulation.portfolio.balances.get({
+        ClientKey,
+      })
       expect(updatedBalance).toBeDefined()
       expect(updatedBalance.TotalValue).toBeLessThan(initialBalance.TotalValue)
     })
