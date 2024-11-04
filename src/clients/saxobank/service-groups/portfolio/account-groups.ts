@@ -1,15 +1,30 @@
 import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
-import { AccountGroup } from './account-groups/account-group.ts'
-import { Me } from './account-groups/me.ts'
+import { AccountGroupResponse } from '../../types/records/account-group-response.ts'
 
 export class AccountGroups {
-  readonly me: Me
-  readonly accountGroup: AccountGroup
+  readonly #client: ServiceGroupClient
 
   constructor({ client }: { readonly client: ServiceGroupClient }) {
-    const serviceGroupClient = client.appendPath('v1/accountgroups')
+    this.#client = client.appendPath('v1/accountgroups')
+  }
 
-    this.me = new Me({ client: serviceGroupClient })
-    this.accountGroup = new AccountGroup({ client: serviceGroupClient })
+  /**
+   * Get a list of all account groups used by the specified client
+   */
+  async *get(
+    { ClientKey }: {
+      /** The client to which the account groups belong. */
+      readonly ClientKey: string
+    },
+    options: { readonly timeout?: undefined | number } = {},
+  ): AsyncIterable<AccountGroupResponse, void, undefined> {
+    yield* this.#client.getPaginated({
+      searchParams: {
+        $inlinecount: 'AllPages',
+        ClientKey,
+      },
+      guard: AccountGroupResponse,
+      timeout: options.timeout,
+    }).execute()
   }
 }
