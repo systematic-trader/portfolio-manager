@@ -3,6 +3,7 @@ import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
 import type { AssetType } from '../types/derives/asset-type.ts'
 import type { InstrumentSessionState } from '../types/derives/instrument-session-state.ts'
+import type { PlaceableOrderType } from '../types/derives/placeable-order-type.ts'
 import type { AccountResponse } from '../types/records/account-response.ts'
 import type { ClientResponse } from '../types/records/client-response.ts'
 import type { InstrumentDetailsType } from '../types/records/instrument-details.ts'
@@ -196,12 +197,14 @@ export class TestingUtilities {
     uics,
     sessions,
     limit,
+    supportedOrderTypes,
   }: {
     readonly app?: undefined | SaxoBankApplication
     readonly assetTypes: readonly [T, ...readonly T[]]
     readonly uics?: undefined | readonly number[]
     readonly sessions?: undefined | readonly InstrumentSessionState[]
     readonly limit?: undefined | number
+    readonly supportedOrderTypes?: undefined | readonly PlaceableOrderType[]
   }): AsyncGenerator<
     Extract<InstrumentDetailsType, { readonly AssetType: T }>,
     void,
@@ -221,15 +224,17 @@ export class TestingUtilities {
     let count = 0
     for await (const instrument of instruments) {
       const now = new Date().toISOString()
+      const supportedOrderTypesSet = new Set(supportedOrderTypes)
 
+      // Filter out any instruments that are not tradable
       if ('IsTradable' in instrument && instrument.IsTradable === false) {
         continue
       }
-
       if ('NonTradableReason' in instrument && ['None'].includes(instrument.NonTradableReason) === false) {
         continue
       }
 
+      // Filter out any instruments, where the market is not in the specified session (e.g. open)
       if (sessions !== undefined) {
         const currentSession = instrument.TradingSessions.Sessions.find((session) => {
           return session.StartTime <= now && now <= session.EndTime
@@ -244,10 +249,73 @@ export class TestingUtilities {
         }
       }
 
+      // Filter any instruments that do not support the specified order types
+      if (supportedOrderTypesSet.size > 0) {
+        if ('SupportedOrderTypes' in instrument === false) {
+          continue // instrument does not support any order types
+        }
+
+        if (instrument.SupportedOrderTypes.every((orderType) => supportedOrderTypesSet.has(orderType) === false)) {
+          continue // instrument does not support any of the specified order types
+        }
+      }
+
       yield instrument
 
       if (++count === limit) {
         break
+      }
+    }
+  }
+
+  calculateMinimumTradeSize(instrument: InstrumentDetailsType): number {
+    const minimumTradeSize = ('MinimumTradeSize' in instrument &&
+        instrument.MinimumTradeSize !== undefined &&
+        instrument.MinimumTradeSize > 0)
+      ? instrument.MinimumTradeSize
+      : 1
+
+    switch (instrument.AssetType) {
+      case 'Bond':
+      case 'CfdOnEtf':
+      case 'CfdOnFutures':
+      case 'CfdOnStock':
+      case 'CompanyWarrant':
+      case 'Etf':
+      case 'Fund':
+      case 'Rights':
+      case 'Stock': {
+        const { LotSize, MinimumLotSize } = instrument
+        return Math.max(minimumTradeSize, LotSize ?? 0, MinimumLotSize ?? 0)
+      }
+
+      case 'CfdOnCompanyWarrant':
+      case 'CfdOnEtc':
+      case 'CfdOnEtn':
+      case 'CfdOnFund':
+      case 'CfdOnIndex':
+      case 'CfdOnRights':
+      case 'ContractFutures':
+      case 'Etc':
+      case 'Etn':
+      case 'FuturesStrategy':
+      case 'StockIndex': {
+        const { MinimumLotSize } = instrument
+        return Math.max(minimumTradeSize, MinimumLotSize ?? 0)
+      }
+
+      case 'FxForwards':
+      case 'FxNoTouchOption':
+      case 'FxOneTouchOption':
+      case 'FxSpot':
+      case 'FxSwap':
+      case 'FxVanillaOption':
+      case 'MutualFund': {
+        return minimumTradeSize
+      }
+
+      default: {
+        throw new Error('Unsupported asset type')
       }
     }
   }

@@ -6,22 +6,19 @@ export const OrderType = enums([
   /** Algorithmic */
   'Algorithmic',
 
-  /**
-   * If asset price goes above or below defined upper/lower limit (trigger) prices,
-   * then place related order.
-   */
+  /** If asset price goes above or below defined upper/lower limit (trigger) prices, then place related order */
   'BreakoutTrigger',
 
-  /** Guaranteed Stop. Stop at price - no slippage. */
+  /**
+   * Guaranteed Stop.
+   * Stop at price - no slippage.
+   */
   'GuaranteedStop',
 
   /** Limit */
   'Limit',
 
-  /**
-   * If the price moves above or below the trigger price,
-   * then place related order.
-   */
+  /** If the price moves above or below the trigger price, then place related order */
   'LimitTrigger',
 
   /** Market */
@@ -57,6 +54,6 @@ export const OrderType = enums([
   /** Traspaso */
   'Traspaso',
 
-  /** A Traspaso In order initiated from an external trading system. */
+  /** A Traspaso In order initiated from an external trading system */
   'TraspasoIn',
 ])
