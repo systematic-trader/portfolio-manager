@@ -2,7 +2,6 @@ import { toArray } from '../../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
-import type { InstrumentDetailsType } from '../../../types/records/instrument-details.ts'
 import type { InfoPricesParameters } from '../info-prices.ts'
 
 // todo write tests for different order types (can probably be simple entry orders)
@@ -85,65 +84,17 @@ async function findSuiteablePrice({ app, assetType, uic, forwardDate }: {
   }
 }
 
-function calculateMinimumOrderSize(instrumentDetails: InstrumentDetailsType): number {
-  const minimum = ('MinimumTradeSize' in instrumentDetails &&
-      instrumentDetails.MinimumTradeSize !== undefined &&
-      instrumentDetails.MinimumTradeSize > 0)
-    ? instrumentDetails.MinimumTradeSize
-    : 1
-
-  switch (instrumentDetails.AssetType) {
-    case 'Bond':
-    case 'CfdOnEtf':
-    case 'CfdOnFutures':
-    case 'CfdOnStock':
-    case 'CompanyWarrant':
-    case 'Etf':
-    case 'Fund':
-    case 'Rights':
-    case 'Stock': {
-      const { LotSize, MinimumLotSize } = instrumentDetails
-      return Math.max(minimum, LotSize ?? 0, MinimumLotSize ?? 0)
-    }
-
-    case 'CfdOnCompanyWarrant':
-    case 'CfdOnEtc':
-    case 'CfdOnEtn':
-    case 'CfdOnFund':
-    case 'CfdOnIndex':
-    case 'CfdOnRights':
-    case 'ContractFutures':
-    case 'Etc':
-    case 'Etn':
-    case 'FuturesStrategy':
-    case 'StockIndex': {
-      const { MinimumLotSize } = instrumentDetails
-      return Math.max(minimum, MinimumLotSize ?? 0)
-    }
-
-    case 'FxForwards':
-    case 'FxNoTouchOption':
-    case 'FxOneTouchOption':
-    case 'FxSpot':
-    case 'FxSwap':
-    case 'FxVanillaOption':
-    case 'MutualFund': {
-      const { MinimumTradeSize } = instrumentDetails
-      return Math.max(minimum, MinimumTradeSize)
-    }
-
-    default: {
-      throw new Error('Unsupported asset type')
-    }
-  }
-}
-
 describe('trade/orders', () => {
   using app = new SaxoBankApplication({
     type: 'Simulation',
   })
 
-  const { getFirstAccount, resetSimulationAccount, findTradableInstruments } = new TestingUtilities({ app })
+  const {
+    calculateMinimumTradeSize,
+    getFirstAccount,
+    resetSimulationAccount,
+    findTradableInstruments,
+  } = new TestingUtilities({ app })
 
   // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
   beforeEach(() => resetSimulationAccount({ balance: 10_000_000 }))
@@ -668,7 +619,7 @@ describe('trade/orders', () => {
                   AssetType: assetType,
                   Uic: instrument.Uic,
                   BuySell: 'Buy',
-                  Amount: calculateMinimumOrderSize(instrument),
+                  Amount: calculateMinimumTradeSize(instrument),
                   ManualOrder: false,
                   ExternalReference: crypto.randomUUID(),
                   OrderType: 'Market',
@@ -722,7 +673,7 @@ describe('trade/orders', () => {
                   AssetType: assetType,
                   Uic: instrument.Uic,
                   BuySell: 'Buy',
-                  Amount: calculateMinimumOrderSize(instrumentDetails),
+                  Amount: calculateMinimumTradeSize(instrumentDetails),
                   ManualOrder: false,
                   ExternalReference: crypto.randomUUID(),
                   OrderType: 'Limit',

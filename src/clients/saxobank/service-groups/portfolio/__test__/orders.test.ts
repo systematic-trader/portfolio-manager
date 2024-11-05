@@ -13,6 +13,7 @@ describe('portfolio/orders', () => {
       findTradableInstruments,
       resetSimulationAccount,
       getFirstAccount,
+      calculateMinimumTradeSize,
     } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
@@ -35,6 +36,7 @@ describe('portfolio/orders', () => {
         assetTypes: ['Stock'],
         limit: 100,
         sessions: ['Closed'],
+        supportedOrderTypes: ['Market'],
       })
 
       let count = 0
@@ -42,7 +44,7 @@ describe('portfolio/orders', () => {
         await step(`Placing a market order for ${instrument.Description} (UIC ${instrument.Uic})`, async () => {
           const placeOrderResponse = await appSimulation.trade.orders.post({
             AssetType: 'Stock',
-            Amount: 1,
+            Amount: calculateMinimumTradeSize(instrument),
             BuySell: 'Buy',
             ManualOrder: false,
             OrderType: 'Market',
