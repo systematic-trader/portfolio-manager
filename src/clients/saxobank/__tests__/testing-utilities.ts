@@ -1,12 +1,23 @@
 import { toArray } from '../../../utils/async-iterable.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
+import type {
+  PlaceOrderParametersEntryWithNoRelatedOrders,
+  PlaceOrderResponse,
+} from '../service-groups/trading/orders.ts'
 import type { AssetType } from '../types/derives/asset-type.ts'
 import type { InstrumentSessionState } from '../types/derives/instrument-session-state.ts'
 import type { PlaceableOrderType } from '../types/derives/placeable-order-type.ts'
 import type { AccountResponse } from '../types/records/account-response.ts'
 import type { ClientResponse } from '../types/records/client-response.ts'
-import type { InstrumentDetailsType } from '../types/records/instrument-details.ts'
+import type { InfoPriceResponse } from '../types/records/info-price-response.ts'
+import type {
+  InstrumentDetails,
+  InstrumentDetailsFxForwards,
+  InstrumentDetailsStock,
+  InstrumentDetailsUnion,
+} from '../types/records/instrument-details.ts'
+import type { TickSizeScheme } from '../types/records/tick-size-scheme.ts'
 
 const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
   // this is a bit more than the rate limit of 240 requests per minute
@@ -30,6 +41,8 @@ export class TestingUtilities {
     this.resetSimulationAccount = this.resetSimulationAccount.bind(this)
     this.waitForPortfolioState = this.waitForPortfolioState.bind(this)
     this.findTradableInstruments = this.findTradableInstruments.bind(this)
+    this.getPrice = this.getPrice.bind(this)
+    this.roundPriceToInstrumentSpecification = this.roundPriceToInstrumentSpecification.bind(this)
   }
 
   #clientCached: Promise<ClientResponse> | undefined
@@ -144,7 +157,7 @@ export class TestingUtilities {
           timeout: remaining,
         }))
 
-        if (this.#matchesCondition(currentOrders.length, orders)) {
+        if (this.#valueMatchesCondition(currentOrders.length, orders)) {
           return
         }
       }
@@ -158,14 +171,14 @@ export class TestingUtilities {
           timeout: remaining,
         }))
 
-        if (this.#matchesCondition(currentPositions.length, positions)) {
+        if (this.#valueMatchesCondition(currentPositions.length, positions)) {
           return
         }
       }
     }
   }
 
-  #matchesCondition(value: number, [operator, target]: NumericCondition): boolean {
+  #valueMatchesCondition(value: number, [operator, target]: NumericCondition): boolean {
     switch (operator) {
       case '>':
         return value > target
@@ -206,7 +219,7 @@ export class TestingUtilities {
     readonly limit?: undefined | number
     readonly supportedOrderTypes?: undefined | readonly PlaceableOrderType[]
   }): AsyncGenerator<
-    Extract<InstrumentDetailsType, { readonly AssetType: T }>,
+    Extract<InstrumentDetailsUnion, { readonly AssetType: T }>,
     void,
     undefined
   > {
@@ -268,7 +281,7 @@ export class TestingUtilities {
     }
   }
 
-  calculateMinimumTradeSize(instrument: InstrumentDetailsType): number {
+  calculateMinimumTradeSize(instrument: InstrumentDetailsUnion): number {
     const minimumTradeSize = ('MinimumTradeSize' in instrument &&
         instrument.MinimumTradeSize !== undefined &&
         instrument.MinimumTradeSize > 0)
@@ -316,6 +329,196 @@ export class TestingUtilities {
 
       default: {
         throw new Error('Unsupported asset type')
+      }
+    }
+  }
+
+  roundPriceToTickSize({
+    price,
+    tickSize,
+  }: {
+    readonly price: number
+    readonly tickSize: number
+  }): number {
+    return Math.round(price / tickSize) * tickSize
+  }
+
+  roundPriceToTickScheme({
+    price,
+    tickSizeScheme,
+  }: {
+    readonly price: number
+    readonly tickSizeScheme: TickSizeScheme
+  }): number {
+    if (tickSizeScheme.Elements === undefined) {
+      return tickSizeScheme.DefaultTickSize
+    }
+
+    const tickSizesSorted = [...tickSizeScheme.Elements].sort((left, right) => right.HighPrice - left.HighPrice)
+    const firstMatchingTickSize = tickSizesSorted.find((element) => price < element.HighPrice)
+    const tickSize = firstMatchingTickSize?.TickSize ?? tickSizeScheme.DefaultTickSize
+
+    return this.roundPriceToTickSize({
+      price,
+      tickSize,
+    })
+  }
+
+  roundPriceToInstrumentSpecification({
+    price,
+    instrument,
+  }: {
+    readonly price: number
+    readonly instrument: InstrumentDetailsStock
+  }): number {
+    // Firstly, use the tick size scheme, if provided
+    if (instrument.TickSizeScheme !== undefined) {
+      return this.roundPriceToTickScheme({
+        price,
+        tickSizeScheme: instrument.TickSizeScheme,
+      })
+    }
+
+    // Otherwise use the fixed tick size
+    if (instrument.TickSize !== undefined) {
+      this.roundPriceToTickSize({
+        price,
+        tickSize: instrument.TickSize,
+      })
+    }
+
+    return price
+  }
+
+  async getPrice(parameters: {
+    readonly app?: undefined | SaxoBankApplication
+    readonly instrument: InstrumentDetailsFxForwards
+    readonly forwardDate: string
+  }): Promise<{
+    readonly infoPrice: InfoPriceResponse['FxForwards']
+  }>
+
+  async getPrice(parameters: {
+    readonly app?: undefined | SaxoBankApplication
+    readonly instrument: InstrumentDetailsStock
+  }): Promise<{
+    readonly infoPrice: InfoPriceResponse['Stock']
+  }>
+
+  async getPrice<AssetType extends (keyof InstrumentDetails & keyof InfoPriceResponse)>(parameters: {
+    readonly app?: undefined | SaxoBankApplication
+    readonly instrument: InstrumentDetails[AssetType]
+    readonly forwardDate?: undefined | string
+  }): Promise<{
+    readonly infoPrice: InfoPriceResponse[typeof parameters.instrument.AssetType]
+  }> {
+    const app = parameters.app ?? this.#app
+
+    switch (parameters.instrument.AssetType) {
+      case 'Stock':
+      case 'FxSpot': {
+        const infoPrice = await app.trading.infoPrices.get({
+          AssetType: parameters.instrument.AssetType,
+          Uic: parameters.instrument.Uic,
+        })
+
+        return { infoPrice }
+      }
+
+      case 'FxForwards': {
+        const infoPrice = await app.trading.infoPrices.get({
+          AssetType: parameters.instrument.AssetType,
+          Uic: parameters.instrument.Uic,
+          ForwardDate: parameters.forwardDate,
+        })
+
+        return { infoPrice }
+      }
+
+      default: {
+        throw new Error('Unsupported asset type')
+      }
+    }
+  }
+
+  // todo rename - we just need an easy way of placing orders for different order types
+  async placeDayOrder<
+    AssetType extends Exclude<
+      PlaceOrderParametersEntryWithNoRelatedOrders['AssetType'],
+      'StockIndexOption' | 'StockOption' | 'FuturesOption'
+    >,
+    Instrument extends InstrumentDetails[AssetType],
+  >(parameters: {
+    readonly app?: undefined | SaxoBankApplication
+    readonly instrument: Instrument // todo add support for options
+    readonly orderType: never
+  }): Promise<PlaceOrderResponse> {
+    const app = parameters.app ?? this.#app
+
+    const amount = this.calculateMinimumTradeSize(parameters.instrument)
+
+    switch (parameters.instrument.AssetType) {
+      case 'FxForwards': {
+        const [forwardDate] = await toArray(app.referenceData.standarddates.forwardTenor.get({
+          Uic: parameters.instrument.Uic,
+        }))
+
+        if (forwardDate === undefined) {
+          throw new Error(
+            `Could not determine forward date for ${parameters.instrument.AssetType} (UIC ${parameters.instrument.Uic})`,
+          )
+        }
+
+        return await app.trading.orders.post({
+          AssetType: 'FxForwards',
+          ForwardDate: forwardDate.Date,
+          Amount: amount,
+          BuySell: 'Buy',
+          ManualOrder: false,
+          OrderType: 'Market', // todo parameter
+          OrderDuration: { DurationType: 'ImmediateOrCancel' },
+          ExternalReference: crypto.randomUUID(),
+          Uic: parameters.instrument.Uic,
+        })
+      }
+
+      case 'Bond':
+      case 'CfdOnIndex':
+      case 'CompanyWarrant':
+      case 'CfdOnCompanyWarrant':
+      case 'Stock':
+      case 'CfdOnStock':
+      case 'ContractFutures':
+      case 'CfdOnFutures':
+      case 'Etc':
+      case 'CfdOnEtc':
+      case 'Etf':
+      case 'CfdOnEtf':
+      case 'Etn':
+      case 'CfdOnEtn':
+      case 'Fund':
+      case 'CfdOnFund':
+      case 'FxNoTouchOption':
+      case 'FxOneTouchOption':
+      case 'FxSpot':
+      case 'FxSwap':
+      case 'FxVanillaOption':
+      case 'Rights':
+      case 'CfdOnRights': {
+        return await app.trading.orders.post({
+          AssetType: parameters.instrument.AssetType,
+          Amount: amount,
+          BuySell: 'Buy',
+          ManualOrder: false,
+          OrderType: 'Market', // todo parameter
+          OrderDuration: { DurationType: 'DayOrder' },
+          ExternalReference: crypto.randomUUID(),
+          Uic: parameters.instrument.Uic,
+        })
+      }
+
+      default: {
+        throw new Error(`Unknown asset type`)
       }
     }
   }

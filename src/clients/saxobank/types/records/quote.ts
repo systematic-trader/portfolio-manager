@@ -69,7 +69,7 @@ export const Quote = union([
     Ask: number(),
     AskSize: number(),
 
-    PriceTypeBid: PriceQuality.exclude(['Tradable', 'Indicative', 'OldIndicative']),
+    PriceTypeBid: PriceQuality.exclude(['Tradable', 'Indicative']),
     Bid: optional(number()),
     BidSize: optional(number()),
 
@@ -79,7 +79,7 @@ export const Quote = union([
 
   // Bid is given, ask might not be given
   Base.merge(props({
-    PriceTypeAsk: PriceQuality.exclude(['Tradable', 'Indicative', 'OldIndicative']),
+    PriceTypeAsk: PriceQuality.exclude(['Tradable', 'Indicative']),
     Ask: optional(number()),
     AskSize: optional(number()),
 
@@ -95,11 +95,11 @@ export const Quote = union([
   Base.merge(props({
     Amount: optional(Base.pluck('Amount')),
 
-    PriceTypeAsk: PriceQuality.exclude(['Tradable', 'Indicative', 'OldIndicative']),
+    PriceTypeAsk: PriceQuality.exclude(['Tradable', 'Indicative']),
     Ask: optional(number()),
     AskSize: optional(number()),
 
-    PriceTypeBid: PriceQuality.exclude(['Tradable', 'Indicative', 'OldIndicative']),
+    PriceTypeBid: PriceQuality.exclude(['Tradable', 'Indicative']),
     Bid: optional(number()),
     BidSize: optional(number()),
 
