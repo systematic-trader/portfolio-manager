@@ -31,7 +31,7 @@ import {
   InstrumentDetailsRights,
   InstrumentDetailsStock,
   InstrumentDetailsStockIndex,
-  type InstrumentDetailsType,
+  type InstrumentDetailsUnion,
 } from '../../../types/records/instrument-details.ts'
 
 export class InstrumentsDetails {
@@ -55,7 +55,7 @@ export class InstrumentsDetails {
     },
   ): AsyncIterable<
     Extract<
-      InstrumentDetailsType,
+      InstrumentDetailsUnion,
       { readonly AssetType: T }
     >,
     void,
@@ -73,7 +73,7 @@ export class InstrumentsDetails {
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
     },
-  ): AsyncIterable<InstrumentDetailsType, void, undefined>
+  ): AsyncIterable<InstrumentDetailsUnion, void, undefined>
 
   async *get(
     parameters?: undefined | {
@@ -84,7 +84,7 @@ export class InstrumentsDetails {
       readonly limit?: undefined | number
     },
     options: { readonly timeout?: undefined | number } = {},
-  ): AsyncIterable<InstrumentDetailsType, void, undefined> {
+  ): AsyncIterable<InstrumentDetailsUnion, void, undefined> {
     const { AssetTypes, Uics, AccountKey, Tags, limit } = parameters ?? {}
 
     if (Uics !== undefined && Uics.length > 0 && (AssetTypes === undefined || AssetTypes.length === 0)) {
@@ -101,7 +101,7 @@ export class InstrumentsDetails {
     }
 
     for (
-      const request of this.#client.getPaginated<InstrumentDetailsType>({
+      const request of this.#client.getPaginated<InstrumentDetailsUnion>({
         searchParams,
         limit,
         timeout: options.timeout,
@@ -126,8 +126,8 @@ export class InstrumentsDetails {
 }
 
 function assertReturnInstrumentDetails(
-  instrument: InstrumentDetailsType,
-): InstrumentDetailsType {
+  instrument: InstrumentDetailsUnion,
+): InstrumentDetailsUnion {
   try {
     const { AssetType } = instrument
 

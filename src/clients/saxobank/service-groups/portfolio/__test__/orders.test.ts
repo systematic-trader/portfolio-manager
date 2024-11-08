@@ -10,6 +10,8 @@ describe('portfolio/orders', () => {
     })
 
     const {
+      // getPrice,
+      // roundPriceToInstrumentSpecification,
       findTradableInstruments,
       resetSimulationAccount,
       getFirstAccount,
@@ -29,45 +31,59 @@ describe('portfolio/orders', () => {
       expect(orders).toHaveLength(0)
     })
 
-    test('response passes guard for market stock orders', async ({ step }) => {
+    test('response passes guard for different order types', async ({ step }) => {
       const { ClientKey } = await getFirstAccount()
 
-      const instruments = findTradableInstruments({
-        assetTypes: ['Stock'],
-        limit: 100,
-        sessions: ['Closed'],
-        supportedOrderTypes: ['Market'],
-      })
+      const limit = 5
 
-      let count = 0
-      for await (const instrument of instruments) {
-        await step(`Placing a market order for ${instrument.Description} (UIC ${instrument.Uic})`, async () => {
-          const placeOrderResponse = await appSimulation.trade.orders.post({
-            AssetType: 'Stock',
-            Amount: calculateMinimumTradeSize(instrument),
-            BuySell: 'Buy',
-            ManualOrder: false,
-            OrderType: 'Market',
-            OrderDuration: { DurationType: 'DayOrder' },
-            ExternalReference: crypto.randomUUID(),
-            Uic: instrument.Uic,
-          })
-          expect(placeOrderResponse).toBeDefined()
+      const assetTypes = ['Stock'] as const // todo include more
 
-          const orders = await toArray(appSimulation.portfolio.orders.get({
-            ClientKey,
-          }))
-          expect(orders).toBeDefined()
-          expect(orders).toHaveLength(1)
+      for (const assetType of assetTypes) {
+        await step(assetType, async ({ step }) => {
+          const supportedOrderTypes = ['Market'] as const // todo include more
 
-          await resetSimulationAccount()
+          for (const orderType of supportedOrderTypes) {
+            await step(orderType, async ({ step }) => {
+              const instruments = findTradableInstruments({
+                assetTypes: [assetType],
+                supportedOrderTypes: supportedOrderTypes,
+                sessions: ['Closed'], // using closed will make sure that our orders are not executed
+                limit,
+              })
+
+              let count = 0
+              for await (const instrument of instruments) {
+                await step(`${instrument.Description} (UIC ${instrument.Uic})`, async () => {
+                  const placeOrderResponse = await appSimulation.trade.orders.post({
+                    AssetType: assetType,
+                    Amount: calculateMinimumTradeSize(instrument),
+                    BuySell: 'Buy',
+                    ManualOrder: false,
+                    OrderType: orderType,
+                    OrderDuration: { DurationType: 'DayOrder' },
+                    ExternalReference: crypto.randomUUID(),
+                    Uic: instrument.Uic,
+                  })
+                  expect(placeOrderResponse).toBeDefined()
+
+                  const orders = await toArray(appSimulation.portfolio.orders.get({
+                    ClientKey,
+                  }))
+                  expect(orders).toBeDefined()
+                  expect(orders).toHaveLength(1)
+
+                  await resetSimulationAccount()
+                })
+
+                count++
+              }
+
+              if (count === 0) {
+                throw new Error('Failed to find any instruments to base the test on')
+              }
+            })
+          }
         })
-
-        count++
-      }
-
-      if (count === 0) {
-        throw new Error('Failed to find any instruments to base the test on')
       }
     })
   })

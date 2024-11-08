@@ -75,7 +75,7 @@ type OrderParametersByOrderType = {
   readonly TrailingStopDistanceToMarket: number
 }
 
-type OrderParametersByAssetType =
+type PlaceOrderParametersByAssetType =
   | {
     readonly AssetType: Extract<
       AssetType,
@@ -115,7 +115,7 @@ type OrderParametersByAssetType =
   }
 
 type PlaceOrderParametersBase =
-  & OrderParametersByAssetType
+  & PlaceOrderParametersByAssetType
   & {
     readonly Uic: number
     readonly BuySell: BuySell

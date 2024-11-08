@@ -48,35 +48,6 @@ import { TickSizeScheme } from './tick-size-scheme.ts'
 // 2. specify InstrumentKey with specific asset types
 // 3. specify RelatedOptionRootsEnhanced with specific asset types
 
-export type InstrumentDetailsType =
-  | InstrumentDetailsBond
-  | InstrumentDetailsCfdOnCompanyWarrant
-  | InstrumentDetailsCfdOnEtc
-  | InstrumentDetailsCfdOnEtf
-  | InstrumentDetailsCfdOnEtn
-  | InstrumentDetailsCfdOnFund
-  | InstrumentDetailsCfdOnFutures
-  | InstrumentDetailsCfdOnIndex
-  | InstrumentDetailsCfdOnRights
-  | InstrumentDetailsCfdOnStock
-  | InstrumentDetailsCompanyWarrant
-  | InstrumentDetailsContractFutures
-  | InstrumentDetailsEtc
-  | InstrumentDetailsEtf
-  | InstrumentDetailsEtn
-  | InstrumentDetailsFund
-  | InstrumentDetailsFuturesStrategy
-  | InstrumentDetailsFxForwards
-  | InstrumentDetailsFxNoTouchOption
-  | InstrumentDetailsFxOneTouchOption
-  | InstrumentDetailsFxSpot // first!!
-  | InstrumentDetailsFxSwap
-  | InstrumentDetailsFxVanillaOption
-  | InstrumentDetailsMutualFund
-  | InstrumentDetailsRights
-  | InstrumentDetailsStock
-  | InstrumentDetailsStockIndex
-
 export interface InstrumentDetailsBond extends GuardType<typeof InstrumentDetailsBond> {}
 export const InstrumentDetailsBond = props({
   AssetType: AssetType.extract(['Bond']),
@@ -2208,3 +2179,35 @@ export const InstrumentDetailsStockIndex = props({
   Uic: integer(),
   UnderlyingTypeCategory: UnderlyingTypeCategory,
 })
+
+export type InstrumentDetails = {
+  Bond: InstrumentDetailsBond
+  CfdOnCompanyWarrant: InstrumentDetailsCfdOnCompanyWarrant
+  CfdOnEtc: InstrumentDetailsCfdOnEtc
+  CfdOnEtf: InstrumentDetailsCfdOnEtf
+  CfdOnEtn: InstrumentDetailsCfdOnEtn
+  CfdOnFund: InstrumentDetailsCfdOnFund
+  CfdOnFutures: InstrumentDetailsCfdOnFutures
+  CfdOnIndex: InstrumentDetailsCfdOnIndex
+  CfdOnRights: InstrumentDetailsCfdOnRights
+  CfdOnStock: InstrumentDetailsCfdOnStock
+  CompanyWarrant: InstrumentDetailsCompanyWarrant
+  ContractFutures: InstrumentDetailsContractFutures
+  Etc: InstrumentDetailsEtc
+  Etf: InstrumentDetailsEtf
+  Etn: InstrumentDetailsEtn
+  Fund: InstrumentDetailsFund
+  FuturesStrategy: InstrumentDetailsFuturesStrategy
+  FxForwards: InstrumentDetailsFxForwards
+  FxNoTouchOption: InstrumentDetailsFxNoTouchOption
+  FxOneTouchOption: InstrumentDetailsFxOneTouchOption
+  FxSpot: InstrumentDetailsFxSpot
+  FxSwap: InstrumentDetailsFxSwap
+  FxVanillaOption: InstrumentDetailsFxVanillaOption
+  MutualFund: InstrumentDetailsMutualFund
+  Rights: InstrumentDetailsRights
+  Stock: InstrumentDetailsStock
+  StockIndex: InstrumentDetailsStockIndex
+}
+
+export type InstrumentDetailsUnion = InstrumentDetails[keyof InstrumentDetails]

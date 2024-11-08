@@ -14,13 +14,13 @@ export interface PriceInfoDetails extends GuardType<typeof PriceInfoDetails> {}
  */
 export const PriceInfoDetails = props({
   /** The ask size (Please consider to use 'Quote.AskSize') */
-  AskSize: number(),
+  AskSize: optional(number()),
 
   /** Optional ask yield, if available */
   AskYield: optional(number()),
 
   /** The bid size (Please consider to use 'Quote.BidSize') */
-  BidSize: number(),
+  BidSize: optional(number()),
 
   /** Optional bid yield, if available */
   BidYield: optional(number()),
