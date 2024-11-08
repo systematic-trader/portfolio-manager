@@ -3,7 +3,7 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type CalculationReliability = GuardType<typeof CalculationReliability>
 
 export const CalculationReliability = enums([
-  /** Profit/loss calculated based on a synthetic non-market price. */
+  /** Profit/loss calculated based on a synthetic non-market price */
   'ApproximatedPrice',
 
   /** Currency conversion failed */
@@ -12,7 +12,7 @@ export const CalculationReliability = enums([
   /** Failed to calculate collateral */
   'FailedToCalculateCollateral',
 
-  /** No Market Access for price. */
+  /** No Market Access for price */
   'NoMarketAccess',
 
   /** Ok - calculation successful */
@@ -21,10 +21,10 @@ export const CalculationReliability = enums([
   /** Calculation was ok given some conditions */
   'OkWithConditions',
 
-  /** Calculation depends on a price that is currently unavailable. */
+  /** Calculation depends on a price that is currently unavailable */
   'PricePending',
 
-  /** General error due to system or client configuration. */
+  /** General error due to system or client configuration */
   'SystemError',
 
   /** Unknown price */

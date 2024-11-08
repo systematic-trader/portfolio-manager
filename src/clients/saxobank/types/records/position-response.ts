@@ -4,12 +4,12 @@ import {
   props,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { InstrumentDisplayAndFormat } from '../derives/instrument-display-and-format.ts'
-import { InstrumentExchangeDetails } from '../derives/instrument-exchange-details.ts'
-import { Greeks } from '../derives/greeks.ts'
-import { PositionCost } from '../derives/position-cost.ts'
-import { PositionStatic } from '../derives/position-static.ts'
-import { PositionDynamic } from '../derives/position-dynamic.ts'
+import { Greeks } from './greeks.ts'
+import { InstrumentDisplayAndFormat } from './instrument-display-and-format.ts'
+import { InstrumentExchangeDetails } from './instrument-exchange-details.ts'
+import { PositionCost } from './position-cost.ts'
+import { PositionDynamic } from './position-dynamic.ts'
+import { PositionStatic } from './position-static.ts'
 
 export interface PositionResponse extends GuardType<typeof PositionResponse> {}
 

@@ -1,7 +1,7 @@
 import { enums, type GuardType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
 export const PlaceableOrderTypeValues = [
-  /** Algo order. */
+  /** Algo order */
   'Algorithmic',
 
   /**
@@ -11,31 +11,31 @@ export const PlaceableOrderTypeValues = [
    */
   'DealCapture',
 
-  /** Order Type currently not supported. */
+  /** Order Type currently not supported */
   'GuaranteedStop',
 
-  /** Limit Order. */
+  /** Limit Order */
   'Limit',
 
-  /** Market Order. */
+  /** Market Order */
   'Market',
 
-  /** Stop Order. */
+  /** Stop Order */
   'Stop',
 
-  /** Stop if traded. */
+  /** Stop if traded */
   'StopIfTraded',
 
-  /** Stop Limit Order. */
+  /** Stop Limit Order */
   'StopLimit',
 
-  /** Switch order, Sell X and Buy Y with one order. */
+  /** Switch order, Sell X and Buy Y with one order */
   'Switch',
 
-  /** Trailing stop. */
+  /** Trailing stop */
   'TrailingStop',
 
-  /** Trailing stop if traded. */
+  /** Trailing stop if traded */
   'TrailingStopIfTraded',
 
   /**
@@ -45,10 +45,7 @@ export const PlaceableOrderTypeValues = [
    */
   'Traspaso',
 
-  /**
-   * TraspasoIn.
-   * Specific type of switch order.
-   */
+  /** TraspasoIn. Specific type of switch order */
   'TraspasoIn',
 
   /**

@@ -3,8 +3,8 @@ import { toArray } from '../../../../../utils/async-iterable.ts'
 import { describe, expect, test } from '../../../../../utils/testing.ts'
 import { HTTPClientError } from '../../../../http-client.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
+import type { ContractOption } from '../../../types/derives/contract-option.ts'
 import type { ContractOptionEntry } from '../../../types/records/contract-option-entry.ts'
-import type { ContractOption } from '../../../types/records/contract-option.ts'
 import type { InfoPricesParameters } from '../info-prices.ts'
 
 // Set this to a reasonable number (e.g. 100) to quickly test the different asset types

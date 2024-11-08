@@ -72,7 +72,8 @@ export const ClientResponse = props({
 
   /**
    * The default currency for this client.
-   * Used for example for aggregation: if the client has accounts in multiple currencies, show the aggregated P/L in the this currency */
+   * Used for example for aggregation: if the client has accounts in multiple currencies, show the aggregated P/L in the this currency
+   */
   DefaultCurrency: Currency3,
 
   /** If True, the order(s) placed by default will be set to force open , therfore resulting positions will not automatically be netted with positions in the opposite direction */

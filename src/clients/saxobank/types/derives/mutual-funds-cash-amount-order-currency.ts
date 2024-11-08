@@ -3,9 +3,9 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type MutualFundsCashAmountOrderCurrency = GuardType<typeof MutualFundsCashAmountOrderCurrency>
 
 export const MutualFundsCashAmountOrderCurrency = enums([
-  /** Use the specified account currency. */
+  /** Use the specified account currency */
   'Account',
 
-  /** Use the currency of the specified instrument. */
+  /** Use the currency of the specified instrument */
   'Instrument',
 ])

@@ -6,33 +6,42 @@ export const PriceType = enums([
   /** Best offer from seller (offer price) */
   'Ask',
 
-  /** Highest price from buyer. */
+  /** Highest price from buyer */
   'Bid',
 
-  /** Official price of instrument at the end of trading session. */
+  /**
+   * Official price of instrument at the end of trading session.
+   */
   'Close',
 
-  /** Highest traded price in period. */
+  /** Highest traded price in period */
   'High',
 
-  /** Best estimate price based on market conditions. Used mainly in low liquidity markets, where Bid/Ask/LastTraded/Close may not be available. */
+  /**
+   * Best estimate price based on market conditions.
+   * Used mainly in low liquidity markets, where Bid/Ask/LastTraded/Close may not be available.
+   */
   'Indicative',
 
-  /** Price at which instrument was last traded. */
+  /** Price at which instrument was last traded */
   'LastTraded',
 
-  /** Lowest traded price in period. */
+  /** Lowest traded price in period */
   'Low',
 
-  /** The price between the best price of the sellers (bid) and best offer from the buyers (ask). */
+  /**
+   * The price between the best price of the sellers (bid) and best offer from the buyers (ask).
+   */
   'Mid',
 
   /** Unknown/No value set */
   'None',
 
-  /** Official price of instrument at the start of trading session. */
+  /**
+   * Official price of instrument at the start of trading session.
+   */
   'Open',
 
-  /** Computed price of instrument. */
+  /** Computed price of instrument */
   'Synthetic',
 ])

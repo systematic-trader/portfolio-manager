@@ -3,12 +3,18 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type OrderFieldGroup = GuardType<typeof OrderFieldGroup>
 
 export const OrderFieldGroup = enums([
-  /** Adds information about the instrument, which is useful for display and formatting. This includes Currency Code, Decimals, Instrument Description, Display Decimals, Price format and Symbol */
+  /**
+   * Adds information about the instrument, which is useful for display and formatting.
+   * This includes Currency Code, Decimals, Instrument Description, Display Decimals, Price format and Symbol.
+   */
   'DisplayAndFormat',
 
-  /** Adds information about the instrument's exchange. This includes Exchange name, exchange code and open status. */
+  /**
+   * Adds information about the instrument's exchange.
+   * This includes Exchange name, exchange code and open status.
+   */
   'ExchangeInfo',
 
-  /** Greeks for Option(s), only applicable to Fx Options , Contract Options and Contract options CFD */
+  /** Greeks for Option(s), only applicable to Fx Options, Contract Options and Contract options CFD */
   'Greeks',
 ])

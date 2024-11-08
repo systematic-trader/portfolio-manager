@@ -9,8 +9,8 @@ import {
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { AssetType } from '../derives/asset-type.ts'
 import { CalculationReliability } from '../derives/calculation-reliability.ts'
-import { InstrumentDisplayAndFormat } from '../derives/instrument-display-and-format.ts'
 import { PutCall } from '../derives/put-call.ts'
+import { InstrumentDisplayAndFormat } from './instrument-display-and-format.ts'
 
 export interface InstrumentExposureResponse extends GuardType<typeof InstrumentExposureResponse> {}
 
@@ -45,7 +45,7 @@ export const InstrumentExposureResponse = props({
 
   /**
    * The exposure net position id.
-   * May be used to fetch the net position or open positions of the net position from the Open Positions service
+   * May be used to fetch the net position or open positions of the net position from the Open Positions service.
    */
   NetPositionId: string(),
 

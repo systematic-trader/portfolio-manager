@@ -6,7 +6,7 @@ import {
   optional,
   props,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { ContractOption } from './contract-option.ts'
+import { ContractOption } from '../derives/contract-option.ts'
 import { TickSizeScheme } from './tick-size-scheme.ts'
 
 export interface ContractOptionEntry extends GuardType<typeof ContractOptionEntry> {}

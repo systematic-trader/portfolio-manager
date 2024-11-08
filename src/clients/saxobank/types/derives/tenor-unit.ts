@@ -5,10 +5,13 @@ export type TenorUnit = GuardType<typeof TenorUnit>
 export const TenorUnit = enums([
   /** Days */
   'Days',
+
   /** Months */
   'Months',
+
   /** Weeks */
   'Weeks',
+
   /** Years */
   'Years',
 ])

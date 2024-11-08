@@ -8,7 +8,6 @@ import {
   props,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { AccountBenchmarkInstrument } from '../derives/account-benchmark-instrument.ts'
 import { AccountSubType } from '../derives/account-sub-type.ts'
 import { AccountType } from '../derives/account-type.ts'
 import { AssetType } from '../derives/asset-type.ts'
@@ -17,6 +16,7 @@ import { DividendReinvestmentConfiguration } from '../derives/dividend-reinvestm
 import { ManagementType } from '../derives/management-type.ts'
 import { MarginLendingEnabled } from '../derives/margin-lending-enabled.ts'
 import { PortfolioMarginMethod } from '../derives/portfolio-margin-method.ts'
+import { AccountBenchmarkInstrument } from './account-benchmark-instrument.ts'
 
 export const AccountResponse = props({
   /** Unique ID of the account group used for selection */
@@ -39,7 +39,7 @@ export const AccountResponse = props({
 
   /**
    * If set, this value shields the account value from going below the given limit by automatically triggering closing of positions should the limit be exceeded.
-   * A limit of zero means there is no limit
+   * A limit of zero means there is no limit.
    */
   AccountValueProtectionLimit: optional(number()),
 
@@ -91,15 +91,15 @@ export const AccountResponse = props({
   /** FractionalOrder is enabled or not for the account */
   FractionalOrderEnabled: boolean(),
 
-  /* Not documented */
+  /** Not documented */
   FractionalOrderEnabledAssetTypes: optional(array(AssetType)),
 
   /** Indicates that the margin exposure is calculated for this account only, without cross margining to other accounts within the same account group */
   IndividualMargining: boolean(),
 
   /**
-   * If true, currency conversions between trade and account currency take place at time of trade settlement
-   * Typically end of business day
+   * If true, currency conversions between trade and account currency take place at time of trade settlement.
+   * Typically end of business day.
    */
   IsCurrencyConversionAtSettlementTime: boolean(),
 
@@ -108,7 +108,7 @@ export const AccountResponse = props({
 
   /**
    * Indicates whether or not the account can be shared.
-   * An account can only be shared if it is the only account of its client and it is not a trial account
+   * An account can only be shared if it is the only account of its client and it is not a trial account.
    */
   IsShareable: boolean(),
 
@@ -129,7 +129,7 @@ export const AccountResponse = props({
 
   /**
    * Portfolio Based Margin (PBM) is a method for mapping the risk of an investment portfolio.
-   * True if enabled else false
+   * True if enabled else false.
    */
   PortfolioBasedMarginEnabled: boolean(),
 
@@ -138,7 +138,7 @@ export const AccountResponse = props({
 
   /**
    * If true, an AccountValueProtectionLimit may be set on this account.
-   * If it is false, the AccountValueProtectionLimit can be set on client or account group
+   * If it is false, the AccountValueProtectionLimit can be set on client or account group.
    */
   SupportsAccountValueProtectionLimit: boolean(),
 

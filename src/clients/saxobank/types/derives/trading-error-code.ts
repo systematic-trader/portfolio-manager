@@ -3,10 +3,10 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type TradingErrorCode = GuardType<typeof TradingErrorCode>
 
 export const TradingErrorCode = enums([
-  /** Account is trade restricted. */
+  /** Account is trade restricted */
   'AccountIsTradeRestricted',
 
-  /** An active trade follower is not allowed to cancel order manually. */
+  /** An active trade follower is not allowed to cancel order manually */
   'ActiveFollowerCannotCancelOrderManually',
 
   /** One or more mandatory parameters are missing */
@@ -27,37 +27,39 @@ export const TradingErrorCode = enums([
   /** Participation with Percentage distribution type should sum up to 100% */
   'AllocationKeyPercentDoesNotSumToOneHundred',
 
-  /** Request to Cancel or Replace order already send. */
+  /** Request to Cancel or Replace order already send */
   'AlreadyPendingCancelReplace',
 
   /** The supplied duration is not supported for the current order */
   'AmountBelowMinimumLotSize',
 
-  /** Amount differs from amount on related order. */
+  /** Amount differs from amount on related order */
   'AmountDiffersFromAmountOnRelatedOrder',
 
-  /** Order or trade placed or changed to amount lower than sum of units in allocation key. */
+  /** Order or trade placed or changed to amount lower than sum of units in allocation key */
   'AmountLowerThanAllocationKeyUnits',
 
-  /** Order size is not valid for the exchange. */
+  /** Order size is not valid for the exchange */
   'AmountNotInLotSize',
 
-  /** Barrier is too close to spot. */
+  /** Barrier is too close to spot */
   'BarrierTooCloseToSpot',
 
-  /** Request rejected by broker. */
+  /** Request rejected by broker */
   'BrokerOption',
 
-  /** Client cannot cancel Market Expiry Order. */
+  /** Client cannot cancel Market Expiry Order */
   'ClientCannotCancelMarketExpiryOrder',
 
-  /** Trade would exceed client exposure limitation. */
+  /** Trade would exceed client exposure limitation */
   'ClientExposureLimitation',
 
-  /** Error code return when commission rule is missing. */
+  /** Error code return when commission rule is missing */
   'ClmDataFeedClientExceptionCommissionRuleMissing',
 
-  /** The specified closeAll key covers positions already closed by a closeAll key. */
+  /**
+   * The specified closeAll key covers positions already closed by a closeAll key.
+   */
   'CloseAllPositionsAlreadyBeingClosed',
 
   /** Instrument invalid for Direct Access trading */
@@ -66,55 +68,59 @@ export const TradingErrorCode = enums([
   /** The supplied duration is not supported for the current order */
   'DurationNotSupported',
 
-  /** Time and sales is not supported for this exchange. */
+  /** Time and sales is not supported for this exchange */
   'ExchangeNotSupported',
 
   /** Exchange rate not available */
   'ExchangeRateNotAvailable',
 
-  /** Error code when expiration date is not set on order request having order duration: GoodTillDate */
+  /**
+   * Error code when expiration date is not set on order request having order duration: GoodTillDate.
+   */
   'ExpirationDateInPast',
 
-  /** Error code when expiration date in the past on order request having order duration: GoodTillDate */
+  /**
+   * Error code when expiration date in the past on order request having order duration: GoodTillDate.
+   */
   'ExpirationDateRequired',
 
-  /** Error code when forward date is in the past on FxForwards order request. */
+  /** Error code when forward date is in the past on FxForwards order request */
   'ForwardDateInPast',
 
-  /** Error code when forward date is not set on FxForwards order. */
+  /** Error code when forward date is not set on FxForwards order */
   'ForwardDateRequired',
 
-  /** Error code when near leg and far leg value dates are not set on FxSwap order. */
+  /** Error code when near leg and far leg value dates are not set on FxSwap order */
   'FxSwapLegsValueDateRequired',
 
-  /** Account not allowed. */
+  /** Account not allowed */
   'IllegalAccount',
 
-  /** Illegal amount. */
+  /** Illegal amount */
   'IllegalAmount',
 
-  /** Illegal Date. */
+  /** Illegal Date */
   'IllegalDate',
 
-  /** Instrument cannot be found. */
+  /** Instrument cannot be found */
   'IllegalInstrumentId',
 
-  /** Illegal strike price. */
+  /** Illegal strike price */
   'IllegalStrike',
 
-  /** Error code returned when the watch list cannot be found. */
+  /** Error code returned when the watch list cannot be found */
   'IllegalWatchlistId',
 
-  /** Trading is disabled for the instrument. */
+  /** Trading is disabled for the instrument */
   'InstrumentDisabledForTrading',
 
   /** Instrument has expired */
   'InstrumentHasExpired',
 
-  /** Error code returned when the account is not allowed to trade in or receive prices for the specified asset type. */
+  /** Error code returned when the account is not allowed to trade in or receive prices for the specified asset type */
   'InstrumentNotAllowed',
 
-  /** Instrument not found or not allowed for market trades subscription. */
+  /** Instrument not found or not allowed for market trades subscription */
   'InstrumentNotFoundOrNotAllowedForMarketTrades',
 
   /** The instrument is not tradable as the selected asset type */
@@ -126,13 +132,13 @@ export const TradingErrorCode = enums([
   /** Unsupported instrument type */
   'InstrumentTypeNotSupportedException',
 
-  /** Insufficient cash for trade. */
+  /** Insufficient cash for trade */
   'InsufficentCash',
 
   /** Indicates that an operation cannot be performed because the resource requires a higher TradeLevel that the current session has. */
   'InsufficientTradeLevelException',
 
-  /** Internal Server Error. */
+  /** Internal Server Error */
   'InternalServerError',
 
   /** Order or trade placed with an allocationkey thats invalid or marked as inactive or deleted */
@@ -144,70 +150,72 @@ export const TradingErrorCode = enums([
   /** Error code when expiration date is not set on order request having order duration: GoodTillDate */
   'InvalidExpiryTimeOnExchange',
 
-  /** Error code when near leg value date is greater than far leg value date. */
+  /** Error code when near leg value date is greater than far leg value date */
   'InvalidFxSwapLegsValueDate',
 
-  /** The provided message id is either invalid or not found. */
+  /** The provided message id is either invalid or not found */
   'InvalidMessageId',
 
-  /** Invalid option root id specified. */
+  /** Invalid option root id specified */
   'InvalidOptionRootId',
 
   /** Error code returned when an invalid price request is submitted */
   'InvalidPriceRequest',
 
-  /** Invalid refresh rate. */
+  /** Invalid refresh rate */
   'InvalidRefreshRate',
 
-  /** Invalid request. */
+  /** Invalid request */
   'InvalidRequest',
 
-  /** Error code when expiration date is not set on order request having order duration: GoodTillDate */
+  /**
+   * Error code when expiration date is not set on order request having order duration: GoodTillDate.
+   */
   'InvalidTimeInExpiationDateTime',
 
   /** Invalid TraderId - The TraderId does not conform to the formatting rules for TraderIds */
   'InvalidTraderId',
 
-  /** Error code returned when the UIC is either invalid or not specified. */
+  /** Error code returned when the UIC is either invalid or not specified */
   'InvalidUic',
 
   /** Trade would result in borderline margin */
   'MarginBorderline',
 
-  /** Market is closed. */
+  /** Market is closed */
   'MarketClosed',
 
   /** Error code when expiration date is not set on order request having order duration: GoodTillDate */
   'MissingTimeInExpirationDateTime',
 
-  /** No chat message entered. */
+  /** No chat message entered */
   'NoChatMessageEntered',
 
   /** No data access to instrument prices */
   'NoDataAccess',
 
-  /** Not tradable at present. */
+  /** Not tradable at present */
   'NotTradableAtPresent',
 
-  /** No valid quote to buy or sell on. */
+  /** No valid quote to buy or sell on */
   'NoValidQuote',
 
-  /** Order price is on wrong side of market. */
+  /** Order price is on wrong side of market */
   'OnWrongSideOfMarket',
 
-  /** Opening short FX option positions is not allowed. */
+  /** Opening short FX option positions is not allowed */
   'OpeningShortFXOptionPositionsNotAllowed',
 
-  /** Exercise not allowed after exercise cut-off time or on last trading day or later. */
+  /** Exercise not allowed after exercise cut-off time or on last trading day or later */
   'OptionExerciseAfterCutoff',
 
-  /** Error code when OptionsChain subscriptions are not supported for the given AssetType. */
+  /** Error code when OptionsChain subscriptions are not supported for the given AssetType */
   'OptionsChainNotSupportedForAssetType',
 
   /** Order cannot be canceled at this time */
   'OrderCannotBeCancelledAtThisTime',
 
-  /** Requested order id not found. */
+  /** Requested order id not found */
   'OrderNotFound',
 
   /** Order not placed */
@@ -216,25 +224,25 @@ export const TradingErrorCode = enums([
   /** The related position was not found or the current order is on a different account than the position */
   'OrderRelatedPositionMissMatch',
 
-  /** The instruments's last trading date has passed. */
+  /** The instruments's last trading date has passed */
   'OrderRequestAfterLastTradingDate',
 
-  /** Order value is too large. */
+  /** Order value is too large */
   'OrderValueTooLarge',
 
-  /** Order value must be above the minimum order value for this exchange. */
+  /** Order value must be above the minimum order value for this exchange */
   'OrderValueToSmall',
 
   /** Limit of pending trade requests is exceeded */
   'PendingTradeRequests',
 
-  /** A trade or order was placed with position buildup on an instrument not supporting this. */
+  /** A trade or order was placed with position buildup on an instrument not supporting this */
   'PositionBuildupNotValidForInstrument',
 
   /** The price exceeds the aggressive tolerance */
   'PriceExceedsAggressiveTolerance',
 
-  /** Price from client trade request was not found in price history. */
+  /** Price from client trade request was not found in price history */
   'PriceNotFound',
 
   /** The price is not in valid ticksize increments */
@@ -246,46 +254,46 @@ export const TradingErrorCode = enums([
   /** Error code returned price request requires setting put or call */
   'PriceRequestRequiresPutCall',
 
-  /** Quote has timed out. */
+  /** Quote has timed out */
   'QuoteHasTimedOut',
 
-  /** Order request rejected due to failure for related order. */
+  /** Order request rejected due to failure for related order */
   'RelatedOrderWasRejected',
 
-  /** Price subscription cannot enter Request For Quote. */
+  /** Price subscription cannot enter Request For Quote */
   'RequestForQuoteFailed',
 
-  /** Request For Quote is not allowed for an existing price subscription. */
+  /** Request For Quote is not allowed for an existing price subscription */
   'RequestForQuoteNotAllowed',
 
-  /** Price subscription cannot add margin impact. */
+  /** Price subscription cannot add margin impact */
   'RequestMarginImpactOnNextPriceFailed',
 
-  /** Price has changed to much, requote required. */
+  /** Price has changed to much, requote required */
   'RequoteRequired',
 
-  /** Trading Short for selected instrument disabled. */
+  /** Trading Short for selected instrument disabled */
   'ShortTradeDisabled',
 
-  /** Contingent guaranteed stop price is too close to entry order price. */
+  /** Contingent guaranteed stop price is too close to entry order price */
   'TooCloseToEntryOrder',
 
-  /** Guaranteed stop is too close to market. */
+  /** Guaranteed stop is too close to market */
   'TooCloseToMarket',
 
-  /** Order price is too close to OCO related order price. */
+  /** Order price is too close to OCO related order price */
   'TooCloseToOcoRelatedOrderPrice',
 
-  /** Order price is too far from the entry order. */
+  /** Order price is too far from the entry order */
   'TooFarFromEntryOrder',
 
-  /** Limit price is too far from market. */
+  /** Limit price is too far from market */
   'TooFarFromMarket',
 
-  /** Too late to cancel order. */
+  /** Too late to cancel order */
   'TooLateToCancelOrder',
 
-  /** Error code when too many strikes are quested for one options-chain. */
+  /** Error code when too many strikes are quested for one options-chain */
   'TooManyStrikesRequested',
 
   /** Trade contract size is to small */
@@ -303,7 +311,7 @@ export const TradingErrorCode = enums([
   /** Error code when expiration date is not set on order request having order duration: GoodTillDate */
   'UnexpectedTimeInExpirationDateTime',
 
-  /** Unknown or no error code. */
+  /** Unknown or no error code */
   'Unknown',
 
   /**
@@ -312,15 +320,15 @@ export const TradingErrorCode = enums([
    */
   'WarningAmountLargeOrderSize',
 
-  /** Would exceed equity concentration limit. */
+  /** Would exceed equity concentration limit */
   'WouldExceedEquityConcentrationLimit',
 
-  /** Trade would exceed margin limits. */
+  /** Trade would exceed margin limits */
   'WouldExceedMargin',
 
-  /** Would exceed margin ceiling. */
+  /** Would exceed margin ceiling */
   'WouldExceedMarginCeiling',
 
-  /** Trade would exceed trading line limits. */
+  /** Trade would exceed trading line limits */
   'WouldExceedTradingLine',
 ])

@@ -1,5 +1,4 @@
 import {
-  enums,
   type GuardType,
   integer,
   number,
@@ -8,12 +7,13 @@ import {
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { AssetType } from '../derives/asset-type.ts'
+import { BuySell } from '../derives/buy-sell.ts'
 
 export interface StrategyLeg extends GuardType<typeof StrategyLeg> {}
 
 export const StrategyLeg = props({
   AssetType,
-  BuySell: enums(['Buy', 'Sell']),
+  BuySell: BuySell,
   Description: optional(string()),
   LegNumber: integer(),
   Multiplier: number(),

@@ -3,8 +3,9 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type SummaryType = GuardType<typeof SummaryType>
 
 export const SummaryType = enums([
-  /** This describes a real instrument. */
+  /** This describes a real instrument */
   'Instrument',
-  /** This describes an optionroot (the basis for exchange tradec contract options). */
+
+  /** This describes an optionroot (the basis for exchange tradec contract options) */
   'ContractOptionRoot',
 ])

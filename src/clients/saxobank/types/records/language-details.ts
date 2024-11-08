@@ -12,10 +12,10 @@ export const LanguageDetails = props({
    */
   LanguageCode: LanguageCode,
 
-  /** The name of the language (in English). */
+  /** The name of the language (in English) */
   LanguageName: string(),
 
-  /** The name of the language (in native language). */
+  /** The name of the language (in native language) */
   NativeName: string(),
 })
 

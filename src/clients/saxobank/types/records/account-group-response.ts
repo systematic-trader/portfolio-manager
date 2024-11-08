@@ -7,9 +7,9 @@ import {
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { CollateralMonitoringMode } from '../derives/collateral-monitoring-mode.ts'
-import { PortfolioMarginMethod } from '../derives/portfolio-margin-method.ts'
 import { MarginLendingEnabled } from '../derives/margin-lending-enabled.ts'
 import { MarginMonitoringMode } from '../derives/margin-monitoring-mode.ts'
+import { PortfolioMarginMethod } from '../derives/portfolio-margin-method.ts'
 
 export interface AccountGroupResponse extends GuardType<typeof AccountGroupResponse> {}
 
@@ -26,7 +26,7 @@ export const AccountGroupResponse = props({
    */
   AccountValueProtectionLimit: optional(integer()),
 
-  /** Unique ID of the client. */
+  /** Unique ID of the client */
   ClientKey: string(),
 
   /**
@@ -35,7 +35,7 @@ export const AccountGroupResponse = props({
    */
   CollateralMonitoringMode: optional(CollateralMonitoringMode),
 
-  /** Calculation method for assessing margin utilization. */
+  /** Calculation method for assessing margin utilization */
   MarginCalculationMethod: PortfolioMarginMethod,
 
   /** Margin Lending Enabled */

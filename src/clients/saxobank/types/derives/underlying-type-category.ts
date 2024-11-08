@@ -3,8 +3,9 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type UnderlyingTypeCategory = GuardType<typeof UnderlyingTypeCategory>
 
 export const UnderlyingTypeCategory = enums([
-  /** Instrument has more than one underlying instruments. */
+  /** Instrument has more than one underlying instruments */
   'Basket',
-  /** Instrument has one or less underlying instruments. */
+
+  /** Instrument has one or less underlying instruments */
   'Instrument',
 ])

@@ -13,41 +13,44 @@ import {
 import { BuySell } from '../derives/buy-sell.ts'
 import { CostAssumption } from '../derives/cost-assumption.ts'
 import { Currency3 } from '../derives/currency.ts'
-import { InstrumentDisplayAndFormat } from '../derives/instrument-display-and-format.ts'
-import { InstrumentMarginRequirements } from '../derives/instrument-margin-requirements.ts'
-import { LongShortCost } from '../derives/long-short-cost.ts'
-import { MarginTierRequirement } from '../derives/margin-tier-requirement.ts'
 import { PriceDisplayFormatType } from '../derives/price-display-format-type.ts'
+import { InstrumentDisplayAndFormat } from './instrument-display-and-format.ts'
+import { InstrumentMarginRequirements } from './instrument-margin-requirements.ts'
+import { LongShortCost } from './long-short-cost.ts'
+import { MarginTierRequirement } from './margin-tier-requirement.ts'
 
 const CostResponseBase = props({
-  /** Currency of the selected account, used when listing currency conversion fees for the selected instrument back to the account currency. */
+  /** Currency of the selected account, used when listing currency conversion fees for the selected instrument back to the account currency */
   AccountCurrency: Currency3,
 
-  /** Unique ID of the account. */
+  /** Unique ID of the account */
   AccountID: string(),
 
-  /** Number of instrument. */
+  /** Number of instrument */
   Amount: number(),
 
   /** Calculation Assumptions */
   CostCalculationAssumptions: array(CostAssumption),
 
-  /** Includes Symbol and formatting info. (standard object also used in most other service groups) */
+  /**
+   * Includes Symbol and formatting info.
+   * (standard object also used in most other service groups)
+   */
   DisplayAndFormat: InstrumentDisplayAndFormat.merge({
     Format: optional(PriceDisplayFormatType),
     OrderDecimals: optional(integer()),
   }),
 
-  /** Holding period in days. */
+  /** Holding period in days */
   HoldingPeriodInDays: integer(),
 
-  /** Description of instrument. */
+  /** Description of instrument */
   Instrument: string(),
 
-  /** Price of instrument. */
+  /** Price of instrument */
   Price: number(),
 
-  /** Instrument UIC. */
+  /** Instrument UIC */
   Uic: integer(),
 })
 

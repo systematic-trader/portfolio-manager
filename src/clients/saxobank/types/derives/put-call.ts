@@ -3,12 +3,12 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type PutCall = GuardType<typeof PutCall>
 
 export const PutCall = enums([
-  /** Call. */
+  /** Call */
   'Call',
 
-  /** Not specified. */
+  /** Not specified */
   'None',
 
-  /** Put. */
+  /** Put */
   'Put',
 ])

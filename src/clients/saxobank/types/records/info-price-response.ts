@@ -6,16 +6,16 @@ import {
   props,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { Commissions } from '../derives/commissions.ts'
-import { Greeks } from '../derives/greeks.ts'
-import { HistoricalChanges } from '../derives/historical-changes.ts'
-import { InstrumentDisplayAndFormat } from '../derives/instrument-display-and-format.ts'
-import { InstrumentPriceDetails } from '../derives/instrument-price-details.ts'
-import { MarketDepth } from '../derives/market-depth.ts'
-import { PriceInfoDetails } from '../derives/price-info-details.ts'
-import { PriceInfo } from '../derives/price-info.ts'
-import { Quote } from '../derives/quote.ts'
 import { TradingErrorCode } from '../derives/trading-error-code.ts'
+import { Commissions } from './commissions.ts'
+import { Greeks } from './greeks.ts'
+import { HistoricalChanges } from './historical-changes.ts'
+import { InstrumentDisplayAndFormat } from './instrument-display-and-format.ts'
+import { InstrumentPriceDetails } from './instrument-price-details.ts'
+import { MarketDepth } from './market-depth.ts'
+import { PriceInfoDetails } from './price-info-details.ts'
+import { PriceInfo } from './price-info.ts'
+import { Quote } from './quote.ts'
 
 const DisplayAndFormat = InstrumentDisplayAndFormat.merge({
   /** Not documented */

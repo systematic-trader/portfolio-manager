@@ -3,9 +3,9 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type EntitlementFieldSet = GuardType<typeof EntitlementFieldSet>
 
 export const EntitlementFieldSet = enums([
-  /** Return the AssetTypes in the Entitlements array where user has real time access on prices. */
+  /** Return the AssetTypes in the Entitlements array where user has real time access on prices */
   'Default',
 
-  /** Return the AssetTypes in the Entitlements array where user has real time and delayed access on prices. */
+  /** Return the AssetTypes in the Entitlements array where user has real time and delayed access on prices */
   'IncludeDelayed',
 ])

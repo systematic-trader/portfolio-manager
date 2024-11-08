@@ -21,6 +21,9 @@ export const PositionStatus = enums([
   /** Related closing position */
   'RelatedClose',
 
-  /** Implicitly closed. Used for Net Positions only. */
+  /**
+   * Implicitly closed.
+   * Used for Net Positions only.
+   */
   'Square',
 ])

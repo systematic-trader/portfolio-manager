@@ -9,10 +9,10 @@ export const AccountSubType = enums([
   /** Error */
   'Error',
 
-  /** Default , used for None. */
+  /** Default, used for None. */
   'None',
 
-  /** Norway ASK ( Tax saving Account). */
+  /** Norway ASK (Tax saving Account). */
   'NorwayASK',
 
   /** PEA. */

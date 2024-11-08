@@ -15,7 +15,7 @@ export const ExchangeSessionState = enums([
 
   /**
    * Participants place orders to buy or sell units at certain buying or selling prices.
-   * Orders collected during an auction are matched to form a contract
+   * Orders collected during an auction are matched to form a contract.
    */
   'CallAuctionTrading',
 
