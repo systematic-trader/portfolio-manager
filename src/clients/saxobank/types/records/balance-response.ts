@@ -8,37 +8,31 @@ import {
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { CalculationReliability } from '../derives/calculation-reliability.ts'
 import { Currency3 } from '../derives/currency.ts'
-import { InitialMarginResponse } from '../derives/initial-margin-response.ts'
-import { LineStatus } from '../derives/line-status.ts'
-import { MarginCollateralNotAvailableDetail } from '../derives/margin-collateral-not-available-detail.ts'
-import { MarginOverviewByGroup } from '../derives/margin-overview-by-group.ts'
-import { SpendingPower } from '../derives/spending-power.ts'
-import { TransactionsNotBookedDetail } from '../derives/transactions-not-booked-detail.ts'
+import { InitialMarginResponse } from './initial-margin-response.ts'
+import { LineStatus } from './line-status.ts'
+import { MarginCollateralNotAvailableDetail } from './margin-collateral-not-available-detail.ts'
+import { MarginOverviewByGroup } from './margin-overview-by-group.ts'
+import { SpendingPower } from './spending-power.ts'
+import { TransactionsNotBookedDetail } from './transactions-not-booked-detail.ts'
 
 export interface BalanceResponse extends GuardType<typeof BalanceResponse> {}
 
 export const BalanceResponse = props({
-  /**
-   * Account funding limit.
-   * This field is available for TaxSaving AccountType and FrancePea and FrancePeaPme SubAccountTypes
-   */
+  /** Account funding limit */
   AccountFundingLimit: optional(number()),
 
-  /**
-   * Account funding limit.
-   * This field is available for TaxSaving AccountType and FrancePea and FrancePeaPme SubAccountTypes
-   */
+  /** Account funding limit */
   AccountNetFundedAmount: optional(number()),
 
   /**
    * Account Remaining Funding.
-   * This field is available for TaxSaving and Pension AccountTypes, and FrancePea and FrancePeaPme SubAccountTypes
+   * This field is available for TaxSaving and Pension AccountTypes, and FrancePea and FrancePeaPme SubAccountTypes.
    */
   AccountRemainingFunding: optional(number()),
 
   /**
    * If set, this value shields the account/client value from going below the given limit by automatically triggering closing of open positions should the limit be exceeded.
-   * A limit of zero means there is no limit
+   * A limit of zero means there is no limit.
    */
   AccountValueProtectionLimit: optional(number()),
 
@@ -118,14 +112,14 @@ export const BalanceResponse = props({
    * True if the given client/account is on simple margining.
    * F.ex. Used to indicate if the account supports close all positions.
    * Typically this means the client has a single account or single account margining and no settlement accounts.
-   * As well as no Fx Forwards/Options, listed options or Futures using advanced margining methods
+   * As well as no Fx Forwards/Options, listed options or Futures using advanced margining methods.
    */
   IsPortfolioMarginModelSimple: boolean(),
 
   /**
    * Level of margin already utilized in percent.
    * I.e. the ratio between the margin collateral used and the total available margin collateral.
-   * Indicates distance to margin calls
+   * Indicates distance to margin calls.
    */
   MarginAndCollateralUtilizationPct: number(),
 
@@ -144,7 +138,7 @@ export const BalanceResponse = props({
   /**
    * Percentage of total margin exposure to total collateral.
    * I.e. the ratio between the Account Value and the Net Exposure.
-   * If account exposure is 0, the coverage percent is also returned as 0
+   * If account exposure is 0, the coverage percent is also returned as 0.
    */
   MarginExposureCoveragePct: number(),
 
@@ -156,20 +150,20 @@ export const BalanceResponse = props({
 
   /**
    * Sum of maintenance margin used for current positions on the account/client.
-   * The provided value is negative for any margin that is charged to the available margin on the account/client
+   * The provided value is negative for any margin that is charged to the available margin on the account/client.
    */
   MarginUsedByCurrentPositions: number(),
 
   /**
    * Level of margin already utilized in percent.
    * I.e. the ratio between the margin collateral used and the total available margin collateral.
-   * Indicates distance to margin calls
+   * Indicates distance to margin calls.
    */
   MarginUtilizationPct: number(),
 
   /**
    * Value used as basis to calculate maintinance margin.
-   * It is calculated as TotalValue plus pending settlements (funds awaiting settlement for partners), minus MarginCollateralNotAvailable
+   * It is calculated as TotalValue plus pending settlements (funds awaiting settlement for partners), minus MarginCollateralNotAvailable.
    */
   NetEquityForMargin: number(),
 

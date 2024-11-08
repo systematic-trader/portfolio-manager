@@ -5,8 +5,13 @@ export type OrderDistanceType = GuardType<typeof OrderDistanceType>
 export const OrderDistanceType = enums([
   /** % +/- the current price */
   'Percentage',
-  /** +/- the current price. Only applicable to Fx. */
+
+  /**
+   * +/- the current price.
+   * Only applicable to Fx.
+   */
   'Pips',
+
   /**	Absolute price. */
   'Price',
 ])

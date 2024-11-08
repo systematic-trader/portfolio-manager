@@ -3,9 +3,9 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type ShortTrading = GuardType<typeof ShortTrading>
 
 export const ShortTrading = enums([
-  /** Short trading is possible for instrument. */
+  /** Short trading is possible for instrument */
   'Allowed',
 
-  /** Short trading is not possible for instrument. */
+  /** Short trading is not possible for instrument */
   'NotAllowed',
 ])

@@ -6,10 +6,10 @@ export const CorrelationType = enums([
   /** Entity is part of a trade allocation */
   'Allocation',
 
-  /** Entitiy originated for an options assignment. */
+  /** Entity originated for an options assignment. */
   'Assignment',
 
-  /** Entitiy originated for an automatic options assignment. */
+  /** Entity originated for an automatic options assignment. */
   'AutoAssignment',
 
   /** Entity originated from an automatic options exercise. */

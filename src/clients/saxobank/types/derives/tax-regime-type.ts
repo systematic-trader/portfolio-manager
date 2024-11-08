@@ -4,8 +4,6 @@ export type TaxRegimeType = GuardType<typeof TaxRegimeType>
 
 export const TaxRegimeType = enums([
   'Administered',
-
   'Declarative',
-
   'Unspecified',
 ])

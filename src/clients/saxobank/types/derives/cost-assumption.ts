@@ -38,14 +38,16 @@ export const CostAssumption = enums([
 
   /**
    * Applicable for orders placed on the platform.
-   * Additional Manual Order Fees may apply for orders placed over the phone, chat or emailApplicable for orders placed on the platform.
-   * Additional Manual Order Fees may apply for orders placed over the phone, chat or email
+   * Additional Manual Order Fees may apply for orders placed over the phone, chat or email.
    */
   'ManualOrderFeeMayApply',
 
-  /** The margin loan is estimated based on a snapshot based of your current Cash available to partially or fully cover the value of position. */
+  /**
+   * The margin loan is estimated based on a snapshot based of your current Cash available
+   * to partially or fully cover the value of position.
+   */
   'MarginLoanEstimationOnCashAvailable',
 
-  /** Near date is spot, far date is as specifie */
+  /** Near date is spot, far date is as specified */
   'NearDateSpotFarDateAsSpecified',
 ])

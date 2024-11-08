@@ -3,8 +3,9 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type EntityType = GuardType<typeof EntityType>
 
 export const EntityType = enums([
-  /** This describes an optionroot (the basis for exchange tradec contract options). */
+  /** This describes an optionroot (the basis for exchange tradec contract options) */
   'ContractOptionRoot',
-  /** This describes a real instrument. */
+
+  /** This describes a real instrument */
   'Instrument',
 ])

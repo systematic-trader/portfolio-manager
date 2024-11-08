@@ -3,6 +3,6 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type DividendReinvestmentConfiguration = GuardType<typeof DividendReinvestmentConfiguration>
 
 export const DividendReinvestmentConfiguration = enums([
-  /** Dividend reinvestment is handled by Euronext Securities for the DK markets (formerly known as VP Securities). */
+  /** Dividend reinvestment is handled by Euronext Securities for the DK markets (formerly known as VP Securities) */
   'EuronextSecuritiesDK',
 ])

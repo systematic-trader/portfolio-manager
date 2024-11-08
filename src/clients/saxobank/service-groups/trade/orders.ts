@@ -11,9 +11,9 @@ import {
 import type { ServiceGroupClient } from '../../service-group-client.ts'
 import type { AssetType } from '../../types/derives/asset-type.ts'
 import type { BuySell } from '../../types/derives/buy-sell.ts'
-import type { OrderDuration } from '../../types/derives/order-duration.ts'
-import { Order } from '../../types/derives/order.ts'
-import { StringErrorResponse } from '../../types/derives/string-error-response.ts'
+import type { OrderDuration } from '../../types/records/order-duration.ts'
+import { Order } from '../../types/records/order.ts'
+import { StringErrorResponse } from '../../types/records/string-error-response.ts'
 
 // todo implement arguments:
 // AccountKey	AccountKey	Body	Unique key identifying the account to place the order on.

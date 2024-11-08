@@ -3,36 +3,60 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type OrderType = GuardType<typeof OrderType>
 
 export const OrderType = enums([
-  /** Algorithmic. */
+  /** Algorithmic */
   'Algorithmic',
-  /** If asset price goes above or below defined upper/lower limit (trigger) prices, then place related order. */
+
+  /**
+   * If asset price goes above or below defined upper/lower limit (trigger) prices,
+   * then place related order.
+   */
   'BreakoutTrigger',
+
   /** Guaranteed Stop. Stop at price - no slippage. */
   'GuaranteedStop',
-  /** Limit. */
+
+  /** Limit */
   'Limit',
-  /** If the price moves above or below the trigger price, then place related order. */
+
+  /**
+   * If the price moves above or below the trigger price,
+   * then place related order.
+   */
   'LimitTrigger',
-  /**	Market. */
+
+  /** Market */
   'Market',
-  /** None. */
+
+  /** None */
   'None',
-  /** Stop. */
+
+  /** Stop */
   'Stop',
-  /** Stop if Traded. */
+
+  /** Stop if Traded */
   'StopIfTraded',
-  /** Stop Limit. */
+
+  /** Stop Limit */
   'StopLimit',
-  /** If price falls below trigger price, a stop order with a trailing distance is placed. Similar to a trailing stop order. */
+
+  /**
+   * If price falls below trigger price, a stop order with a trailing distance is placed.
+   * Similar to a trailing stop order.
+   */
   'StopTrigger',
-  /** Switch. */
+
+  /** Switch */
   'Switch',
-  /** Trailing Stop. */
+
+  /** Trailing Stop */
   'TrailingStop',
-  /** Trailing Stop if Traded. */
+
+  /** Trailing Stop if Traded */
   'TrailingStopIfTraded',
-  /** 	Traspaso. */
+
+  /** Traspaso */
   'Traspaso',
+
   /** A Traspaso In order initiated from an external trading system. */
   'TraspasoIn',
 ])

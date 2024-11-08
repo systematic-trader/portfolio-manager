@@ -3,9 +3,9 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type SecurityLendingEnabled = GuardType<typeof SecurityLendingEnabled>
 
 export const SecurityLendingEnabled = enums([
-  /** Security Lending is disabled. */
+  /** Security Lending is disabled */
   'No',
 
-  /** Security Lending is enabled. */
+  /** Security Lending is enabled */
   'Yes',
 ])

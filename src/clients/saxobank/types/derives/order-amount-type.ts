@@ -3,9 +3,12 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type OrderAmountType = GuardType<typeof OrderAmountType>
 
 export const OrderAmountType = enums([
-  /** Order amount is specified as a monetary value. */
+  /** Order amount is specified as a monetary value */
   'CashAmount',
 
-  /** Default. Order Amount is specified as an amount of lots/shares/contracts. */
+  /**
+   * Default.
+   * Order Amount is specified as an amount of lots/shares/contracts.
+   */
   'Quantity',
 ])

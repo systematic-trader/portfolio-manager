@@ -1,5 +1,5 @@
 import type { ServiceGroupClient } from '../../service-group-client.ts'
-import { ExchangeDetails } from '../../types/records/exchange-details.ts'
+import { ExchangeDetails } from '../../types/derives/exchange-details.ts'
 
 export class Exchanges {
   readonly #client: ServiceGroupClient

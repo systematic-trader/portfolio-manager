@@ -18,7 +18,10 @@ export const OrderStatus = enums([
   /** Locked. Change pending. */
   'NotWorkingLockedChangePending',
 
-  /** Parked orders are in inactive state, can't be filled, but remain available in so they can be made active at any time. Clients can manually 'park' and 'activate' an order. */
+  /**
+   * Parked orders are in inactive state, can't be filled, but remain available in so they can be made active at any time.
+   * Clients can manually 'park' and 'activate' an order.
+   */
   'Parked',
 
   /** Unknown */

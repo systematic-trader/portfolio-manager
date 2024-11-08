@@ -7,8 +7,9 @@ import {
 export interface TickSizeSchemeElement extends GuardType<typeof TickSizeSchemeElement> {}
 
 export const TickSizeSchemeElement = props({
-  /** The tick size of this element applies to prices less than or equal to this value. */
+  /** The tick size of this element applies to prices less than or equal to this value */
   HighPrice: number(),
-  /** The tick size of this element. */
+
+  /** The tick size of this element */
   TickSize: number(),
 })

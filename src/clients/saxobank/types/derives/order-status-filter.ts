@@ -6,6 +6,9 @@ export const OrderStatusFilter = enums([
   /** Returns all orders regardless of type */
   'All',
 
-  /** Returns only top level orders and OCO orders. Stop/Limit orders details are available in the RelatedOrders properties. */
+  /**
+   * Returns only top level orders and OCO orders.
+   * Stop/Limit orders details are available in the RelatedOrders properties.
+   */
   'Working',
 ])

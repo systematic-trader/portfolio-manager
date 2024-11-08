@@ -3,9 +3,12 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type AllowedTradingSessions = GuardType<typeof AllowedTradingSessions>
 
 export const AllowedTradingSessions = enums([
-  /** Extended trading hours session. */
+  /** Extended trading hours session*/
   'All',
 
-  /** Default value. Regular trading hours session. */
+  /**
+   * Default value.
+   * Regular trading hours session.
+   */
   'Regular',
 ])

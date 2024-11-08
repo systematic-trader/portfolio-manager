@@ -5,9 +5,9 @@ import {
   optional,
   props,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { ChartInfo } from '../derives/chart-info.ts'
-import { ChartSampleBidAskOHLC, ChartSampleOHLC } from '../derives/chart-sample.ts'
-import { DisplayAndFormat } from '../derives/display-and-format.ts'
+import { ChartInfo } from './chart-info.ts'
+import { ChartSampleBidAskOHLC, ChartSampleOHLC } from './chart-sample.ts'
+import { DisplayAndFormat } from './display-and-format.ts'
 
 export const ChartResponseBond = props({
   ChartInfo,

@@ -6,6 +6,9 @@ export const CollateralMonitoringMode = enums([
   /** Monitoring (stop-out's) are based on collateral credit value */
   'CollateralCreditValue',
 
-  /** Monitoring (stop-out's) are based on collateral credit value and collateral credit line. */
+  /**
+   * Monitoring (stop-out's) are based on collateral credit value
+   * and collateral credit line.
+   */
   'MaxOfCollateralCreditValueAndCollateralCreditLine',
 ])

@@ -3,12 +3,15 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export type MarginLendingEnabled = GuardType<typeof MarginLendingEnabled>
 
 export const MarginLendingEnabled = enums([
-  /** Margin Lending is disabled. */
+  /** Margin Lending is disabled */
   'No',
 
-  /** Default. Margin Lending is not applicable. */
+  /**
+   * Default.
+   * Margin Lending is not applicable.
+   */
   'None',
 
-  /** Margin Lending is enabled. */
+  /** Margin Lending is enabled */
   'Yes',
 ])

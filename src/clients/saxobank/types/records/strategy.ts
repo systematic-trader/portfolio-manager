@@ -9,7 +9,7 @@ import {
 import { AssetType } from '../derives/asset-type.ts'
 import { DurationType } from '../derives/duration-type.ts'
 import { OrderType } from '../derives/order-type.ts'
-import { StrategyParameter } from './strategy-parameter.ts'
+import { StrategyParameter } from '../derives/strategy-parameter.ts'
 
 export interface Strategy extends GuardType<typeof Strategy> {}
 
