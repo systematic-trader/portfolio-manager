@@ -16,7 +16,7 @@ export class IsAlive {
   async get(
     options: { readonly timeout?: undefined | number } = {},
   ): Promise<string> {
-    return await this.#client.getText({
+    return await this.#client.get({
       guard: IsAliveGuard,
       timeout: options.timeout,
     })
