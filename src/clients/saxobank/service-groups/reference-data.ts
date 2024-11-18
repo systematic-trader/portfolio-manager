@@ -6,11 +6,13 @@ import { Currencies } from './reference-data/currencies.ts'
 import { CurrencyPairs } from './reference-data/currency-pairs.ts'
 import { Exchanges } from './reference-data/exchanges.ts'
 import { Instruments } from './reference-data/instruments.ts'
+import { IsAlive } from './reference-data/is-alive.ts'
 import { Languages } from './reference-data/languages.ts'
 import { StandardDates } from './reference-data/standard-dates.ts'
 import { TimeZones } from './reference-data/time-zones.ts'
 
 export class ReferenceData {
+  readonly isAlive: IsAlive
   readonly algostrategies: AlgoStrategies
   readonly countries: Countries
   readonly cultures: Cultures
@@ -25,6 +27,7 @@ export class ReferenceData {
   constructor({ client }: { readonly client: ServiceGroupClient }) {
     const serviceGroupClient = client.appendPath('ref')
 
+    this.isAlive = new IsAlive({ client: serviceGroupClient })
     this.algostrategies = new AlgoStrategies({ client: serviceGroupClient })
     this.countries = new Countries({ client: serviceGroupClient })
     this.cultures = new Cultures({ client: serviceGroupClient })

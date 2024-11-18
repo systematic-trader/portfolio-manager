@@ -58,6 +58,25 @@ export class ServiceGroupClient {
     })
   }
 
+  async getText(options: {
+    readonly path?: undefined | string
+    readonly headers?: undefined | Record<string, string>
+    readonly searchParams?: undefined | SearchParamsRecord
+    readonly guard?: undefined | Guard<string>
+    readonly timeout?: undefined | number
+  } = {}): Promise<string> {
+    const url = urlJoin(this.#serviceURL, options.path)
+
+    setSearchParams(url, options.searchParams)
+
+    return await this.#client.getOkText(url, {
+      guard: options.guard,
+      headers: options.headers,
+      onError: this.#onError,
+      timeout: options.timeout,
+    })
+  }
+
   async get<T = unknown>(options: {
     readonly path?: undefined | string
     readonly headers?: undefined | Record<string, string>

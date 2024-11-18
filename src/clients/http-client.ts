@@ -211,11 +211,13 @@ export class HTTPClient {
   async getOkText(
     url: string | URL,
     {
+      guard,
       headers,
       signal,
       timeout,
       onError,
     }: {
+      readonly guard?: undefined | Guard<string>
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
@@ -230,7 +232,13 @@ export class HTTPClient {
       onError,
     })
 
-    return await response.text()
+    const text = await response.text()
+
+    if (guard !== undefined) {
+      return assertReturn(guard, text)
+    }
+
+    return text
   }
 
   async post(
