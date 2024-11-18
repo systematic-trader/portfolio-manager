@@ -1,7 +1,7 @@
 import { describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 
-describe('chart/isalive', () => {
+describe('chart/isAlive', () => {
   test('Live', async () => {
     using appLive = new SaxoBankApplication({
       type: 'Live',

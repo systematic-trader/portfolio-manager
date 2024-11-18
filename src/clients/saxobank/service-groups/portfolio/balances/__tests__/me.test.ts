@@ -33,7 +33,7 @@ describe('portfolio/balances/me', () => {
       const initialBalance = await appSimulation.portfolio.balances.me.get()
       expect(initialBalance).toBeDefined()
 
-      await appSimulation.trade.orders.post({
+      await appSimulation.trading.orders.post({
         AssetType: 'FxSpot',
         BuySell: 'Buy',
         Amount: 50_000,

@@ -105,7 +105,7 @@ describe('trade/info-prices', () => {
               case 'Rights':
               case 'Stock': {
                 try {
-                  const infoPrices = await app.trade.infoPrices.get({
+                  const infoPrices = await app.trading.infoPrices.get({
                     Amount: 80,
                     AssetType: assetType,
                     Uic: instrument.Identifier,
@@ -142,7 +142,7 @@ describe('trade/info-prices', () => {
                 }
 
                 try {
-                  const infoPrices = await app.trade.infoPrices.get({
+                  const infoPrices = await app.trading.infoPrices.get({
                     Amount: 80,
                     AssetType: assetType,
                     Uic: optionInstrument.Uic,
@@ -176,7 +176,7 @@ describe('trade/info-prices', () => {
                 const expityDate = Date.UTC(today.getFullYear(), today.getMonth() + 2, 1)
 
                 try {
-                  const infoPrices = await app.trade.infoPrices.get({
+                  const infoPrices = await app.trading.infoPrices.get({
                     Amount: 80,
                     AssetType: assetType,
                     Uic: instrument.Identifier,
@@ -208,7 +208,7 @@ describe('trade/info-prices', () => {
 
                   await step(stepLabel, async () => {
                     try {
-                      const infoPrices = await app.trade.infoPrices.get({
+                      const infoPrices = await app.trading.infoPrices.get({
                         Amount: 80,
                         AssetType: assetType,
                         Uic: instrument.Identifier,
@@ -254,7 +254,7 @@ describe('trade/info-prices', () => {
 
                     await step(stepLabel, async () => {
                       try {
-                        const infoPrices = await app.trade.infoPrices.get({
+                        const infoPrices = await app.trading.infoPrices.get({
                           Amount: 80,
                           AssetType: assetType,
                           Uic: instrument.Identifier,
@@ -291,7 +291,7 @@ describe('trade/info-prices', () => {
 
                     await step(stepLabel, async () => {
                       try {
-                        const infoPrices = await app.trade.infoPrices.get({
+                        const infoPrices = await app.trading.infoPrices.get({
                           Amount: 80,
                           AssetType: assetType,
                           Uic: instrument.Identifier,

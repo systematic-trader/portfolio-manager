@@ -1,13 +1,13 @@
 import { describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 
-describe('trade/isalive', () => {
+describe('rootServices/isAlive', () => {
   test('Live', async () => {
     using appLive = new SaxoBankApplication({
       type: 'Live',
     })
 
-    const response = await appLive.trade.isAlive.get()
+    const response = await appLive.rootServices.isAlive.get()
     expect(response).toBeDefined()
   })
 
@@ -16,7 +16,7 @@ describe('trade/isalive', () => {
       type: 'Simulation',
     })
 
-    const response = await appSimulation.trade.isAlive.get()
+    const response = await appSimulation.rootServices.isAlive.get()
     expect(response).toBeDefined()
   })
 })

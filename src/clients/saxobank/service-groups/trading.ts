@@ -1,10 +1,10 @@
 import type { ServiceGroupClient } from '../service-group-client.ts'
-import { InfoPrices } from './trade/info-prices.ts'
-import { IsAlive } from './trade/is-alive.ts'
-import { Orders } from './trade/orders.ts'
-import { Positions } from './trade/positions.ts'
+import { InfoPrices } from './trading/info-prices.ts'
+import { IsAlive } from './trading/is-alive.ts'
+import { Orders } from './trading/orders.ts'
+import { Positions } from './trading/positions.ts'
 
-export class Trade {
+export class Trading {
   readonly isAlive: IsAlive
   readonly orders: Orders
   readonly positions: Positions
