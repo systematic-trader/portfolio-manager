@@ -34,7 +34,7 @@ describe('portfolio/exposure/instruments/me', () => {
       expect(initialExposure).toBeDefined()
       expect(initialExposure).toHaveLength(0)
 
-      await appSimulation.trade.orders.post({
+      await appSimulation.trading.orders.post({
         AssetType: 'FxSpot',
         BuySell: 'Buy',
         Amount: 50_000,

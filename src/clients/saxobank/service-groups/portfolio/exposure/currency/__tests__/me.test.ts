@@ -37,7 +37,7 @@ describe('portfolio/exposure/currency/me', () => {
       expect(initialCurrencyExposure).toHaveLength(1)
       expect(initialCurrencyExposure).toContain('EUR')
 
-      await appSimulation.trade.orders.post({
+      await appSimulation.trading.orders.post({
         AssetType: 'FxSpot',
         BuySell: 'Buy',
         Amount: 50_000,

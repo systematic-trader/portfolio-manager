@@ -6,11 +6,23 @@ import { Timeout } from '../utils/timeout.ts'
 import { HTTPClient, HTTPClientError } from './http-client.ts'
 import { OpenAuthentication } from './saxobank/oauth.ts'
 import { ServiceGroupClient } from './saxobank/service-group-client.ts'
+import { AccountHistory } from './saxobank/service-groups/account-history.ts'
+import { AssetTransfers } from './saxobank/service-groups/asset-transfers.ts'
+import { AutoTrading } from './saxobank/service-groups/auto-trading.ts'
 import { Chart } from './saxobank/service-groups/chart.ts'
+import { ClientManagement } from './saxobank/service-groups/client-management.ts'
+import { ClientReporting } from './saxobank/service-groups/client-reporting.ts'
 import { ClientServices } from './saxobank/service-groups/client-services.ts'
+import { CorporateActions } from './saxobank/service-groups/corporate-actions.ts'
+import { DisclaimerManagement } from './saxobank/service-groups/disclaimer-management.ts'
+import { EventNotificationServices } from './saxobank/service-groups/event-notification-services.ts'
+import { MarketOverview } from './saxobank/service-groups/market-overview.ts'
+import { PartnerIntegration } from './saxobank/service-groups/partner-integration.ts'
 import { Portfolio } from './saxobank/service-groups/portfolio.ts'
 import { ReferenceData } from './saxobank/service-groups/reference-data.ts'
-import { Trade } from './saxobank/service-groups/trade.ts'
+import { RootServices } from './saxobank/service-groups/root-services.ts'
+import { Trading } from './saxobank/service-groups/trading.ts'
+import { ValueAdd } from './saxobank/service-groups/value-add.ts'
 
 const Config = {
   Live: {
@@ -118,11 +130,23 @@ export class SaxoBankApplication implements Disposable {
 
   readonly type: SaxoBankApplicationType
 
+  readonly accountHistory: AccountHistory
+  readonly assetTransfers: AssetTransfers
+  readonly autoTrading: AutoTrading
   readonly chart: Chart
+  readonly clientManagement: ClientManagement
+  readonly clientReporting: ClientReporting
   readonly clientServices: ClientServices
+  readonly corporateActions: CorporateActions
+  readonly disclaimerManagement: DisclaimerManagement
+  readonly eventNotificationServices: EventNotificationServices
+  readonly marketOverview: MarketOverview
+  readonly partnerIntegration: PartnerIntegration
   readonly portfolio: Portfolio
   readonly referenceData: ReferenceData
-  readonly trade: Trade
+  readonly rootServices: RootServices
+  readonly trading: Trading
+  readonly valueAdd: ValueAdd
 
   constructor(settings: undefined | SaxoBankApplicationSettings = {}) {
     const envType = Environment['SAXOBANK_APP_TYPE']
@@ -260,11 +284,23 @@ export class SaxoBankApplication implements Disposable {
       },
     })
 
+    this.accountHistory = new AccountHistory({ client: serviceGroupClient })
+    this.assetTransfers = new AssetTransfers({ client: serviceGroupClient })
+    this.autoTrading = new AutoTrading({ client: serviceGroupClient })
     this.chart = new Chart({ client: serviceGroupClient })
+    this.clientManagement = new ClientManagement({ client: serviceGroupClient })
+    this.clientReporting = new ClientReporting({ client: serviceGroupClient })
     this.clientServices = new ClientServices({ client: serviceGroupClient })
+    this.corporateActions = new CorporateActions({ client: serviceGroupClient })
+    this.disclaimerManagement = new DisclaimerManagement({ client: serviceGroupClient })
+    this.eventNotificationServices = new EventNotificationServices({ client: serviceGroupClient })
+    this.marketOverview = new MarketOverview({ client: serviceGroupClient })
+    this.partnerIntegration = new PartnerIntegration({ client: serviceGroupClient })
     this.portfolio = new Portfolio({ client: serviceGroupClient })
     this.referenceData = new ReferenceData({ client: serviceGroupClient })
-    this.trade = new Trade({ client: serviceGroupClient })
+    this.rootServices = new RootServices({ client: serviceGroupClient })
+    this.trading = new Trading({ client: serviceGroupClient })
+    this.valueAdd = new ValueAdd({ client: serviceGroupClient })
   }
 
   [Symbol.dispose](): void {

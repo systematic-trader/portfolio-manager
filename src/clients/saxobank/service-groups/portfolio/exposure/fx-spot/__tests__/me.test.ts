@@ -36,7 +36,7 @@ describe('portfolio/exposure/fx-spot/me', () => {
       const initialFxExposure = initialExposure.map(({ Currency }) => Currency)
       expect(initialFxExposure).toHaveLength(0)
 
-      await appSimulation.trade.orders.post({
+      await appSimulation.trading.orders.post({
         AssetType: 'FxSpot',
         BuySell: 'Buy',
         Amount: 50_000,

@@ -25,7 +25,7 @@ async function findSuiteablePrice({ app, assetType, uic, forwardDate }: {
   readonly delta?: undefined | number
   readonly forwardDate?: undefined | string
 }) {
-  const infoPrice = await app.trade.infoPrices.get({
+  const infoPrice = await app.trading.infoPrices.get({
     AssetType: assetType,
     Uic: uic,
     ForwardDate: forwardDate,
@@ -151,7 +151,7 @@ describe('trade/orders', () => {
 
   describe('placing orders using different methods', () => {
     test('Method 1: Placing a single order, with no related orders', async () => {
-      const placeOrderResponse = await app.trade.orders.post({
+      const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
@@ -176,7 +176,7 @@ describe('trade/orders', () => {
         uic: 21,
       })
 
-      const placeOrderResponse = await app.trade.orders.post({
+      const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
@@ -215,7 +215,7 @@ describe('trade/orders', () => {
         uic: 21,
       })
 
-      const placeOrderResponse = await app.trade.orders.post({
+      const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
@@ -267,7 +267,7 @@ describe('trade/orders', () => {
       })
 
       // First, place the initial entry order
-      const entryOrderResponse = await app.trade.orders.post({
+      const entryOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
@@ -286,7 +286,7 @@ describe('trade/orders', () => {
       expect(entryOrderResponse).toBeDefined()
 
       // After this, add a related order to the newly created order
-      const relatedOrderResponse = await app.trade.orders.post({
+      const relatedOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         OrderId: entryOrderResponse.OrderId,
@@ -317,7 +317,7 @@ describe('trade/orders', () => {
       })
 
       // First, place the initial entry order
-      const entryOrderResponse = await app.trade.orders.post({
+      const entryOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
@@ -336,7 +336,7 @@ describe('trade/orders', () => {
       expect(entryOrderResponse).toBeDefined()
 
       // After this, add a related order to the newly created order
-      const relatedOrderResponse = await app.trade.orders.post({
+      const relatedOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         OrderId: entryOrderResponse.OrderId,
@@ -386,7 +386,7 @@ describe('trade/orders', () => {
         uic: 21,
       })
 
-      const placeOrderResponse = await app.trade.orders.post({
+      const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         Orders: [{
@@ -436,7 +436,7 @@ describe('trade/orders', () => {
         uic: 21,
       })
 
-      const placeOrderResponse = await app.trade.orders.post({
+      const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
@@ -456,7 +456,7 @@ describe('trade/orders', () => {
     })
 
     test('FillOrKill', async () => {
-      const placeOrderResponse = await app.trade.orders.post({
+      const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'Bond',
@@ -485,7 +485,7 @@ describe('trade/orders', () => {
         uic: 21,
       })
 
-      const placeOrderResponse = await app.trade.orders.post({
+      const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
@@ -536,7 +536,7 @@ describe('trade/orders', () => {
               ? expirationDate
               : [expirationDate, testCase.ExpirationTime].join('T')
 
-            const placeOrderResponse = await app.trade.orders.post({
+            const placeOrderResponse = await app.trading.orders.post({
               RequestId: crypto.randomUUID(),
 
               AssetType: 'FxSpot',
@@ -573,7 +573,7 @@ describe('trade/orders', () => {
         uic: 21,
       })
 
-      const placeOrderResponse = await app.trade.orders.post({
+      const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
@@ -662,7 +662,7 @@ describe('trade/orders', () => {
 
             for await (const instrument of instruments) {
               await step(`${instrument.Description} (UIC ${instrument.Uic})`, async () => {
-                const placeOrderResponse = await app.trade.orders.post({
+                const placeOrderResponse = await app.trading.orders.post({
                   RequestId: crypto.randomUUID(),
 
                   AssetType: assetType,
@@ -716,7 +716,7 @@ describe('trade/orders', () => {
                   )
                 }
 
-                const placeOrderResponse = await app.trade.orders.post({
+                const placeOrderResponse = await app.trading.orders.post({
                   RequestId: crypto.randomUUID(),
 
                   AssetType: assetType,
@@ -764,7 +764,7 @@ describe('trade/orders', () => {
         uic: 21,
       })
 
-      const placeOrderResponse = await app.trade.orders.post({
+      const placeOrderResponse = await app.trading.orders.post({
         ManualOrder: false,
         AssetType: 'FxSpot',
         Uic: 21,
@@ -780,7 +780,7 @@ describe('trade/orders', () => {
 
       expect(placeOrderResponse).toBeDefined()
 
-      const deleteOrderResponse = await app.trade.orders.delete({
+      const deleteOrderResponse = await app.trading.orders.delete({
         AccountKey: account.AccountKey,
         OrderIds: [placeOrderResponse.OrderId],
       })
@@ -809,7 +809,7 @@ describe('trade/orders', () => {
         uic: 16,
       })
 
-      const placeEURUSDOrderResponse = await app.trade.orders.post({
+      const placeEURUSDOrderResponse = await app.trading.orders.post({
         ManualOrder: false,
         AssetType: 'FxSpot',
         Uic: 21,
@@ -826,7 +826,7 @@ describe('trade/orders', () => {
         IsForceOpen: undefined,
       })
 
-      const placeEURDKKOrderResponse = await app.trade.orders.post({
+      const placeEURDKKOrderResponse = await app.trading.orders.post({
         ManualOrder: false,
         AssetType: 'FxSpot',
         Uic: 16,
@@ -848,7 +848,7 @@ describe('trade/orders', () => {
       const ordersBeforeDeletingOrder = await toArray(app.portfolio.orders.me.get())
       expect(ordersBeforeDeletingOrder).toHaveLength(2)
 
-      const deleteOrderResponse = await app.trade.orders.delete({
+      const deleteOrderResponse = await app.trading.orders.delete({
         AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         Uic: 21,
