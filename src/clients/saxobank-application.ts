@@ -4,7 +4,8 @@ import * as path from 'jsr:@std/path'
 import { Environment } from '../utils/environment.ts'
 import { Timeout } from '../utils/timeout.ts'
 import { HTTPClient, HTTPClientError } from './http-client.ts'
-import { OpenAuthentication } from './saxobank/oauth.ts'
+import { SaxoBankApplicationConfig, type SaxoBankApplicationType } from './saxobank/config.ts'
+import { SaxoBankOpenAuthentication } from './saxobank/oauth.ts'
 import { ServiceGroupClient } from './saxobank/service-group-client.ts'
 import { AccountHistory } from './saxobank/service-groups/account-history.ts'
 import { AssetTransfers } from './saxobank/service-groups/asset-transfers.ts'
@@ -24,35 +25,6 @@ import { RootServices } from './saxobank/service-groups/root-services.ts'
 import { Trading } from './saxobank/service-groups/trading.ts'
 import { ValueAdd } from './saxobank/service-groups/value-add.ts'
 
-const Config = {
-  Live: {
-    authenticationURL: 'https://live.logonvalidation.net',
-    serviceURL: 'https://gateway.saxobank.com/openapi',
-    refreshTokenTimeout: 60_000,
-    storedAuthenticationFile: 'saxobank-authentication.json',
-    env: {
-      key: 'SAXOBANK_LIVE_APP_KEY',
-      secret: 'SAXOBANK_LIVE_APP_SECRET',
-      redirectURL: 'SAXOBANK_LIVE_APP_REDIRECT_URL',
-      listenerHostname: 'SAXOBANK_LIVE_APP_REDIRECT_LISTENER_HOSTNAME',
-      listenerPort: 'SAXOBANK_LIVE_APP_REDIRECT_LISTENER_PORT',
-    },
-  },
-  Simulation: {
-    authenticationURL: 'https://sim.logonvalidation.net',
-    serviceURL: 'https://gateway.saxobank.com/sim/openapi',
-    refreshTokenTimeout: 60_000,
-    storedAuthenticationFile: 'saxobank-authentication.json',
-    env: {
-      key: 'SAXOBANK_SIM_APP_KEY',
-      secret: 'SAXOBANK_SIM_APP_SECRET',
-      redirectURL: 'SAXOBANK_SIM_APP_REDIRECT_URL',
-      listenerHostname: 'SAXOBANK_SIM_APP_REDIRECT_LISTENER_HOSTNAME',
-      listenerPort: 'SAXOBANK_SIM_APP_REDIRECT_LISTENER_PORT',
-    },
-  },
-} as const
-
 async function openLocalBrowser(url: URL): Promise<void> {
   const childProcess = await open(url.toString())
 
@@ -61,8 +33,6 @@ async function openLocalBrowser(url: URL): Promise<void> {
   childProcess.stdin?.close()
   childProcess.close()
 }
-
-type SaxoBankApplicationType = string & keyof typeof Config
 
 export interface SaxoBankApplicationSettings {
   /** The type of SaxoBank application to use. */
@@ -119,16 +89,19 @@ export interface SaxoBankApplicationSettings {
 }
 
 export class SaxoBankApplication implements Disposable {
+  readonly type: SaxoBankApplicationType
   readonly #httpClient: HTTPClient
-  readonly #auth: OpenAuthentication
+  readonly #auth: SaxoBankOpenAuthentication
 
   #refreshAuth: undefined | Timeout<void>
+
+  get auth(): SaxoBankOpenAuthentication {
+    return this.#auth
+  }
 
   get http(): HTTPClient {
     return this.#httpClient
   }
-
-  readonly type: SaxoBankApplicationType
 
   readonly accountHistory: AccountHistory
   readonly assetTransfers: AssetTransfers
@@ -160,27 +133,25 @@ export class SaxoBankApplication implements Disposable {
     const sessionCredentialsPath = settings.authentication?.store === false
       ? undefined
       : settings.authentication?.store === undefined || settings.authentication.store === true
-      ? Config[this.type].storedAuthenticationFile
+      ? SaxoBankApplicationConfig[this.type].storedAuthenticationFile
       : settings.authentication.store
 
-    const authenticationURL = new URL(Config[this.type].authenticationURL)
-
-    const key = settings.key ?? Environment[Config[this.type].env.key]
+    const key = settings.key ?? Environment[SaxoBankApplicationConfig[this.type].env.key]
 
     if (key === undefined) {
       throw new Error(
         `No SaxoBank application key provided. Did you forget to set the "${
-          Config[this.type].env.key
+          SaxoBankApplicationConfig[this.type].env.key
         }" environment variable?`,
       )
     }
 
-    const secret = settings.secret ?? Environment[Config[this.type].env.secret]
+    const secret = settings.secret ?? Environment[SaxoBankApplicationConfig[this.type].env.secret]
 
     if (secret === undefined) {
       throw new Error(
         `No SaxoBank application secret provided. Did you forget to set the "${
-          Config[this.type].env.secret
+          SaxoBankApplicationConfig[this.type].env.secret
         }" environment variable?`,
       )
     }
@@ -192,12 +163,12 @@ export class SaxoBankApplication implements Disposable {
         ? settings.redirectURL
         : settings.redirectURL instanceof URL
         ? settings.redirectURL
-        : settings.redirectURL.public) ?? Environment[Config[this.type].env.redirectURL]
+        : settings.redirectURL.public) ?? Environment[SaxoBankApplicationConfig[this.type].env.redirectURL]
 
     if (redirectURL === undefined) {
       throw new Error(
         `No SaxoBank redirect URL provided. Did you forget to set the "${
-          Config[this.type].env.redirectURL
+          SaxoBankApplicationConfig[this.type].env.redirectURL
         }" environment variable?`,
       )
     }
@@ -212,13 +183,13 @@ export class SaxoBankApplication implements Disposable {
       (settings.redirectURL instanceof URL || typeof settings.redirectURL === 'string'
         ? undefined
         : settings.redirectURL?.listener?.hostname) ??
-        Environment[Config[this.type].env.listenerHostname] ?? redirectURL.hostname
+        Environment[SaxoBankApplicationConfig[this.type].env.listenerHostname] ?? redirectURL.hostname
 
     const listenerPort = Number.parseInt(
       (settings.redirectURL instanceof URL || typeof settings.redirectURL === 'string'
         ? undefined
         : settings.redirectURL?.listener?.port?.toString()) ??
-        Environment[Config[this.type].env.listenerPort] ?? redirectURL.port,
+        Environment[SaxoBankApplicationConfig[this.type].env.listenerPort] ?? redirectURL.port,
       10,
     )
 
@@ -226,20 +197,22 @@ export class SaxoBankApplication implements Disposable {
       throw new Error('Invalid listener port for SaxoBank redirect URL')
     }
 
-    const serviceURL = new URL(Config[this.type].serviceURL)
+    const serviceURL = new URL(SaxoBankApplicationConfig[this.type].serviceURL)
 
     this.#httpClient = new HTTPClient({
-      headers: async () => {
-        const accessToken = await this.#auth.getAccessToken()
+      headers: () => {
+        if (this.#auth.accessToken === undefined) {
+          return
+        }
 
-        return accessToken === undefined ? undefined : {
-          'Authorization': `Bearer ${accessToken}`,
+        return {
+          'Authorization': `Bearer ${this.#auth.accessToken}`,
         }
       },
     })
 
-    this.#auth = new OpenAuthentication(this.#httpClient, {
-      authenticationURL,
+    this.#auth = new SaxoBankOpenAuthentication(this.#httpClient, {
+      type: this.type,
       key,
       secret,
       redirectURL,
@@ -259,11 +232,12 @@ export class SaxoBankApplication implements Disposable {
     })
 
     if (settings.authentication?.refresh ?? true) {
-      this.#refreshAuth = Timeout.repeat(Config[this.type].refreshTokenTimeout, async (signal) => {
+      this.#refreshAuth = Timeout.repeat(SaxoBankApplicationConfig[this.type].refreshTokenTimeout, async (signal) => {
         try {
           await this.#auth.refresh(signal)
         } catch (error) {
-          this.#refreshAuth?.abort(error)
+          // deno-lint-ignore no-console
+          console.error(error)
         }
       })
     }
@@ -272,12 +246,13 @@ export class SaxoBankApplication implements Disposable {
       client: this.#httpClient,
       serviceURL,
       onError: async (error, retries) => {
-        if (retries === 0 && error instanceof HTTPClientError && error.statusCode === 401) {
-          const isAuthorized = await this.#auth.authorize()
-
-          if (isAuthorized === true) {
-            return
-          }
+        if (
+          retries === 0 &&
+          error instanceof HTTPClientError &&
+          error.statusCode === 401 &&
+          (await this.#auth.authorize()) === true
+        ) {
+          return
         }
 
         throw error

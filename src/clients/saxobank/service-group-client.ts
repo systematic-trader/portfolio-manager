@@ -25,6 +25,10 @@ export class ServiceGroupClient {
   readonly #serviceURL: URL
   readonly #onError: HTTPClientOnErrorHandler
 
+  get http(): HTTPClient {
+    return this.#client
+  }
+
   constructor({
     client,
     serviceURL,
@@ -137,7 +141,66 @@ export class ServiceGroupClient {
     }
   }
 
-  async post<T = unknown>(options: {
+  // async *getPaginatedProperty<T = unknown>(options: {
+  //   readonly limit?: undefined | number
+  //   readonly path?: undefined | string
+  //   readonly headers?: undefined | Record<string, string>
+  //   readonly searchParams?: undefined | SearchParamsRecord
+  //   readonly guard: ObjectGuard<T>
+  //   readonly timeout?: undefined | number
+  // }): AsyncGenerator<T, void, undefined> {
+  //   if (typeof options.limit === 'number') {
+  //     if (options.limit === 0) {
+  //       return
+  //     }
+
+  //     if (Number.isSafeInteger(options.limit) === false || options.limit < 0) {
+  //       throw new Error('Limit must be a non-negative integer')
+  //     }
+  //   }
+
+  //   const url = urlJoin(this.#serviceURL, options.path)
+  //   const searchParams = {
+  //     $top: options.limit === undefined ? '1000' : options.limit < 1000 ? String(options.limit) : '1000',
+  //     $skip: '0',
+  //     ...options.searchParams,
+  //   }
+
+  //   const headers = options.headers === undefined
+  //     ? {
+  //       'content-type': 'application/json',
+  //     }
+  //     : {
+  //       'content-type': 'application/json',
+  //       ...Object.fromEntries(
+  //         Object.entries(options.headers).map(([key, value]) => {
+  //           return [key.toLowerCase(), value]
+  //         }),
+  //       ),
+  //     }
+
+  //   setSearchParams(url, searchParams)
+
+  //   try {
+  //     yield* fetchPaginatedData({
+  //       client: this.#client,
+  //       headers,
+  //       url,
+  //       guard: options.guard,
+  //       limit: options.limit,
+  //       onError: this.#onError,
+  //       timeout: options.timeout,
+  //     })
+  //   } catch (error) {
+  //     if (error instanceof HTTPClientRequestAbortError) {
+  //       return
+  //     }
+
+  //     throw error
+  //   }
+  // }
+
+  async post<T = void>(options: {
     readonly path?: undefined | string
     readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
@@ -161,6 +224,17 @@ export class ServiceGroupClient {
       }
 
     setSearchParams(url, options.searchParams)
+
+    if (options.guard === undefined) {
+      await this.#client.post(url, {
+        headers,
+        body: stringifyJSON(options.body),
+        onError: this.#onError,
+        timeout: options.timeout,
+      })
+
+      return undefined as T
+    }
 
     return await this.#client.postOkJSON(url, {
       headers,
@@ -172,7 +246,7 @@ export class ServiceGroupClient {
     })
   }
 
-  async put<T = unknown>(options: {
+  async put<T = void>(options: {
     readonly path?: undefined | string
     readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
@@ -197,6 +271,17 @@ export class ServiceGroupClient {
         ),
       }
 
+    if (options.guard === undefined) {
+      await this.#client.put(url, {
+        headers,
+        body: stringifyJSON(options.body),
+        onError: this.#onError,
+        timeout: options.timeout,
+      })
+
+      return undefined as T
+    }
+
     return await this.#client.putOkJSON(url, {
       headers,
       body: stringifyJSON(options.body),
@@ -207,7 +292,7 @@ export class ServiceGroupClient {
     })
   }
 
-  async delete<T = unknown>(options: {
+  async delete<T = void>(options: {
     readonly path?: undefined | string
     readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
@@ -217,6 +302,16 @@ export class ServiceGroupClient {
     const url = urlJoin(this.#serviceURL, options.path)
 
     setSearchParams(url, options.searchParams)
+
+    if (options.guard === undefined) {
+      await this.#client.delete(url, {
+        headers: options.headers,
+        onError: this.#onError,
+        timeout: options.timeout,
+      })
+
+      return undefined as T
+    }
 
     return await this.#client.deleteOkJSON(url, {
       headers: options.headers,

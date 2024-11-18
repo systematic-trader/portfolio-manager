@@ -9,21 +9,23 @@ import {
   record,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { ensureError } from '../../utils/error.ts'
 import { stringifyJSON } from '../../utils/json.ts'
 import { urlJoin } from '../../utils/url.ts'
 import { type HTTPClient, HTTPClientError, HTTPClientRequestAbortError } from '../http-client.ts'
+import { SaxoBankApplicationConfig, type SaxoBankApplicationType } from './config.ts'
 
-interface OAuthSession {
+interface SaxoBankOAuthSession {
   readonly accessToken: string
   readonly accessTokenExpiresAt: number
   readonly refreshToken: string
   readonly refreshTokenExpiresAt: number
 }
 
-export interface OpenAuthenticationSettings {
+export interface SaxoBankOpenAuthenticationSettings {
+  readonly type: SaxoBankApplicationType
   readonly key: string
   readonly secret: string
-  readonly authenticationURL: URL
   readonly redirectURL: URL
   readonly listener: {
     readonly hostname: string
@@ -36,71 +38,91 @@ export interface OpenAuthenticationSettings {
   }
 }
 
-export class OpenAuthentication {
+export class SaxoBankOpenAuthentication {
   readonly #httpClient: HTTPClient
-  readonly settings: OpenAuthenticationSettings
+  readonly #settings: SaxoBankOpenAuthenticationSettings
+  readonly #accessTokenListeners = new Set<(accessToken: string) => void | Promise<void>>()
 
-  #session: undefined | Promise<undefined | OAuthSession> = undefined
+  #writeFilePromise: Promise<void>
+  #session: undefined | SaxoBankOAuthSession
 
-  constructor(client: HTTPClient, settings: OpenAuthenticationSettings) {
-    this.#httpClient = client
-    this.settings = settings
+  get type(): SaxoBankApplicationType {
+    return this.#settings.type
   }
 
-  #preloadSession(): void {
-    if (this.#session === undefined) {
-      if (this.settings.storedSessionPath === undefined) {
-        this.#session = Promise.resolve(undefined)
-      } else {
-        this.#session = readSessionsFile(this.settings.storedSessionPath, this.settings.key).then(
-          (session) => {
-            if (session === undefined) {
-              return undefined
-            }
+  get accessToken(): undefined | string {
+    return this.#session?.accessToken
+  }
 
-            const now = Date.now()
+  constructor(client: HTTPClient, settings: SaxoBankOpenAuthenticationSettings) {
+    this.#httpClient = client
+    this.#settings = settings
+    this.#writeFilePromise = Promise.resolve()
+    this.#session = undefined
 
-            if (now >= session.refreshTokenExpiresAt) {
-              return undefined
-            }
+    if (this.#settings.storedSessionPath !== undefined) {
+      const session = readStoredSessionSync(this.#settings.storedSessionPath, this.#settings.key)
 
-            return session
-          },
-        )
+      if (session === undefined) {
+        return
+      }
+
+      const now = Date.now()
+
+      if (now >= session.refreshTokenExpiresAt) {
+        return
+      }
+
+      this.#session = session
+    }
+  }
+
+  async #invokeAccessTokenListeners(accessToken: string): Promise<void> {
+    if (this.#accessTokenListeners.size === 0) {
+      return
+    }
+
+    const result = await Promise.allSettled(
+      [...this.#accessTokenListeners].map((listener) => listener(accessToken)),
+    )
+
+    for (const item of result) {
+      if (item.status === 'rejected') {
+        throw ensureError(item.reason)
       }
     }
   }
 
+  onAccessTokenChange(listener: (accessToken: string) => void | Promise<void>): () => void {
+    if (this.#session !== undefined) {
+      listener(this.#session.accessToken)
+    }
+
+    this.#accessTokenListeners.add(listener)
+
+    return () => {
+      this.#accessTokenListeners.delete(listener)
+    }
+  }
+
   async refresh(signal?: undefined | AbortSignal): Promise<boolean> {
-    if (signal?.aborted === true) {
+    if (this.#session === undefined || signal?.aborted === true) {
       return false
     }
 
-    this.#preloadSession()
-
-    const currentSession = await this.#session
-
-    if (currentSession === undefined) {
+    if (Date.now() > this.#session.refreshTokenExpiresAt) {
       return false
     }
 
-    if ((signal?.aborted as undefined | boolean) === true) {
-      return false
-    }
-
-    if (Date.now() > currentSession.refreshTokenExpiresAt) {
-      return false
-    }
-
-    const tokenURL = urlJoin(this.settings.authenticationURL, 'token')
+    const tokenURL = urlJoin(SaxoBankApplicationConfig[this.#settings.type].authenticationURL, 'token')
 
     tokenURL.searchParams.set('grant_type', 'refresh_token')
-    tokenURL.searchParams.set('refresh_token', currentSession.refreshToken)
+    tokenURL.searchParams.set('refresh_token', this.#session.refreshToken)
 
     const refreshedSession = await requestAuthenticationToken({
       client: this.#httpClient,
       tokenURL,
-      settings: this.settings,
+      settings: this.#settings,
       signal,
     })
 
@@ -108,15 +130,17 @@ export class OpenAuthentication {
       return false
     }
 
-    if (this.settings.storedSessionPath !== undefined) {
-      await writeToSessionsFile(this.settings.storedSessionPath, this.settings.key, refreshedSession)
-    }
+    this.#session = refreshedSession
 
-    if ((signal?.aborted as undefined | boolean) === true) {
-      return false
-    }
+    this.#writeFilePromise = this.#writeFilePromise.then(async () => {
+      if (this.#settings.storedSessionPath !== undefined) {
+        await writeToSessionsFile(this.#settings.storedSessionPath!, this.#settings.key, refreshedSession)
+      }
+    })
 
-    this.#session = this.#session!.then(() => refreshedSession)
+    await this.#writeFilePromise
+
+    await this.#invokeAccessTokenListeners(refreshedSession.accessToken)
 
     return true
   }
@@ -131,8 +155,8 @@ export class OpenAuthentication {
     const callback = Promise.withResolvers<undefined | CodeResponse>()
 
     const service = Deno.serve({
-      hostname: this.settings.listener.hostname,
-      port: this.settings.listener.port,
+      hostname: this.#settings.listener.hostname,
+      port: this.#settings.listener.port,
       signal,
 
       onListen() {
@@ -164,12 +188,8 @@ export class OpenAuthentication {
         throw error
       })
 
-    const handshakePromise = callback.promise.then(async (response) => {
-      if (response === undefined) {
-        return undefined
-      }
-
-      if (signal?.aborted === true) {
+    const handshakePromise = callback.promise.then((response) => {
+      if (response === undefined || signal?.aborted === true) {
         return undefined
       }
 
@@ -179,69 +199,53 @@ export class OpenAuthentication {
         throw new Error('Cross-Site Request Forgery token mismatch detected!')
       }
 
-      const tokenURL = urlJoin(this.settings.authenticationURL, 'token')
+      const tokenURL = urlJoin(SaxoBankApplicationConfig[this.#settings.type].authenticationURL, 'token')
 
       tokenURL.searchParams.set('grant_type', 'authorization_code')
       tokenURL.searchParams.set('code', response.code)
 
-      return await requestAuthenticationToken({
+      return requestAuthenticationToken({
         client: this.#httpClient,
         tokenURL,
-        settings: this.settings,
+        settings: this.#settings,
         signal,
       })
     })
 
     const csrfTokenEncoded = btoa(stringifyJSON(assertReturn(CallbackState, { csrfToken })))
 
-    const authorizationURL = urlJoin(this.settings.authenticationURL, 'authorize')
+    const authorizationURL = urlJoin(SaxoBankApplicationConfig[this.#settings.type].authenticationURL, 'authorize')
 
-    authorizationURL.searchParams.set('client_id', this.settings.key)
+    authorizationURL.searchParams.set('client_id', this.#settings.key)
     authorizationURL.searchParams.set('response_type', 'code')
     authorizationURL.searchParams.set('state', csrfTokenEncoded)
-    authorizationURL.searchParams.set('redirect_uri', this.settings.redirectURL.href)
+    authorizationURL.searchParams.set('redirect_uri', this.#settings.redirectURL.href)
 
-    await this.settings.authorize.handle(authorizationURL)
+    await this.#settings.authorize.handle(authorizationURL)
 
     if ((signal?.aborted as undefined | boolean) === true) {
-      this.#session = this.#session === undefined ? Promise.resolve(undefined) : this.#session.then(() => undefined)
-
       return false
     }
 
-    const session = await handshakePromise
+    const newSession = await handshakePromise
 
-    if (session === undefined || (signal?.aborted as undefined | boolean) === true) {
-      this.#session = this.#session === undefined ? Promise.resolve(undefined) : this.#session.then(() => undefined)
-
+    if (newSession === undefined || (signal?.aborted as undefined | boolean) === true) {
       return false
     }
 
-    if (this.settings.storedSessionPath !== undefined) {
-      await writeToSessionsFile(this.settings.storedSessionPath, this.settings.key, session)
-    }
+    this.#session = newSession
 
-    this.#session = this.#session === undefined ? Promise.resolve(session) : this.#session.then(() => session)
+    this.#writeFilePromise = this.#writeFilePromise.then(async () => {
+      if (this.#settings.storedSessionPath !== undefined) {
+        await writeToSessionsFile(this.#settings.storedSessionPath!, this.#settings.key, newSession)
+      }
+    })
+
+    await this.#writeFilePromise
+
+    await this.#invokeAccessTokenListeners(newSession.accessToken)
 
     return true
-  }
-
-  async getAccessToken(): Promise<undefined | string> {
-    this.#preloadSession()
-
-    const session = await this.#session
-
-    if (session === undefined) {
-      return undefined
-    }
-
-    if (Date.now() > session.accessTokenExpiresAt) {
-      this.#session = this.#session!.then(() => undefined)
-
-      return undefined
-    }
-
-    return session.accessToken
   }
 }
 
@@ -270,10 +274,10 @@ async function requestAuthenticationToken(
   options: {
     readonly client: HTTPClient
     readonly tokenURL: URL
-    readonly settings: OpenAuthentication['settings']
+    readonly settings: SaxoBankOpenAuthenticationSettings
     readonly signal?: undefined | AbortSignal
   },
-): Promise<undefined | OAuthSession> {
+): Promise<undefined | SaxoBankOAuthSession> {
   if (options.signal?.aborted) {
     return undefined
   }
@@ -324,47 +328,60 @@ export const SessionFileContent = record(
   }),
 )
 
-async function readSessionsFile(filePath: string, key: string): Promise<undefined | OAuthSession>
-async function readSessionsFile(filePath: string, key?: undefined): Promise<undefined | SessionFileContent>
-async function readSessionsFile(
+function readStoredSessionSync(
   filePath: string,
-  key?: undefined | string,
-): Promise<undefined | SessionFileContent | OAuthSession> {
-  const fileContent = await Deno.readFile(filePath).catch((error) => {
+  key: string,
+): undefined | SaxoBankOAuthSession {
+  try {
+    const fileContent = Deno.readFileSync(filePath)
+
+    const fileContentString = new TextDecoder().decode(fileContent)
+    const content = assertReturn(SessionFileContent, JSON.parse(fileContentString))
+
+    const sessionContent = content[key]
+
+    if (sessionContent === undefined) {
+      return undefined
+    }
+
+    return {
+      accessToken: sessionContent.accessToken,
+      accessTokenExpiresAt: new Date(sessionContent.accessTokenExpiresAt).getTime(),
+      refreshToken: sessionContent.refreshToken,
+      refreshTokenExpiresAt: new Date(sessionContent.refreshTokenExpiresAt).getTime(),
+    }
+  } catch (error) {
     if (error instanceof Deno.errors.NotFound) {
       return undefined
     }
-  })
 
-  if (fileContent === undefined) {
-    return undefined
+    throw error
   }
+}
 
-  const fileContentString = new TextDecoder().decode(fileContent)
-  const content = assertReturn(SessionFileContent, JSON.parse(fileContentString))
+async function readSessionsFile(
+  filePath: string,
+): Promise<undefined | SessionFileContent> {
+  try {
+    const fileContent = await Deno.readFile(filePath)
 
-  if (key === undefined) {
+    const fileContentString = new TextDecoder().decode(fileContent)
+    const content = assertReturn(SessionFileContent, JSON.parse(fileContentString))
+
     return content
-  }
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      return undefined
+    }
 
-  const sessionContent = content[key]
-
-  if (sessionContent === undefined) {
-    return undefined
-  }
-
-  return {
-    accessToken: sessionContent.accessToken,
-    accessTokenExpiresAt: new Date(sessionContent.accessTokenExpiresAt).getTime(),
-    refreshToken: sessionContent.refreshToken,
-    refreshTokenExpiresAt: new Date(sessionContent.refreshTokenExpiresAt).getTime(),
+    throw error
   }
 }
 
 async function writeToSessionsFile(
   filePath: string,
   key: string,
-  session: OAuthSession,
+  session: SaxoBankOAuthSession,
 ): Promise<void> {
   const existingFileContent = await readSessionsFile(filePath)
 
@@ -379,7 +396,7 @@ async function writeToSessionsFile(
   }
 
   const fileContentJSON = stringifyJSON(fileContent, undefined, 2)
-  await Deno.writeFile(filePath, new TextEncoder().encode(fileContentJSON))
+  await Deno.writeFile(filePath, new TextEncoder().encode(fileContentJSON), {})
 }
 
 const HTML_SUCCESS = `<!DOCTYPE html>
