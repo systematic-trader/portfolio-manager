@@ -5,12 +5,14 @@ import { Balances } from './portfolio/balances.ts'
 import { Clients } from './portfolio/clients.ts'
 import { ClosedPositions } from './portfolio/closed-positions.ts'
 import { Exposure } from './portfolio/exposure.ts'
+import { IsAlive } from './portfolio/is-alive.ts'
 import { NetPositions } from './portfolio/net-positions.ts'
 import { Orders } from './portfolio/orders.ts'
 import { Positions } from './portfolio/positions.ts'
 import { Users } from './portfolio/users.ts'
 
 export class Portfolio {
+  readonly isAlive: IsAlive
   readonly accountGroups: AccountGroups
   readonly accounts: Accounts
   readonly balances: Balances
@@ -25,6 +27,7 @@ export class Portfolio {
   constructor({ client }: { readonly client: ServiceGroupClient }) {
     const serviceGroupClient = client.appendPath('port')
 
+    this.isAlive = new IsAlive({ client: serviceGroupClient })
     this.accountGroups = new AccountGroups({ client: serviceGroupClient })
     this.accounts = new Accounts({ client: serviceGroupClient })
     this.balances = new Balances({ client: serviceGroupClient })
