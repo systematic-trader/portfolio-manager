@@ -1,17 +1,16 @@
 export function mergeAbortSignals(...signals: ReadonlyArray<undefined | AbortSignal>): undefined | AbortSignal {
-  if (signals.length === 0) {
+  const definedSignals = signals.filter((signal): signal is AbortSignal => signal !== undefined)
+
+  if (definedSignals.length === 0) {
     return undefined
   }
 
   let merge = false
+  let aborted = false
 
-  for (const signal of signals) {
-    if (signal === undefined) {
-      continue
-    }
-
+  for (const signal of definedSignals) {
     if (signal.aborted) {
-      return signal
+      aborted = true
     }
 
     merge = true
@@ -23,17 +22,23 @@ export function mergeAbortSignals(...signals: ReadonlyArray<undefined | AbortSig
 
   const controller = new AbortController()
 
-  for (const signal of signals) {
-    if (signal === undefined || signal.aborted) {
-      continue
+  if (aborted) {
+    controller.abort()
+
+    return controller.signal
+  }
+
+  const listener = () => {
+    if (controller.signal.aborted === false) {
+      controller.abort()
     }
 
-    const listener = () => {
-      if (controller.signal.aborted === false) {
-        controller.abort()
-      }
+    for (const signal of definedSignals) {
+      signal.removeEventListener('abort', listener)
     }
+  }
 
+  for (const signal of definedSignals) {
     signal.addEventListener('abort', listener, { once: true })
   }
 
