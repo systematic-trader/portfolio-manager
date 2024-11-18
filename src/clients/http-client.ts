@@ -14,10 +14,9 @@ export abstract class HTTPError extends Error {
 
   constructor(message: HTTPError['message'], statusCode: HTTPError['statusCode'], statusText: HTTPError['statusText']) {
     super(message)
+    this.name = this.constructor.name
     this.statusCode = statusCode
     this.statusText = statusText
-
-    this.name = 'HTTPError'
   }
 }
 
@@ -50,8 +49,6 @@ export class HTTPClientError extends HTTPError {
     this.href = href
     this.method = method
     this.headers = headers
-
-    this.name = 'HTTPClientError'
   }
 }
 
@@ -64,10 +61,9 @@ export class HTTPClientRequestAbortError extends Error {
     href: HTTPClientRequestAbortError['href'],
   ) {
     super(`Aborted ${method} ${href}`)
+    this.name = this.constructor.name
     this.method = method
     this.href = href
-
-    this.name = 'HTTPClientRequestAbortError'
   }
 }
 
@@ -91,8 +87,6 @@ export class HTTPServiceError extends HTTPError {
 
     super(message, statusCode, statusText)
     this.body = body
-
-    this.name = 'HTTPServiceError'
   }
 }
 
@@ -290,7 +284,10 @@ export class HTTPClient {
     const response = await fetchOkResponse(this, url, {
       method: 'POST',
       headers: mergeHeaders(
-        { 'accept': 'application/json' },
+        {
+          'accept': 'application/json',
+          'content-type': 'application/json; charset=utf-8',
+        },
         headers,
       ),
       signal,
@@ -361,7 +358,10 @@ export class HTTPClient {
     const response = await fetchOkResponse(this, url, {
       method: 'PUT',
       headers: mergeHeaders(
-        { 'accept': 'application/json' },
+        {
+          'accept': 'application/json',
+          'content-type': 'application/json; charset=utf-8',
+        },
         headers,
       ),
       signal,
