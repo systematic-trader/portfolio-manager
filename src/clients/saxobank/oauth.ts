@@ -9,7 +9,6 @@ import {
   record,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { ensureError } from '../../utils/error.ts'
 import { stringifyJSON } from '../../utils/json.ts'
 import { urlJoin } from '../../utils/url.ts'
 import { type HTTPClient, HTTPClientError, HTTPClientRequestAbortError } from '../http-client.ts'
@@ -38,10 +37,14 @@ export interface SaxoBankOpenAuthenticationSettings {
   }
 }
 
+export interface SaxoBankOpenAuthenticationCallback {
+  (accessToken: string): void | Promise<void>
+}
+
 export class SaxoBankOpenAuthentication {
   readonly #httpClient: HTTPClient
   readonly #settings: SaxoBankOpenAuthenticationSettings
-  readonly #accessTokenListeners = new Set<(accessToken: string) => void | Promise<void>>()
+  readonly #accessTokenCallbacks = new Set<SaxoBankOpenAuthenticationCallback>()
 
   #writeFilePromise: Promise<void>
   #session: undefined | SaxoBankOAuthSession
@@ -77,32 +80,26 @@ export class SaxoBankOpenAuthentication {
     }
   }
 
-  async #invokeAccessTokenListeners(accessToken: string): Promise<void> {
-    if (this.#accessTokenListeners.size === 0) {
+  #invokeAccessTokenCallbacks(accessToken: string) {
+    if (this.#accessTokenCallbacks.size === 0) {
       return
     }
 
-    const result = await Promise.allSettled(
-      [...this.#accessTokenListeners].map((listener) => listener(accessToken)),
-    )
-
-    for (const item of result) {
-      if (item.status === 'rejected') {
-        throw ensureError(item.reason)
-      }
+    for (const callback of this.#accessTokenCallbacks) {
+      queueMicrotask(() => callback(accessToken))
     }
   }
 
-  onAccessTokenChange(listener: (accessToken: string) => void | Promise<void>): () => void {
-    if (this.#session !== undefined) {
-      listener(this.#session.accessToken)
-    }
+  add(callback: SaxoBankOpenAuthenticationCallback): void {
+    this.#accessTokenCallbacks.add(callback)
+  }
 
-    this.#accessTokenListeners.add(listener)
+  remove(callback: SaxoBankOpenAuthenticationCallback): void {
+    this.#accessTokenCallbacks.delete(callback)
+  }
 
-    return () => {
-      this.#accessTokenListeners.delete(listener)
-    }
+  removeAll(): void {
+    this.#accessTokenCallbacks.clear()
   }
 
   async refresh(signal?: undefined | AbortSignal): Promise<boolean> {
@@ -140,7 +137,7 @@ export class SaxoBankOpenAuthentication {
 
     await this.#writeFilePromise
 
-    await this.#invokeAccessTokenListeners(refreshedSession.accessToken)
+    this.#invokeAccessTokenCallbacks(refreshedSession.accessToken)
 
     return true
   }
@@ -243,7 +240,7 @@ export class SaxoBankOpenAuthentication {
 
     await this.#writeFilePromise
 
-    await this.#invokeAccessTokenListeners(newSession.accessToken)
+    this.#invokeAccessTokenCallbacks(newSession.accessToken)
 
     return true
   }
