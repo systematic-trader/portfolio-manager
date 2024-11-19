@@ -1,4 +1,7 @@
+import { literal } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { ServiceGroupClient } from '../../service-group-client.ts'
+
+const DeleteSubscriptionsResponse = literal(undefined)
 
 export class Subscriptions {
   readonly #client: ServiceGroupClient
@@ -25,6 +28,7 @@ export class Subscriptions {
       searchParams: {
         Tag,
       },
+      guard: DeleteSubscriptionsResponse,
       timeout: options.timeout,
     })
   }
