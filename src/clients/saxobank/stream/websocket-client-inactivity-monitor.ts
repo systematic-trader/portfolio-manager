@@ -1,5 +1,9 @@
 import { Timeout } from '../../../utils/timeout.ts'
 
+export interface WebSocketClientInactivityCallback {
+  (): unknown
+}
+
 /**
  * Tracks inactivity on a WebSocket and triggers registered callbacks after specified timeouts.
  *
@@ -42,13 +46,13 @@ export class WebSocketClientInactivityMonitor {
    * A map of registered inactivity callbacks and their corresponding timeout durations in milliseconds.
    * The keys are callback functions, and the values are timeout durations.
    */
-  readonly #listeners = new Map<() => unknown, number>()
+  readonly #listeners = new Map<WebSocketClientInactivityCallback, number>()
 
   /**
    * A map of active timeout IDs for each registered callback.
    * The keys are callback functions, and the values are the IDs of their respective timeout.
    */
-  readonly #timeouts = new Map<() => unknown, number>()
+  readonly #timeouts = new Map<WebSocketClientInactivityCallback, number>()
 
   /**
    * The currently monitored WebSocket instance, or `undefined` if no WebSocket is being monitored.
@@ -120,7 +124,7 @@ export class WebSocketClientInactivityMonitor {
    * @param timeout - The duration in milliseconds to wait for inactivity before invoking the callback.
    */
 
-  add(callback: () => unknown, timeout: number): this {
+  add(callback: WebSocketClientInactivityCallback, timeout: number): this {
     // Add the callback and its timeout duration to the listener map.
     this.#listeners.set(callback, timeout)
 
@@ -149,7 +153,7 @@ export class WebSocketClientInactivityMonitor {
    * If the callback is associated with an active timer, the timer is cleared.
    * @param callback - The function to remove.
    */
-  remove(callback: () => unknown): this {
+  remove(callback: WebSocketClientInactivityCallback): this {
     // Remove the callback from the listener map.
     this.#listeners.delete(callback)
 
