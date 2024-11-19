@@ -118,6 +118,10 @@ export class PromiseQueue implements AsyncDisposable {
    * @returns A promise that resolves once the error has been processed.
    */
   async addError(error: unknown): Promise<void> {
+    if (error === undefined || error === null) {
+      return
+    }
+
     const ensuredError = ensureError(error)
 
     try {
