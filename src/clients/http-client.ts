@@ -298,7 +298,7 @@ export class HTTPClient {
 
     let responseBody = response.status === 204
       ? undefined
-      : response.headers.get('content-length') === '0'
+      : response.headers.get('Content-Length') === '0'
       ? await response.body?.cancel().then(() => undefined)
       : await response.json()
 
@@ -376,7 +376,7 @@ export class HTTPClient {
 
     let responseBody = response.status === 204
       ? undefined
-      : response.headers.get('content-length') === '0'
+      : response.headers.get('Content-Length') === '0'
       ? await response.body?.cancel().then(() => undefined)
       : await response.json()
 
@@ -445,7 +445,7 @@ export class HTTPClient {
 
     let responseBody = response.status === 204
       ? undefined
-      : response.headers.get('content-length') === '0'
+      : response.headers.get('Content-Length') === '0'
       ? await response.body?.cancel().then(() => undefined)
       : await response.json()
 
