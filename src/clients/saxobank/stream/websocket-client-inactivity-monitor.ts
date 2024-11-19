@@ -125,6 +125,14 @@ export class WebSocketClientInactivityMonitor {
    */
 
   add(callback: WebSocketClientInactivityCallback, timeout: number): this {
+    // Check if the callback is already registered and has an active timer.
+    const existingTimer = this.#timeouts.get(callback)
+
+    if (existingTimer !== undefined) {
+      // Clear the existing timer to prevent it from firing.
+      clearTimeout(existingTimer)
+    }
+
     // Add the callback and its timeout duration to the listener map.
     this.#listeners.set(callback, timeout)
 
