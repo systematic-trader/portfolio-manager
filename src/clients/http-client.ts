@@ -296,7 +296,11 @@ export class HTTPClient {
       body,
     })
 
-    let responseBody = response.status === 204 ? undefined : await response.json()
+    let responseBody = response.status === 204
+      ? undefined
+      : response.headers.get('content-length') === '0'
+      ? await response.body?.cancel().then(() => undefined)
+      : await response.json()
 
     if (coerce !== undefined) {
       responseBody = coerce(responseBody)
@@ -370,7 +374,11 @@ export class HTTPClient {
       body,
     })
 
-    let responseBody = response.status === 204 ? undefined : await response.json()
+    let responseBody = response.status === 204
+      ? undefined
+      : response.headers.get('content-length') === '0'
+      ? await response.body?.cancel().then(() => undefined)
+      : await response.json()
 
     if (coerce !== undefined) {
       responseBody = coerce(responseBody)
@@ -435,7 +443,11 @@ export class HTTPClient {
       onError,
     })
 
-    let responseBody = response.status === 204 ? undefined : await response.json()
+    let responseBody = response.status === 204
+      ? undefined
+      : response.headers.get('content-length') === '0'
+      ? await response.body?.cancel().then(() => undefined)
+      : await response.json()
 
     if (coerce !== undefined) {
       responseBody = coerce(responseBody)
