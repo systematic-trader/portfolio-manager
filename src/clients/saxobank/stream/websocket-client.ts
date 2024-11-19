@@ -437,7 +437,7 @@ export class WebSocketClient implements AsyncDisposable {
   ): Promise<undefined | Error> {
     // If there isn't already an error set, associate the provided error (if any).
     if (this.#state.status !== 'failed') {
-      this.#error = options.error
+      this.#queue.addError(options.error)
     }
 
     // If there is no active WebSocket instance, there's nothing to close. Exit early.
