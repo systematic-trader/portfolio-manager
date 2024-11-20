@@ -18,6 +18,7 @@ import type { ServiceGroupClient } from '../../service-group-client.ts'
 import { PutCall } from '../../types/derives/put-call.ts'
 import { ToOpenClose } from '../../types/derives/to-open-close.ts'
 import { InfoPriceResponse } from '../../types/records/info-price-response.ts'
+import { Subscriptions } from './info-prices/subscriptions.ts'
 
 const InfoPricesBaseParameters = props({
   AssetType: enums(extractKeys(InfoPriceResponse)),
@@ -266,8 +267,12 @@ export type InfoPricesParameters = {
 export class InfoPrices {
   readonly #client: ServiceGroupClient
 
+  readonly subscriptions: Subscriptions
+
   constructor({ client }: { readonly client: ServiceGroupClient }) {
     this.#client = client.appendPath('v1/infoprices')
+
+    this.subscriptions = new Subscriptions({ client: this.#client })
   }
 
   async get<AssetType extends keyof InfoPriceResponse>(
