@@ -26,7 +26,7 @@ export class ContractFuturesSpaces {
         path: String(Uic),
         guard: ResponseBodyGuard,
         timeout: options.timeout,
-      })
+      }).execute()
 
       return responseBody.Elements
     } catch (error) {

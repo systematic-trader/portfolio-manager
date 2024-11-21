@@ -14,6 +14,6 @@ export class CurrencyPairs {
     yield* this.#client.getPaginated({
       guard: CurrencyPairDetails,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

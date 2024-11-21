@@ -145,7 +145,7 @@ export class Instruments {
         searchParams,
         limit,
         timeout: options.timeout,
-      })
+      }).execute()
     ) {
       try {
         const { AssetType } = instrument

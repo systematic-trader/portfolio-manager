@@ -16,13 +16,13 @@ export class Exchanges {
       return yield* this.#client.getPaginated({
         guard: ExchangeDetails,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     yield this.#client.get({
       guard: ExchangeDetails,
       path: exchangeId,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

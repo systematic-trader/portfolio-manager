@@ -16,7 +16,7 @@ export class Me {
     const exposure = await this.#client.get({
       guard: optional(array(CurrencyExposuresResponse)),
       timeout: options.timeout,
-    })
+    }).execute()
 
     return exposure ?? []
   }

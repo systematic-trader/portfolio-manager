@@ -91,23 +91,21 @@ export class InstrumentsDetails {
       throw new Error('AssetTypes must be specified if Uics are specified')
     }
 
-    const searchParams = {
-      FieldGroups: 'OrderSetting,SupportedOrderTypeSettings,TradingSessions,MarketData',
-      AssetTypes,
-      Uics,
-      AccountKey,
-      Tags,
-    }
-
     const assetTypesSet = AssetTypes === undefined || AssetTypes.length === 0 ? undefined : new Set<string>(AssetTypes)
 
     try {
       for await (
         const instrument of this.#client.getPaginated<InstrumentDetailsType>({
-          searchParams,
+          searchParams: {
+            FieldGroups: 'OrderSetting,SupportedOrderTypeSettings,TradingSessions,MarketData',
+            AssetTypes,
+            Uics,
+            AccountKey,
+            Tags,
+          },
           limit,
           timeout: options.timeout,
-        })
+        }).execute()
       ) {
         if (assetTypesSet === undefined || assetTypesSet.has(instrument.AssetType)) {
           yield assertReturnInstrumentDetails(instrument)

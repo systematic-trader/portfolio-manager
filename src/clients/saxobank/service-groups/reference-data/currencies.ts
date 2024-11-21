@@ -16,7 +16,7 @@ export class Currencies {
     const currencies = this.#client.getPaginated({
       guard: CurrencyDetails,
       timeout: options.timeout,
-    })
+    }).execute()
 
     for await (const currency of currencies) {
       if (DEPRECATED.has(currency.CurrencyCode) === false) {
