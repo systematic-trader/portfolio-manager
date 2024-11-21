@@ -30,6 +30,6 @@ export class Reset {
         NewBalance: NewBalance,
       },
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

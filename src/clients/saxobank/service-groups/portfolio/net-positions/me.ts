@@ -30,6 +30,6 @@ export class Me {
       },
       guard: NetPositionResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

@@ -14,6 +14,6 @@ export class TimeZones {
     yield* this.#client.getPaginated({
       guard: TimeZoneDetails,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

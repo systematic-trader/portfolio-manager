@@ -24,7 +24,7 @@ export class ForwardTenor {
         },
         guard: StandardDate,
         timeout: options.timeout,
-      })
+      }).execute()
     } catch (error) {
       if (error instanceof HTTPClientError && error.statusCode === 404) {
         return

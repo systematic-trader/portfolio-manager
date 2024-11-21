@@ -31,7 +31,7 @@ export class ContractOptionSpaces {
         searchParams,
         guard: OptionDetails,
         timeout: options.timeout,
-      })
+      }).execute()
     } catch (error) {
       if (error instanceof HTTPClientError && error.statusCode === 404) {
         return undefined
