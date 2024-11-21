@@ -16,6 +16,6 @@ export class Me {
     return await this.#client.get({
       guard: array(CurrencyExposuresResponse),
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

@@ -28,6 +28,6 @@ export class Me {
       },
       guard: PositionResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

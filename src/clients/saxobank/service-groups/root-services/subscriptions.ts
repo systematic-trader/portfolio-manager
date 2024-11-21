@@ -31,6 +31,6 @@ export class Subscriptions {
       guard: DeleteSubscriptionsResponse,
       timeout: options.timeout,
       signal: options.signal,
-    })
+    }).execute()
   }
 }

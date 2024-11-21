@@ -37,6 +37,6 @@ export class Me {
       },
       guard: OrderResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

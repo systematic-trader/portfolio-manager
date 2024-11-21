@@ -14,6 +14,6 @@ export class Cultures {
     yield* this.#client.getPaginated({
       guard: CultureDetails,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

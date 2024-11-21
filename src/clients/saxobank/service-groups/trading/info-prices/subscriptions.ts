@@ -153,7 +153,7 @@ export const InfoPriceListRequest = props({
   /**
    * Specification of field groups to return in results. Default is "Quote"
    */
-  FieldGroups: optional(InfoPriceGroupSpec),
+  FieldGroups: optional(array(InfoPriceGroupSpec)),
 
   ForwardDate: optional(format('date-iso8601')),
 
@@ -243,7 +243,7 @@ export class Subscriptions {
       guard: InfoPricesSubscriptionsResponse[options.Arguments.AssetType] as Guard<unknown>,
       timeout: httpOptions.timeout,
       signal: httpOptions.signal,
-    })) as InfoPricesSubscriptionsResponse
+    }).execute()) as InfoPricesSubscriptionsResponse
   }
 
   async delete(
@@ -258,6 +258,6 @@ export class Subscriptions {
   ): Promise<void> {
     const client = this.#client.appendPath(`${options.ContextId}/${options.ReferenceId}`)
 
-    await client.delete(httpOptions)
+    await client.delete(httpOptions).execute()
   }
 }

@@ -1,24 +1,17 @@
-import {
-  array,
-  type Guard,
-  integer,
-  optional,
-  props,
-  string,
-  unknown,
-} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import type { Guard } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { ensureError } from '../../utils/error.ts'
-import { type JSONReadonlyRecord, stringifyJSON } from '../../utils/json.ts'
+import type { JSONReadonlyRecord } from '../../utils/json.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { urlJoin } from '../../utils/url.ts'
+import { type HTTPClient, HTTPClientError, type HTTPClientOnErrorHandler } from '../http-client.ts'
+import type { SearchParamsRecord } from './service-group-request-search-params.ts'
 import {
-  type HTTPClient,
-  HTTPClientError,
-  type HTTPClientOnErrorHandler,
-  HTTPClientRequestAbortError,
-} from '../http-client.ts'
-
-type SearchParamsRecord = Record<string, undefined | boolean | number | string | ReadonlyArray<number | string>>
+  ServiceGroupRequestDelete,
+  ServiceGroupRequestGet,
+  ServiceGroupRequestGetPaginated,
+  ServiceGroupRequestPost,
+  ServiceGroupRequestPut,
+} from './service-group-request.ts'
 
 export class ServiceGroupClient {
   readonly #client: HTTPClient
@@ -57,302 +50,118 @@ export class ServiceGroupClient {
   appendPath(path: string): ServiceGroupClient {
     return new ServiceGroupClient({
       client: this.#client,
-      serviceURL: urlJoin(this.#serviceURL, path),
+      serviceURL: this.createURL(path),
       onError: this.#onError,
     })
   }
 
-  async get<T = unknown>(options: {
-    readonly path?: undefined | string
-    readonly headers?: undefined | Record<string, string>
-    readonly searchParams?: undefined | SearchParamsRecord
+  createURL(path?: undefined | string): URL {
+    return urlJoin(this.#serviceURL, path)
+  }
+
+  get<T = unknown>(options: {
     readonly guard?: undefined | Guard<T>
-    readonly timeout?: undefined | number
+    readonly headers?: undefined | Record<string, string>
+    readonly path?: undefined | string
+    readonly searchParams?: undefined | SearchParamsRecord
     readonly signal?: undefined | AbortSignal
-  } = {}): Promise<T> {
-    const url = urlJoin(this.#serviceURL, options.path)
-
-    setSearchParams(url, options.searchParams)
-
-    return await this.#client.getOkJSON(url, {
-      headers: options.headers,
+    readonly timeout?: undefined | number
+  } = {}): ServiceGroupRequestGet<T> {
+    return new ServiceGroupRequestGet({
+      client: this.#client,
       guard: options.guard,
-      coerce: sanitize,
-      onError: this.#onError,
-      timeout: options.timeout,
+      headers: options.headers,
+      searchParams: options.searchParams,
       signal: options.signal,
+      timeout: options.timeout,
+      url: this.createURL(options.path),
     })
   }
 
-  async *getPaginated<T = unknown>(options: {
+  getPaginated<T = unknown>(options: {
+    readonly guard?: undefined | Guard<T>
+    readonly headers?: undefined | Record<string, string>
     readonly limit?: undefined | number
     readonly path?: undefined | string
-    readonly headers?: undefined | Record<string, string>
     readonly searchParams?: undefined | SearchParamsRecord
-    readonly guard?: undefined | Guard<T>
-    readonly timeout?: undefined | number
     readonly signal?: undefined | AbortSignal
-  } = {}): AsyncGenerator<T, void, undefined> {
-    if (typeof options.limit === 'number') {
-      if (options.limit === 0) {
-        return
-      }
-
-      if (Number.isSafeInteger(options.limit) === false || options.limit < 0) {
-        throw new Error('Limit must be a non-negative integer')
-      }
-    }
-
-    const url = urlJoin(this.#serviceURL, options.path)
-    const searchParams = {
-      $top: options.limit === undefined ? '1000' : options.limit < 1000 ? String(options.limit) : '1000',
-      $skip: '0',
-      ...options.searchParams,
-    }
-
-    const headers = options.headers === undefined
-      ? {
-        'content-type': 'application/json',
-      }
-      : {
-        'content-type': 'application/json',
-        ...Object.fromEntries(
-          Object.entries(options.headers).map(([key, value]) => {
-            return [key.toLowerCase(), value]
-          }),
-        ),
-      }
-
-    setSearchParams(url, searchParams)
-
-    try {
-      yield* fetchPaginatedData({
-        client: this.#client,
-        headers,
-        url,
-        guard: options.guard,
-        limit: options.limit,
-        onError: this.#onError,
-        timeout: options.timeout,
-        signal: options.signal,
-      })
-    } catch (error) {
-      if (error instanceof HTTPClientRequestAbortError) {
-        return
-      }
-
-      throw error
-    }
-  }
-
-  // async *getPaginatedProperty<T = unknown>(options: {
-  //   readonly limit?: undefined | number
-  //   readonly path?: undefined | string
-  //   readonly headers?: undefined | Record<string, string>
-  //   readonly searchParams?: undefined | SearchParamsRecord
-  //   readonly guard: ObjectGuard<T>
-  //   readonly timeout?: undefined | number
-  // }): AsyncGenerator<T, void, undefined> {
-  //   if (typeof options.limit === 'number') {
-  //     if (options.limit === 0) {
-  //       return
-  //     }
-
-  //     if (Number.isSafeInteger(options.limit) === false || options.limit < 0) {
-  //       throw new Error('Limit must be a non-negative integer')
-  //     }
-  //   }
-
-  //   const url = urlJoin(this.#serviceURL, options.path)
-  //   const searchParams = {
-  //     $top: options.limit === undefined ? '1000' : options.limit < 1000 ? String(options.limit) : '1000',
-  //     $skip: '0',
-  //     ...options.searchParams,
-  //   }
-
-  //   const headers = options.headers === undefined
-  //     ? {
-  //       'content-type': 'application/json',
-  //     }
-  //     : {
-  //       'content-type': 'application/json',
-  //       ...Object.fromEntries(
-  //         Object.entries(options.headers).map(([key, value]) => {
-  //           return [key.toLowerCase(), value]
-  //         }),
-  //       ),
-  //     }
-
-  //   setSearchParams(url, searchParams)
-
-  //   try {
-  //     yield* fetchPaginatedData({
-  //       client: this.#client,
-  //       headers,
-  //       url,
-  //       guard: options.guard,
-  //       limit: options.limit,
-  //       onError: this.#onError,
-  //       timeout: options.timeout,
-  //     })
-  //   } catch (error) {
-  //     if (error instanceof HTTPClientRequestAbortError) {
-  //       return
-  //     }
-
-  //     throw error
-  //   }
-  // }
-
-  async post<T = void>(options: {
-    readonly path?: undefined | string
-    readonly headers?: undefined | Record<string, string>
-    readonly searchParams?: undefined | SearchParamsRecord
-    readonly body?: JSONReadonlyRecord
-    readonly guard?: undefined | Guard<T>
     readonly timeout?: undefined | number
-    readonly signal?: undefined | AbortSignal
-  } = {}): Promise<T> {
-    const url = urlJoin(this.#serviceURL, options.path)
-
-    const headers = options.headers === undefined
-      ? {
-        'content-type': 'application/json',
-      }
-      : {
-        'content-type': 'application/json',
-        ...Object.fromEntries(
-          Object.entries(options.headers).map(([key, value]) => {
-            return [key.toLowerCase(), value]
-          }),
-        ),
-      }
-
-    setSearchParams(url, options.searchParams)
-
-    if (options.guard === undefined) {
-      await this.#client.postOk(url, {
-        headers,
-        body: stringifyJSON(options.body),
-        onError: this.#onError,
-        timeout: options.timeout,
-        signal: options.signal,
-      })
-
-      return undefined as T
-    }
-
-    return await this.#client.postOkJSON(url, {
-      headers,
-      body: stringifyJSON(options.body),
+  } = {}): ServiceGroupRequestGetPaginated<T> {
+    return new ServiceGroupRequestGetPaginated({
+      client: this.#client,
       guard: options.guard,
-      coerce: sanitize,
-      onError: this.#onError,
-      timeout: options.timeout,
-      signal: options.signal,
-    })
-  }
-
-  async put<T = void>(options: {
-    readonly path?: undefined | string
-    readonly headers?: undefined | Record<string, string>
-    readonly searchParams?: undefined | SearchParamsRecord
-    readonly body?: JSONReadonlyRecord
-    readonly guard?: undefined | Guard<T>
-    readonly timeout?: undefined | number
-    readonly signal?: undefined | AbortSignal
-  } = {}): Promise<T> {
-    const url = urlJoin(this.#serviceURL, options.path)
-
-    setSearchParams(url, options.searchParams)
-
-    const headers = options.headers === undefined
-      ? {
-        'content-type': 'application/json',
-      }
-      : {
-        'content-type': 'application/json',
-        ...Object.fromEntries(
-          Object.entries(options.headers).map(([key, value]) => {
-            return [key.toLowerCase(), value]
-          }),
-        ),
-      }
-
-    if (options.guard === undefined) {
-      await this.#client.putOk(url, {
-        headers,
-        body: stringifyJSON(options.body),
-        onError: this.#onError,
-        timeout: options.timeout,
-        signal: options.signal,
-      })
-
-      return undefined as T
-    }
-
-    return await this.#client.putOkJSON(url, {
-      headers,
-      body: stringifyJSON(options.body),
-      guard: options.guard,
-      coerce: sanitize,
-      onError: this.#onError,
-      timeout: options.timeout,
-      signal: options.signal,
-    })
-  }
-
-  async delete<T = void>(options: {
-    readonly path?: undefined | string
-    readonly headers?: undefined | Record<string, string>
-    readonly searchParams?: undefined | SearchParamsRecord
-    readonly guard?: undefined | Guard<T>
-    readonly timeout?: undefined | number
-    readonly signal?: undefined | AbortSignal
-  } = {}): Promise<T> {
-    const url = urlJoin(this.#serviceURL, options.path)
-
-    setSearchParams(url, options.searchParams)
-
-    if (options.guard === undefined) {
-      await this.#client.deleteOk(url, {
-        headers: options.headers,
-        onError: this.#onError,
-        timeout: options.timeout,
-        signal: options.signal,
-      })
-
-      return undefined as T
-    }
-
-    return await this.#client.deleteOkJSON(url, {
       headers: options.headers,
-      guard: options.guard,
-      coerce: sanitize,
+      limit: options.limit,
       onError: this.#onError,
-      timeout: options.timeout,
+      searchParams: options.searchParams,
       signal: options.signal,
+      timeout: options.timeout,
+      url: this.createURL(options.path),
     })
   }
-}
 
-function setSearchParams(url: URL, searchParams?: undefined | SearchParamsRecord): void {
-  if (searchParams === undefined) {
-    return
+  post<T = void>(options: {
+    readonly body?: JSONReadonlyRecord
+    readonly guard?: undefined | Guard<T>
+    readonly headers?: undefined | Record<string, string>
+    readonly path?: undefined | string
+    readonly searchParams?: undefined | SearchParamsRecord
+    readonly signal?: undefined | AbortSignal
+    readonly timeout?: undefined | number
+  } = {}): ServiceGroupRequestPost<T> {
+    return new ServiceGroupRequestPost({
+      body: options.body,
+      client: this.#client,
+      guard: options.guard,
+      headers: options.headers,
+      onError: this.#onError,
+      searchParams: options.searchParams,
+      signal: options.signal,
+      timeout: options.timeout,
+      url: this.createURL(options.path),
+    })
   }
 
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (value === undefined) {
-      continue
-    }
+  put<T = void>(options: {
+    readonly body?: JSONReadonlyRecord
+    readonly guard?: undefined | Guard<T>
+    readonly headers?: undefined | Record<string, string>
+    readonly path?: undefined | string
+    readonly searchParams?: undefined | SearchParamsRecord
+    readonly signal?: undefined | AbortSignal
+    readonly timeout?: undefined | number
+  } = {}): ServiceGroupRequestPut<T> {
+    return new ServiceGroupRequestPut({
+      body: options.body,
+      client: this.#client,
+      guard: options.guard,
+      headers: options.headers,
+      onError: this.#onError,
+      searchParams: options.searchParams,
+      signal: options.signal,
+      timeout: options.timeout,
+      url: this.createURL(options.path),
+    })
+  }
 
-    const stringifiedValue = String(value)
-
-    if (stringifiedValue === '') {
-      continue
-    }
-
-    url.searchParams.set(key, String(value))
+  delete<T = void>(options: {
+    readonly guard?: undefined | Guard<T>
+    readonly headers?: undefined | Record<string, string>
+    readonly path?: undefined | string
+    readonly searchParams?: undefined | SearchParamsRecord
+    readonly signal?: undefined | AbortSignal
+    readonly timeout?: undefined | number
+  } = {}): ServiceGroupRequestDelete<T> {
+    return new ServiceGroupRequestDelete({
+      client: this.#client,
+      guard: options.guard,
+      headers: options.headers,
+      onError: this.#onError,
+      searchParams: options.searchParams,
+      signal: options.signal,
+      timeout: options.timeout,
+      url: this.createURL(options.path),
+    })
   }
 }
 
@@ -472,195 +281,4 @@ function getRateLimitExceeded(
   }
 
   return undefined
-}
-
-const FetchPaginatedDataGuards = new WeakMap<
-  Guard<unknown>,
-  Guard<
-    undefined | {
-      readonly Data: undefined | readonly unknown[]
-      readonly __count: undefined | number
-      readonly __next: undefined | string
-      readonly MaxRows: undefined | number
-    }
-  >
->()
-
-async function* fetchPaginatedData<T = unknown>({
-  client,
-  headers,
-  url,
-  guard = unknown() as Guard<T>,
-  limit,
-  onError,
-  signal,
-  timeout,
-}: {
-  readonly client: HTTPClient
-  readonly headers?: undefined | Record<string, string>
-  readonly url: string | URL
-  readonly guard?: undefined | Guard<T>
-  readonly limit?: undefined | number
-  readonly onError?: HTTPClientOnErrorHandler
-  readonly signal?: undefined | AbortSignal
-  readonly timeout?: undefined | number
-}): AsyncGenerator<T, void, undefined> {
-  if (limit !== undefined && limit <= 0) {
-    return
-  }
-
-  let bodyGuard = FetchPaginatedDataGuards.get(guard) as
-    | undefined
-    | Guard<
-      undefined | {
-        readonly Data: undefined | readonly T[]
-        readonly __count: number | undefined
-        readonly __next: string | undefined
-        readonly MaxRows: number | undefined
-      }
-    >
-
-  if (bodyGuard === undefined) {
-    bodyGuard = optional(props({
-      Data: optional(array(guard)),
-      __count: optional(integer()),
-      __next: optional(string()),
-      MaxRows: optional(integer()),
-    }))
-
-    FetchPaginatedDataGuards.set(guard, bodyGuard)
-  }
-
-  const startTime = Date.now()
-
-  const resourceBody = await client.getOkJSON(url, {
-    headers,
-    coerce: sanitize,
-    guard: bodyGuard,
-    onError,
-    signal,
-    timeout,
-  })
-
-  timeout = timeout === undefined ? undefined : Math.max(0, timeout - (Date.now() - startTime))
-
-  if (resourceBody === undefined) {
-    return
-  }
-
-  const { __next, Data } = resourceBody
-
-  if (Data === undefined) {
-    return
-  }
-
-  if (__next === undefined) {
-    if (limit !== undefined && Data.length > limit) {
-      return yield* Data.slice(0, limit)
-    }
-
-    return yield* Data
-  }
-
-  if (limit !== undefined) {
-    if (Data.length === limit) {
-      return yield* Data
-    } else if (Data.length > limit) {
-      return yield* Data
-    }
-
-    limit -= Data.length
-  }
-
-  yield* Data
-
-  yield* fetchPaginatedData<T>({
-    client,
-    headers,
-    url: __next,
-    guard,
-    limit,
-    timeout,
-    onError,
-  })
-}
-
-/**
- * The Saxo Bank API returns garbage data in some cases.
- * This function sanitizes the data and removes the garbage.
- */
-function sanitize(value: unknown): unknown {
-  switch (typeof value) {
-    case 'object': {
-      if (value === null) {
-        return undefined
-      }
-
-      if (Array.isArray(value)) {
-        const arrayValue = value.reduce((accumulation, item) => {
-          const sanitizedItem = sanitize(item)
-
-          if (sanitizedItem !== undefined) {
-            accumulation.push(sanitizedItem)
-          }
-
-          return accumulation
-        }, [])
-
-        return arrayValue.length > 0 ? arrayValue : undefined
-      }
-
-      const record = value as Record<string, unknown>
-
-      const sanitizedRecord = {} as Record<string, unknown>
-
-      let hasDefinedProperty = false
-
-      const propertyKeys = Object.keys(record).sort()
-
-      for (const propertyKey of propertyKeys) {
-        const propertyValue = record[propertyKey]
-
-        const sanitizedValue = sanitize(propertyValue)
-
-        if (sanitizedValue !== undefined) {
-          hasDefinedProperty = true
-          sanitizedRecord[propertyKey] = sanitizedValue
-        }
-      }
-
-      return hasDefinedProperty ? sanitizedRecord : undefined
-    }
-
-    case 'string': {
-      let trimmedValue = value.trim()
-
-      if (
-        trimmedValue.length > 1 &&
-        trimmedValue.at(-1) === '.' &&
-        trimmedValue.at(-2) === ' '
-      ) {
-        // remove whitespaces preceeding the dot, but keep the dot
-        trimmedValue = trimmedValue.replace(/\s*\.$/, '.')
-      }
-
-      if (trimmedValue === '') {
-        return undefined
-      }
-
-      if (trimmedValue === '.') {
-        return undefined
-      }
-
-      if (trimmedValue === 'Undefined') {
-        return undefined
-      }
-
-      return trimmedValue
-    }
-
-    default: {
-      return value
-    }
-  }
 }

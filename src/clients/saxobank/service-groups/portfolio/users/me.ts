@@ -40,6 +40,6 @@ export class Me {
       },
       guard: UserResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

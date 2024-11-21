@@ -18,6 +18,6 @@ export class IsAlive {
     return await this.#client.get({
       guard: IsAliveGuard,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }
