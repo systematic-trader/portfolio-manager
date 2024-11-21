@@ -22,7 +22,7 @@ export class TradingSchedule {
         path: `${Uic}/${AssetType}`,
         guard: TradingScheduleGuard,
         timeout: options.timeout,
-      })
+      }).execute()
     } catch (error) {
       if (error instanceof HTTPClientError && error.statusCode === 404) {
         return undefined

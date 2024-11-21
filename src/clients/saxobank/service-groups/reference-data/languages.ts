@@ -14,6 +14,6 @@ export class Languages {
     yield* this.#client.getPaginated({
       guard: LanguageDetails,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

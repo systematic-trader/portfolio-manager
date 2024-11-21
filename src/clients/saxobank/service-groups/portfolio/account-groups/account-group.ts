@@ -24,6 +24,6 @@ export class AccountGroup {
       },
       guard: AccountGroupResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

@@ -18,6 +18,6 @@ export class Me {
       },
       guard: BalanceResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

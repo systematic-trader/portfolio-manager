@@ -528,7 +528,7 @@ export class Orders {
         headers,
         guard: PlaceOrderResponseEntryWithNoRelatedOrders,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     // Method 2
@@ -538,7 +538,7 @@ export class Orders {
         headers,
         guard: PlaceOrderResponseEntryWithOneRelatedOrder,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     // Method 3
@@ -548,7 +548,7 @@ export class Orders {
         headers,
         guard: PlaceOrderResponseEntryWithTwoRelatedOrders,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     // Method 4
@@ -558,7 +558,7 @@ export class Orders {
         headers,
         guard: PlaceOrderResponseOneRelatedOrderForOrder,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     // Method 5
@@ -568,7 +568,7 @@ export class Orders {
         headers,
         guard: PlaceOrderResponseTwoRelatedOrdersForOrder,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     // Method 6
@@ -578,7 +578,7 @@ export class Orders {
         headers,
         guard: PlaceOrderResponseOneRelatedOrderForPosition,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     // Method 7
@@ -588,7 +588,7 @@ export class Orders {
         headers,
         guard: PlaceOrderResponseTwoRelatedOrdersForPosition,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     // Method 8
@@ -598,7 +598,7 @@ export class Orders {
         headers,
         guard: PlaceOrderResponseEntryOCOOrders,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     throw new Error('Unexpected response')
@@ -645,8 +645,9 @@ export class Orders {
           AssetType: parameters.AssetType,
           Uic: parameters.Uic,
         },
+        guard: CancelOrdersResponse,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     return await this.#client.delete({
@@ -654,7 +655,8 @@ export class Orders {
       searchParams: {
         AccountKey: parameters.AccountKey,
       },
+      guard: CancelOrdersResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

@@ -16,13 +16,13 @@ export class AlgoStrategies {
       return yield* this.#client.getPaginated({
         guard: Strategy,
         timeout: options.timeout,
-      })
+      }).execute()
     }
 
     yield this.#client.get({
       guard: Strategy,
       path: name,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

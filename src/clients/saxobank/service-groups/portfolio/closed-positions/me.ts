@@ -25,6 +25,6 @@ export class Me {
       },
       guard: ClosedPositionResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

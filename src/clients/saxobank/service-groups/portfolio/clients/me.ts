@@ -18,6 +18,6 @@ export class Me {
       },
       guard: ClientResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

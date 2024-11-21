@@ -18,6 +18,6 @@ export class Me {
       },
       guard: AccountGroupResponse,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }

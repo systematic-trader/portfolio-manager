@@ -142,7 +142,7 @@ export class Charts {
           searchParams,
           guard: ChartResponse[parameters.AssetType],
           timeout: options.timeout,
-        })
+        }).execute()
       }
 
       case 'CfdOnFutures':
@@ -152,7 +152,7 @@ export class Charts {
           searchParams,
           guard: ChartResponse[parameters.AssetType],
           timeout: options.timeout,
-        })
+        }).execute()
       }
 
       default: {

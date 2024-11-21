@@ -14,6 +14,6 @@ export class Countries {
     yield* this.#client.getPaginated({
       guard: CountryDetails,
       timeout: options.timeout,
-    })
+    }).execute()
   }
 }
