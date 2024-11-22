@@ -52,16 +52,43 @@ export class PromiseQueue implements AsyncDisposable {
    */
   readonly #onRejected: PromiseQueueErrorHandler
 
+  /**
+   * Tracks the number of promises currently in the queue.
+   *
+   * This value is incremented when a new promise or callback is added to the queue and decremented
+   * once the promise or callback has been finalized.
+   */
   #count = 0
 
+  /**
+   * Increments the internal `count` to reflect that a new promise or callback has been added to the queue.
+   */
   #countUp = (): void => {
     this.#count++
   }
 
+  /**
+   * Decrements the internal `count` to reflect that a promise or callback has been finalized.
+   */
   #countDown = (): void => {
     this.#count--
   }
 
+  /**
+   * Indicates whether the queue is currently idle.
+   *
+   * The queue is considered idle when there are no pending promises or callbacks being processed.
+   *
+   * @returns `true` if the queue is empty.
+   *
+   * @example
+   * const queue = new PromiseQueue((error) => console.error(error))
+   * queue.add(Promise.resolve())
+   * queue.call(async () => await Promise.resolve())
+   * console.log(queue.empty) // false
+   * await queue.drain()
+   * console.log(queue.empty) // true
+   */
   get empty(): boolean {
     return this.#count === 0
   }
