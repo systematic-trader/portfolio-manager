@@ -1,7 +1,7 @@
 import { ensureError } from './error.ts'
 
 const PROMISE_VOID = Promise.resolve()
-const PROMISE_VOID_CALLBACK = () => PROMISE_VOID
+const PROMISE_THEN_CALLBACK = () => PROMISE_VOID
 
 /**
  * A function type that defines how errors in the `PromiseQueue` are handled.
@@ -52,6 +52,20 @@ export class PromiseQueue implements AsyncDisposable {
    */
   readonly #onRejected: PromiseQueueErrorHandler
 
+  #count = 0
+
+  #countUp = (): void => {
+    this.#count++
+  }
+
+  #countDown = (): void => {
+    this.#count--
+  }
+
+  get empty(): boolean {
+    return this.#count === 0
+  }
+
   /**
    * The internal promise queue, ensuring sequential execution.
    */
@@ -93,14 +107,17 @@ export class PromiseQueue implements AsyncDisposable {
     }
 
     for (const promise of promises) {
+      this.#countUp()
+
       // Ensure that the possible promise rejection is caught.
       // It is important to create the promise chain in a separate statement to avoid
       // possibly postpone the error handling to the next promise in the queue.
       // The onError-callback must be called directly after the promise is rejected,
       // and not when the queue is processing the next promise.
       const promiseWithCatch = promise
-        .then(PROMISE_VOID_CALLBACK /* chain empty promise to "free" the return of the callback */)
+        .then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
         .catch(this.addError)
+        .finally(this.#countDown)
 
       this.#queue = this.#queue.then(() => promiseWithCatch)
     }
@@ -117,15 +134,9 @@ export class PromiseQueue implements AsyncDisposable {
    * @param error - The error to be handled.
    * @returns A promise that resolves once the error has been processed.
    */
-  async addError(error: unknown): Promise<void> {
-    if (error === undefined || error === null) {
-      return
-    }
-
-    const ensuredError = ensureError(error)
-
+  async addError(error: Error): Promise<void> {
     try {
-      const maybePromise = this.#onRejected(ensuredError)
+      const maybePromise = this.#onRejected(error)
 
       if ((maybePromise as unknown) instanceof Promise) {
         await maybePromise
@@ -168,33 +179,37 @@ export class PromiseQueue implements AsyncDisposable {
       readonly onRejected?: undefined | PromiseQueueErrorHandler
     } = {},
   ): this {
+    this.#countUp()
+
     if (immediately === true) {
       this.#queue = PROMISE_VOID
         .then(callback)
-        .then(PROMISE_VOID_CALLBACK /* chain empty promise to "free" the return of the callback */)
+        .then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
         .catch(
           onRejected === undefined ? this.addError : async (error: unknown) => {
             try {
               await onRejected(ensureError(error))
             } catch (callbackError) {
-              this.addError(callbackError)
+              this.addError(ensureError(callbackError))
             }
           },
         )
+        .finally(this.#countDown)
         .then(() => this.#queue)
     } else {
       this.#queue = this.#queue
         .then(callback)
-        .then(PROMISE_VOID_CALLBACK /* chain empty promise to "free" the return of the callback */)
+        .then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
         .catch(
           onRejected === undefined ? this.addError : async (error: unknown) => {
             try {
               await onRejected(ensureError(error))
             } catch (callbackError) {
-              this.addError(callbackError)
+              this.addError(ensureError(callbackError))
             }
           },
         )
+        .finally(this.#countDown)
     }
 
     return this
