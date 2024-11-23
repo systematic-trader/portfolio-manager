@@ -40,17 +40,17 @@ export interface PromiseQueueErrorHandler {
  * begin execution immediately, but their results (resolution or rejection) are handled sequentially
  * by the queue.
  *
- * Errors are managed through an `onRejected` callback provided during construction, which is invoked
+ * Errors are managed through an `onError` callback provided during construction, which is invoked
  * whenever an error occurs.
  *
  * The queue supports advanced error-handling mechanisms and customizable execution timing, such as
  * processing tasks immediately or appending them to the end of the queue.
  */
-export class PromiseQueue implements AsyncDisposable {
+export class PromiseQueue {
   /**
    * An optional callback that gets invoked whenever a rejection is encountered.
    */
-  readonly #onRejected: PromiseQueueErrorHandler
+  readonly #onError: PromiseQueueErrorHandler
 
   /**
    * Tracks the number of promises currently in the queue.
@@ -96,17 +96,17 @@ export class PromiseQueue implements AsyncDisposable {
   /**
    * The internal promise queue, ensuring sequential execution.
    */
-  #queue = PROMISE_VOID
+  #queue: Promise<void> = PROMISE_VOID
 
   /**
    * Constructs a new `PromiseQueue` instance.
    *
-   * @param onRejected - A callback that is invoked whenever an error occurs during
+   * @param onError - A callback that is invoked whenever an error occurs during
    *                     task handling. This callback is required and must handle all errors
    *                     encountered during the queue's execution.
    */
-  constructor(onRejected: PromiseQueueErrorHandler) {
-    this.#onRejected = onRejected
+  constructor(onError: PromiseQueueErrorHandler) {
+    this.#onError = onError
 
     this.add = this.add.bind(this)
     this.addError = this.addError.bind(this)
@@ -114,16 +114,12 @@ export class PromiseQueue implements AsyncDisposable {
     this.drain = this.drain.bind(this)
   }
 
-  [Symbol.asyncDispose](): PromiseLike<void> {
-    return this.drain()
-  }
-
   /**
    * Adds a batch of already-created promises to the queue for sequential handling of their results.
    *
    * Note that the provided promises begin execution as soon as they are created. However, their
    * results (resolution or rejection) are handled sequentially by the queue in the order they are added.
-   * Any rejection is processed using the `addError` method, which invokes the required `onRejected` callback.
+   * Any rejection is processed using the `addError` method, which invokes the required `onError` callback.
    *
    * @param promises - A readonly array of promises whose results will be handled in order.
    * @returns The current instance for method chaining.
@@ -153,9 +149,9 @@ export class PromiseQueue implements AsyncDisposable {
   }
 
   /**
-   * Handles an error by invoking the required `onRejected` callback.
+   * Handles an error by invoking the required `onError` callback.
    *
-   * The `onRejected` callback, provided during construction, is called with the error.
+   * The `onError` callback, provided during construction, is called with the error.
    * If the callback itself throws an error, that error will propagate.
    *
    * @param error - The error to be handled.
@@ -169,7 +165,7 @@ export class PromiseQueue implements AsyncDisposable {
     const ensuredError = ensureError(error)
 
     try {
-      const maybePromise = this.#onRejected(ensuredError)
+      const maybePromise = this.#onError(ensuredError)
 
       if ((maybePromise as unknown) instanceof Promise) {
         await maybePromise
@@ -185,7 +181,7 @@ export class PromiseQueue implements AsyncDisposable {
    *
    * The callback can be executed immediately or at the end of the current queue based on the
    * `immediately` parameter. Errors during the callback's execution are handled by the instance-level
-   * `onRejected` error handler provided during construction or overridden by the `onRejected` option
+   * `onError` error handler provided during construction or overridden by the `onError` option
    * specified for this callback.
    *
    * @param callback - A function that returns a value or a promise. The callback is executed as part of the queue.
@@ -194,22 +190,22 @@ export class PromiseQueue implements AsyncDisposable {
    *                    - `true`: Executes the callback immediately in parallel with the current
    *                      queue and chains back into the queue.
    *                    - `false` or `undefined`: Adds the callback to the end of the queue.
-   *   - `onRejected`: An optional error-handling callback that overrides the instance-level
-   *                   `onRejected` handler for this callback.
+   *   - `onError`: An optional error-handling callback that overrides the instance-level
+   *                   `onError` handler for this callback.
    *                   - If provided, this callback is invoked when an error occurs during the
    *                     execution of this callback.
-   *                   - Errors occurring within the onRejected-callback may still propagate to the
-   *                     instance-level `onRejected` handler if rethrown.
+   *                   - Errors occurring within the onError-callback may still propagate to the
+   *                     instance-level `onError` handler if rethrown.
    * @returns The current instance for method chaining.
    */
   call(
     callback: () => unknown,
     {
       immediately,
-      onRejected,
+      onError,
     }: {
       readonly immediately?: undefined | boolean
-      readonly onRejected?: undefined | PromiseQueueErrorHandler
+      readonly onError?: undefined | PromiseQueueErrorHandler
     } = {},
   ): this {
     this.#countUp()
@@ -219,9 +215,9 @@ export class PromiseQueue implements AsyncDisposable {
         .then(callback)
         .then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
         .catch(
-          onRejected === undefined ? this.addError : async (error: unknown) => {
+          onError === undefined ? this.addError : async (error: unknown) => {
             try {
-              await onRejected(ensureError(error))
+              await onError(ensureError(error))
             } catch (callbackError) {
               this.addError(ensureError(callbackError))
             }
@@ -234,9 +230,9 @@ export class PromiseQueue implements AsyncDisposable {
         .then(callback)
         .then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
         .catch(
-          onRejected === undefined ? this.addError : async (error: unknown) => {
+          onError === undefined ? this.addError : async (error: unknown) => {
             try {
-              await onRejected(ensureError(error))
+              await onError(ensureError(error))
             } catch (callbackError) {
               this.addError(ensureError(callbackError))
             }
@@ -252,12 +248,16 @@ export class PromiseQueue implements AsyncDisposable {
    * Waits for the current queue to finish handling all tasks.
    *
    * This method ensures that all promises added to the queue have been resolved or rejected
-   * and their results handled before it completes. Errors are handled by the global `onRejected`
+   * and their results handled before it completes. Errors are handled by the global `onError`
    * callback provided during construction.
    *
    * @returns A promise that resolves when the queue is fully drained.
    */
   async drain(): Promise<void> {
+    if (this.#count === 0) {
+      return
+    }
+
     // Wait for the entire queue to settle.
     await this.#queue
   }
