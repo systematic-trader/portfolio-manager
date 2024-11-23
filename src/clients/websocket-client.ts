@@ -1,7 +1,7 @@
-import { ensureError } from '../../../utils/error.ts'
-import { PromiseQueue } from '../../../utils/promise-queue.ts'
-import { mergeAbortSignals } from '../../../utils/signal.ts'
-import { Timeout } from '../../../utils/timeout.ts'
+import { ensureError } from '../utils/error.ts'
+import { PromiseQueue } from '../utils/promise-queue.ts'
+import { mergeAbortSignals } from '../utils/signal.ts'
+import { Timeout } from '../utils/timeout.ts'
 import { WebSocketClientInactivityMonitor } from './websocket-client-inactivity-monitor.ts'
 
 /**
@@ -65,11 +65,6 @@ export class WebSocketClientAbortError extends WebSocketClientError {
  * including reconnection logic, event handling, and inactivity timeout support.
  */
 export class WebSocketClient implements AsyncDisposable {
-  /**
-   * Internal map of WebSocket ready state to human-readable strings.
-   */
-  static #ReadyState = { 0: 'connecting', 1: 'open', 2: 'closing', 3: 'closed' } as const
-
   readonly #queue = new PromiseQueue((error) => {
     this.#close({ error })
   })
@@ -119,7 +114,7 @@ export class WebSocketClient implements AsyncDisposable {
    * Tracks the WebSocket connection state and error, if any.
    */
   get state(): {
-    readonly status: 'connecting' | 'open' | 'closing' | 'closed'
+    readonly status: 'open' | 'closed'
     readonly error: undefined
   } | {
     readonly status: 'failed'
@@ -215,11 +210,26 @@ export class WebSocketClient implements AsyncDisposable {
           return 'failed'
         }
 
-        if (self.#websocket === undefined) {
-          return WebSocketClient.#ReadyState[3]
+        const readyState = self.#websocket?.readyState
+
+        switch (readyState) {
+          case undefined:
+          case WebSocket.CONNECTING:
+          case WebSocket.CLOSED: {
+            return 'closed'
+          }
+
+          case WebSocket.OPEN:
+          case WebSocket.CLOSING: {
+            return 'open'
+          }
+
+          default: {
+            break
+          }
         }
 
-        return WebSocketClient.#ReadyState[self.#websocket.readyState as 0 | 1 | 2 | 3]
+        throw new WebSocketClientError(`Unknown WebSocket readyState: ${readyState}`)
       },
       get error() {
         return self.#error
@@ -230,8 +240,8 @@ export class WebSocketClient implements AsyncDisposable {
   /**
    * Cleans up resources and closes the WebSocket connection.
    */
-  async [Symbol.asyncDispose](): Promise<void> {
-    await this.close()
+  [Symbol.asyncDispose](): Promise<void> {
+    return this.close()
   }
 
   async #connect(
@@ -414,8 +424,7 @@ export class WebSocketClient implements AsyncDisposable {
 
       // Ensure the WebSocket is in the `open` state; otherwise, something went wrong.
       if (websocket.readyState !== WebSocket.OPEN) {
-        const readyState = WebSocketClient.#ReadyState[websocket.readyState as 0 | 1 | 2 | 3]
-        throw new Error(`Something went wrong internally! The WebSocket.readyState is "${readyState}"`)
+        throw new Error(`Something went wrong internally! The WebSocket.readyState is "${websocket.readyState}"`)
       }
 
       this.#websocket = websocket
@@ -510,21 +519,16 @@ export class WebSocketClient implements AsyncDisposable {
       this.#websocket?.removeEventListener(type, existingOnceListener)
     }
 
-    // Alias `this` to `self` for use within the nested listener function.
-    // This ensures the listener calls the correct context.
-    // deno-lint-ignore no-this-alias
-    const self = this
-
     // Define the actual listener function that will wrap the user-provided listener.
-    const alwaysListener = function (this: WebSocket, event: WebSocketEventMap[K]) {
+    const alwaysListener = (event: WebSocketEventMap[K]) => {
       // If the listener has been removed from the map, unregister it from the WebSocket.
       if (alwaysMap.has(listener) === false) {
-        this.removeEventListener(type, alwaysListener as EventListener)
+        this.#websocket?.removeEventListener(type, alwaysListener as EventListener)
         return
       }
 
       // Call the user-provided listener in the context of `self` (the WebSocketClient instance).
-      return listener.call(self, event)
+      return listener.call(this, event)
     }
 
     // Store the newly created listener function in the persistent listener map.
@@ -571,15 +575,10 @@ export class WebSocketClient implements AsyncDisposable {
       this.#websocket?.removeEventListener(type, existingOnceListener)
     }
 
-    // Alias `this` to `self` for use within the nested listener function.
-    // This ensures the correct context (`WebSocketClient`) is used when calling the listener.
-    // deno-lint-ignore no-this-alias
-    const self = this
-
     // Define the actual listener function to be registered, wrapping the user-provided listener.
-    const onceListener = function (this: WebSocket, event: WebSocketEventMap[K]) {
+    const onceListener = (event: WebSocketEventMap[K]) => {
       // Remove the listener immediately after it is called to ensure it only triggers once.
-      this.removeEventListener(type, onceListener)
+      this.#websocket?.removeEventListener(type, onceListener)
 
       // Check if the listener has been removed from the one-time map.
       if (onceMap.has(listener) === false) {
@@ -590,7 +589,7 @@ export class WebSocketClient implements AsyncDisposable {
       onceMap.delete(listener)
 
       // Call the user-provided listener with the correct context (`WebSocketClient`) and the event.
-      return listener.call(self, event)
+      return listener.call(this, event)
     }
 
     // Add the wrapped listener to the one-time listener map for tracking.
@@ -601,6 +600,19 @@ export class WebSocketClient implements AsyncDisposable {
 
     // Return `this` to allow method chaining.
     return this
+  }
+
+  /**
+   * Checks if an event listener is registered for a specific event.
+   * @param type The type of the event.
+   * @param listener The event listener function.
+   * @returns `true` if the listener is registered for the event; otherwise, `false`.
+   */
+  has<K extends keyof WebSocketEventMap>(
+    type: K,
+    listener: (this: WebSocket, event: WebSocketEventMap[K]) => unknown,
+  ): boolean {
+    return this.#always[type].has(listener) || this.#once[type].has(listener)
   }
 
   /**
@@ -729,7 +741,7 @@ export class WebSocketClient implements AsyncDisposable {
       },
       {
         // Handle any rejection of the connection logic.
-        onRejected: (error) => {
+        onError: (error) => {
           // Capture the error for later processing.
           connectError = error
 
@@ -777,7 +789,7 @@ export class WebSocketClient implements AsyncDisposable {
       },
       {
         // Handle any rejection during the close operation.
-        onRejected: (error) => {
+        onError: (error) => {
           // Capture the error for later processing.
           closeError = error
 
@@ -858,7 +870,7 @@ export class WebSocketClient implements AsyncDisposable {
       },
       {
         // Handle any errors that occur during the reconnection process.
-        onRejected: (error) => {
+        onError: (error) => {
           // Capture the error for later processing.
           reconnectError = error
 

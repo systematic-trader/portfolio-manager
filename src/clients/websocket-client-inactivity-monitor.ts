@@ -1,4 +1,4 @@
-import { Timeout } from '../../../utils/timeout.ts'
+import { Timeout } from '../utils/timeout.ts'
 
 export interface WebSocketClientInactivityCallback {
   (): unknown
@@ -153,6 +153,15 @@ export class WebSocketClientInactivityMonitor {
     }
 
     return this
+  }
+
+  /**
+   * Checks if a callback is registered with the monitor.
+   * @param callback - The function to check.
+   * @returns `true` if the callback is registered, `false` otherwise.
+   */
+  has(callback: WebSocketClientInactivityCallback): boolean {
+    return this.#listeners.has(callback)
   }
 
   /**
