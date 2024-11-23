@@ -5,19 +5,12 @@ export function mergeAbortSignals(...signals: ReadonlyArray<undefined | AbortSig
     return undefined
   }
 
-  let merge = false
   let aborted = false
 
   for (const signal of definedSignals) {
     if (signal.aborted) {
       aborted = true
     }
-
-    merge = true
-  }
-
-  if (merge === false) {
-    return undefined
   }
 
   const controller = new AbortController()
