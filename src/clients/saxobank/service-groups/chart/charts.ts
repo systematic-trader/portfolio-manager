@@ -10,7 +10,7 @@ import {
   union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { extractKeys } from '../../../../utils/object.ts'
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import type { ChartFieldGroupSpec } from '../../types/derives/chart-field-group-spec.ts'
 import { ChartRequestMode } from '../../types/derives/chart-request-mode.ts'
 import { Horizon } from '../../types/derives/horizon.ts'

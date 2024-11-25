@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../service-group-client.ts'
+import type { ServiceGroupClient } from '../service-group-client/service-group-client.ts'
 import { IsAlive } from './market-overview/is-alive.ts'
 
 export class MarketOverview {

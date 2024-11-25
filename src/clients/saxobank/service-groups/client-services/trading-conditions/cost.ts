@@ -10,7 +10,7 @@ import {
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
 import { extractKeys } from '../../../../../utils/object.ts'
-import type { ServiceGroupClient } from '../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import type { TradingConditionFieldGroup } from '../../../types/derives/trading-condition-field-group.ts'
 import { CostResponse } from '../../../types/records/cost-response.ts'
 

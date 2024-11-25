@@ -8,7 +8,7 @@ import {
   union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import type { AssetType } from '../../types/derives/asset-type.ts'
 import type { BuySell } from '../../types/derives/buy-sell.ts'
 import type { OrderDuration } from '../../types/records/order-duration.ts'

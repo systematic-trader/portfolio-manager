@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import { Currency } from './exposure/currency.ts'
 import { FXSpot } from './exposure/fx-spot.ts'
 import { Instruments } from './exposure/instruments.ts'

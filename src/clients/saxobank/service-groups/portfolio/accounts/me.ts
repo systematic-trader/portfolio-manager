@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import { AccountResponse } from '../../../types/records/account-response.ts'
 
 export class Me {

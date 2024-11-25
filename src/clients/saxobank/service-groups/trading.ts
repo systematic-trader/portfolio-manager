@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../service-group-client.ts'
+import type { ServiceGroupClient } from '../service-group-client/service-group-client.ts'
 import { InfoPrices } from './trading/info-prices.ts'
 import { IsAlive } from './trading/is-alive.ts'
 import { Orders } from './trading/orders.ts'

@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import { LanguageDetails } from '../../types/records/language-details.ts'
 
 export class Languages {

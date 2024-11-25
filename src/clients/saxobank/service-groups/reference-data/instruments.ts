@@ -3,7 +3,7 @@ import type { ClassType } from '../../types/derives/class.ts'
 
 import { assertReturn } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import {
   InstrumentSummaryInfoBond,
   InstrumentSummaryInfoCfdIndexOption,
