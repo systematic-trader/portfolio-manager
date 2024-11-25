@@ -68,6 +68,7 @@ export class ServiceGroupClient {
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
     readonly timeout?: undefined | number
+    readonly signal?: undefined | AbortSignal
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
 
@@ -79,6 +80,7 @@ export class ServiceGroupClient {
       coerce: sanitize,
       onError: this.#onError,
       timeout: options.timeout,
+      signal: options.signal,
     })
   }
 
@@ -89,6 +91,7 @@ export class ServiceGroupClient {
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
     readonly timeout?: undefined | number
+    readonly signal?: undefined | AbortSignal
   } = {}): AsyncGenerator<T, void, undefined> {
     if (typeof options.limit === 'number') {
       if (options.limit === 0) {
@@ -131,6 +134,7 @@ export class ServiceGroupClient {
         limit: options.limit,
         onError: this.#onError,
         timeout: options.timeout,
+        signal: options.signal,
       })
     } catch (error) {
       if (error instanceof HTTPClientRequestAbortError) {
@@ -207,6 +211,7 @@ export class ServiceGroupClient {
     readonly body?: JSONReadonlyRecord
     readonly guard?: undefined | Guard<T>
     readonly timeout?: undefined | number
+    readonly signal?: undefined | AbortSignal
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
 
@@ -231,6 +236,7 @@ export class ServiceGroupClient {
         body: stringifyJSON(options.body),
         onError: this.#onError,
         timeout: options.timeout,
+        signal: options.signal,
       })
 
       return undefined as T
@@ -243,6 +249,7 @@ export class ServiceGroupClient {
       coerce: sanitize,
       onError: this.#onError,
       timeout: options.timeout,
+      signal: options.signal,
     })
   }
 
@@ -253,6 +260,7 @@ export class ServiceGroupClient {
     readonly body?: JSONReadonlyRecord
     readonly guard?: undefined | Guard<T>
     readonly timeout?: undefined | number
+    readonly signal?: undefined | AbortSignal
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
 
@@ -277,6 +285,7 @@ export class ServiceGroupClient {
         body: stringifyJSON(options.body),
         onError: this.#onError,
         timeout: options.timeout,
+        signal: options.signal,
       })
 
       return undefined as T
@@ -289,6 +298,7 @@ export class ServiceGroupClient {
       coerce: sanitize,
       onError: this.#onError,
       timeout: options.timeout,
+      signal: options.signal,
     })
   }
 
@@ -298,6 +308,7 @@ export class ServiceGroupClient {
     readonly searchParams?: undefined | SearchParamsRecord
     readonly guard?: undefined | Guard<T>
     readonly timeout?: undefined | number
+    readonly signal?: undefined | AbortSignal
   } = {}): Promise<T> {
     const url = urlJoin(this.#serviceURL, options.path)
 
@@ -308,6 +319,7 @@ export class ServiceGroupClient {
         headers: options.headers,
         onError: this.#onError,
         timeout: options.timeout,
+        signal: options.signal,
       })
 
       return undefined as T
@@ -319,6 +331,7 @@ export class ServiceGroupClient {
       coerce: sanitize,
       onError: this.#onError,
       timeout: options.timeout,
+      signal: options.signal,
     })
   }
 }
