@@ -1,5 +1,5 @@
 import { string } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 
 const IsAliveGuard = string({
   pattern: /The Open API Service Group \(Iit\.OpenApi\.Services\.ValueAdd \d+\.\d+\.\d+\+[a-f0-9]+\) is Running!/,

@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import type { ClosedPositionFieldGroup } from '../../../types/derives/closed-position-field-group.ts'
 import { ClosedPositionResponse } from '../../../types/records/closed-position-response.ts'
 

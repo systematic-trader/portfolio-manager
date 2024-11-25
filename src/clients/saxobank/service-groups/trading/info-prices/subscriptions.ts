@@ -14,7 +14,7 @@ import {
   string,
   union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import type { ServiceGroupClient } from '../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import { InfoPriceGroupSpec } from '../../../types/derives/info-price-group-spec.ts'
 import { OrderAmountType } from '../../../types/derives/order-amount-type.ts'
 import { ToOpenClose } from '../../../types/derives/to-open-close.ts'

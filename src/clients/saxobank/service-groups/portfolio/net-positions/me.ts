@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import type { NetPositionFieldGroup } from '../../../types/derives/net-position-field-group.ts'
 import { NetPositionResponse } from '../../../types/records/net-position-response.ts'
 

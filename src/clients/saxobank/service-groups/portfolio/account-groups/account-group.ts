@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import { AccountGroupResponse } from '../../../types/records/account-group-response.ts'
 
 // todo not tested (we have no account groups in simulation env)

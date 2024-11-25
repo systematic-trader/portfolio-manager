@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../service-group-client.ts'
+import type { ServiceGroupClient } from '../service-group-client/service-group-client.ts'
 import { AlgoStrategies } from './reference-data/algostrategies.ts'
 import { Countries } from './reference-data/countries.ts'
 import { Cultures } from './reference-data/cultures.ts'

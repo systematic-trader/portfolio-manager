@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import { TimeZoneDetails } from '../../types/records/time-zone-details.ts'
 
 export class TimeZones {

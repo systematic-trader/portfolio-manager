@@ -6,7 +6,8 @@ import { Timeout } from '../utils/timeout.ts'
 import { HTTPClient, HTTPClientError } from './http-client.ts'
 import { SaxoBankApplicationConfig, type SaxoBankApplicationType } from './saxobank/config.ts'
 import { SaxoBankOpenAuthentication } from './saxobank/oauth.ts'
-import { ServiceGroupClient } from './saxobank/service-group-client.ts'
+import { ServiceGroupClient } from './saxobank/service-group-client/service-group-client.ts'
+import { SearchParamsMaxLengthExceededError } from './saxobank/service-group-client/service-group-search-params.ts'
 import { AccountHistory } from './saxobank/service-groups/account-history.ts'
 import { AssetTransfers } from './saxobank/service-groups/asset-transfers.ts'
 import { AutoTrading } from './saxobank/service-groups/auto-trading.ts'
@@ -242,10 +243,14 @@ export class SaxoBankApplication implements Disposable {
       })
     }
 
+    const { searchParamsMaxLength } = SaxoBankApplicationConfig[this.type]
+
     const serviceGroupClient = new ServiceGroupClient({
       client: this.#httpClient,
       serviceURL,
       onError: async (error, retries) => {
+        // If the request fails with a 401 status code, initiate authorization.
+        // If authorization succeeds, retry the request.
         if (
           retries === 0 &&
           error instanceof HTTPClientError &&
@@ -255,8 +260,25 @@ export class SaxoBankApplication implements Disposable {
           return
         }
 
+        // When requests uses search parameters that are too long, the server will respond with a http status code of 404 and a HTML body.
+        // This diverges from the http specification, but is confirmed to be intentional by the OpenAPI support.
+        // We cannot recover from this error - but due to the counter-intuitive response code, we map the error to a more specific one.
+        //
+        // Please note that specific endpoint will, correctly, respond with http status code 404 as a part of their normal operation.
+        // A key difference here is that the response body will be JSON, not HTML.
+        // We use this to differentiate between the two cases.
+        if (
+          error instanceof HTTPClientError &&
+          error.statusCode === 404 &&
+          error.headers['content-type'] === 'text/html'
+        ) {
+          const { searchParams } = new URL(error.href)
+          throw new SearchParamsMaxLengthExceededError(searchParams, searchParamsMaxLength)
+        }
+
         throw error
       },
+      searchParamsMaxLength,
     })
 
     this.accountHistory = new AccountHistory({ client: serviceGroupClient })

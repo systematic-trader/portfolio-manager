@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../service-group-client.ts'
+import type { ServiceGroupClient } from '../service-group-client/service-group-client.ts'
 import { IsAlive } from './root-services/is-alive.ts'
 import { Subscriptions } from './root-services/subscriptions.ts'
 

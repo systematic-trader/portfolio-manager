@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import { ExchangeDetails } from '../../types/derives/exchange-details.ts'
 
 export class Exchanges {

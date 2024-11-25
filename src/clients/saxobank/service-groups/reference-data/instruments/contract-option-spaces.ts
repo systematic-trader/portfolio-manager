@@ -1,5 +1,5 @@
 import { HTTPClientError } from '../../../../http-client.ts'
-import type { ServiceGroupClient } from '../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import type { OptionSpaceSegment } from '../../../types/derives/option-space-segment.ts'
 import type { TradingStatus } from '../../../types/derives/trading-status.ts'
 import { OptionDetails } from '../../../types/records/option-details.ts'
