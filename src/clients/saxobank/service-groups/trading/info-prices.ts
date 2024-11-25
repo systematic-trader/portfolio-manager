@@ -14,7 +14,7 @@ import type { InfoPriceGroupSpec } from '../../types/derives/info-price-group-sp
 import type { OrderAmountType } from '../../types/derives/order-amount-type.ts'
 
 import { extractKeys } from '../../../../utils/object.ts'
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import { PutCall } from '../../types/derives/put-call.ts'
 import { ToOpenClose } from '../../types/derives/to-open-close.ts'
 import { InfoPriceResponse } from '../../types/records/info-price-response.ts'

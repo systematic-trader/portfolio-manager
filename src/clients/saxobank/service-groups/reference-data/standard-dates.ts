@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import { ForwardTenor } from './standard-dates/forward-tenor.ts'
 import { FxOptionExpiry } from './standard-dates/fx-option-expiry.ts'
 

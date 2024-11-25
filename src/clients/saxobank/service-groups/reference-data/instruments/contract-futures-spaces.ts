@@ -1,6 +1,6 @@
 import { array, props, string } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { HTTPClientError } from '../../../../http-client.ts'
-import type { ServiceGroupClient } from '../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import { FuturesSpaceElement } from '../../../types/records/futures-space-element.ts'
 
 const ResponseBodyGuard = props({
