@@ -15,7 +15,7 @@ export const SaxoBankApplicationConfig = {
       listenerHostname: 'SAXOBANK_LIVE_APP_REDIRECT_LISTENER_HOSTNAME',
       listenerPort: 'SAXOBANK_LIVE_APP_REDIRECT_LISTENER_PORT',
     },
-    maximumSearchParamsLength: 2048,
+    searchParamsMaxLength: 2048,
   },
   Simulation: {
     authenticationURL: 'https://sim.logonvalidation.net',
@@ -31,6 +31,6 @@ export const SaxoBankApplicationConfig = {
       listenerHostname: 'SAXOBANK_SIM_APP_REDIRECT_LISTENER_HOSTNAME',
       listenerPort: 'SAXOBANK_SIM_APP_REDIRECT_LISTENER_PORT',
     },
-    maximumSearchParamsLength: 2048,
+    searchParamsMaxLength: 2048,
   },
 } as const

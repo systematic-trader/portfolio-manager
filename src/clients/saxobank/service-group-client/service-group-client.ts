@@ -1,37 +1,36 @@
 import type { Guard } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { ensureError } from '../../utils/error.ts'
-import type { JSONReadonlyRecord } from '../../utils/json.ts'
-import { Timeout } from '../../utils/timeout.ts'
-import { urlJoin } from '../../utils/url.ts'
-import { type HTTPClient, HTTPClientError, type HTTPClientOnErrorHandler } from '../http-client.ts'
-import type { SearchParamsRecord } from './service-group-request-search-params.ts'
+import { ensureError } from '../../../utils/error.ts'
+import type { JSONReadonlyRecord } from '../../../utils/json.ts'
+import { Timeout } from '../../../utils/timeout.ts'
+import { urlJoin } from '../../../utils/url.ts'
+import { type HTTPClient, HTTPClientError, type HTTPClientOnErrorHandler } from '../../http-client.ts'
 import {
   ServiceGroupRequestDelete,
   ServiceGroupRequestGet,
   ServiceGroupRequestGetPaginated,
   ServiceGroupRequestPost,
   ServiceGroupRequestPut,
-} from './service-group-request.ts'
+} from '../service-group-client/service-group-request.ts'
+import { type SearchParamRecord, ServiceGroupSearchParams } from './service-group-search-params.ts'
 
 export class ServiceGroupClient {
   readonly #client: HTTPClient
   readonly #serviceURL: URL
   readonly #onError: HTTPClientOnErrorHandler
+  readonly #searchParamsMaxLength: number
 
   get http(): HTTPClient {
     return this.#client
   }
 
-  constructor({
-    client,
-    serviceURL,
-    onError,
-  }: {
+  constructor({ client, onError, searchParamsMaxLength, serviceURL }: {
     readonly client: HTTPClient
-    readonly serviceURL: URL
     readonly onError?: undefined | HTTPClientOnErrorHandler
+    readonly searchParamsMaxLength: number
+    readonly serviceURL: URL
   }) {
     this.#client = client
+    this.#searchParamsMaxLength = searchParamsMaxLength
     this.#serviceURL = serviceURL
 
     if (onError === undefined) {
@@ -47,11 +46,12 @@ export class ServiceGroupClient {
     }
   }
 
-  appendPath(path: string): ServiceGroupClient {
+  appendPath(path: string, searchParamsMaxLength?: undefined | number): ServiceGroupClient {
     return new ServiceGroupClient({
       client: this.#client,
       serviceURL: this.createURL(path),
       onError: this.#onError,
+      searchParamsMaxLength: searchParamsMaxLength ?? this.#searchParamsMaxLength,
     })
   }
 
@@ -63,7 +63,7 @@ export class ServiceGroupClient {
     readonly guard?: undefined | Guard<T>
     readonly headers?: undefined | Record<string, string>
     readonly path?: undefined | string
-    readonly searchParams?: undefined | SearchParamsRecord
+    readonly searchParams?: undefined | SearchParamRecord
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): ServiceGroupRequestGet<T> {
@@ -71,8 +71,10 @@ export class ServiceGroupClient {
       client: this.#client,
       guard: options.guard,
       headers: options.headers,
-      searchParams: options.searchParams,
-      signal: options.signal,
+      searchParams: new ServiceGroupSearchParams({
+        values: options.searchParams,
+        maxLength: this.#searchParamsMaxLength,
+      }),
       timeout: options.timeout,
       url: this.createURL(options.path),
     })
@@ -83,17 +85,34 @@ export class ServiceGroupClient {
     readonly headers?: undefined | Record<string, string>
     readonly limit?: undefined | number
     readonly path?: undefined | string
-    readonly searchParams?: undefined | SearchParamsRecord
+    readonly searchParams?: undefined | SearchParamRecord
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): ServiceGroupRequestGetPaginated<T> {
+    if (typeof options.limit === 'number') {
+      if (Number.isSafeInteger(options.limit) === false) {
+        throw new Error(`Limit must be a safe integer`)
+      }
+
+      if (options.limit < 0) {
+        throw new Error('Limit must be a non-negative integer')
+      }
+    }
+
     return new ServiceGroupRequestGetPaginated({
       client: this.#client,
       guard: options.guard,
       headers: options.headers,
       limit: options.limit,
       onError: this.#onError,
-      searchParams: options.searchParams,
+      searchParams: new ServiceGroupSearchParams({
+        values: {
+          $top: options.limit === undefined ? 1000 : Math.min(options.limit, 1000),
+          $skip: 0,
+          ...options.searchParams,
+        },
+        maxLength: this.#searchParamsMaxLength,
+      }),
       signal: options.signal,
       timeout: options.timeout,
       url: this.createURL(options.path),
@@ -105,7 +124,7 @@ export class ServiceGroupClient {
     readonly guard?: undefined | Guard<T>
     readonly headers?: undefined | Record<string, string>
     readonly path?: undefined | string
-    readonly searchParams?: undefined | SearchParamsRecord
+    readonly searchParams?: undefined | SearchParamRecord
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): ServiceGroupRequestPost<T> {
@@ -115,7 +134,10 @@ export class ServiceGroupClient {
       guard: options.guard,
       headers: options.headers,
       onError: this.#onError,
-      searchParams: options.searchParams,
+      searchParams: new ServiceGroupSearchParams({
+        values: options.searchParams,
+        maxLength: this.#searchParamsMaxLength,
+      }),
       signal: options.signal,
       timeout: options.timeout,
       url: this.createURL(options.path),
@@ -127,7 +149,7 @@ export class ServiceGroupClient {
     readonly guard?: undefined | Guard<T>
     readonly headers?: undefined | Record<string, string>
     readonly path?: undefined | string
-    readonly searchParams?: undefined | SearchParamsRecord
+    readonly searchParams?: undefined | SearchParamRecord
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): ServiceGroupRequestPut<T> {
@@ -137,7 +159,10 @@ export class ServiceGroupClient {
       guard: options.guard,
       headers: options.headers,
       onError: this.#onError,
-      searchParams: options.searchParams,
+      searchParams: new ServiceGroupSearchParams({
+        values: options.searchParams,
+        maxLength: this.#searchParamsMaxLength,
+      }),
       signal: options.signal,
       timeout: options.timeout,
       url: this.createURL(options.path),
@@ -148,7 +173,7 @@ export class ServiceGroupClient {
     readonly guard?: undefined | Guard<T>
     readonly headers?: undefined | Record<string, string>
     readonly path?: undefined | string
-    readonly searchParams?: undefined | SearchParamsRecord
+    readonly searchParams?: undefined | SearchParamRecord
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): ServiceGroupRequestDelete<T> {
@@ -157,7 +182,10 @@ export class ServiceGroupClient {
       guard: options.guard,
       headers: options.headers,
       onError: this.#onError,
-      searchParams: options.searchParams,
+      searchParams: new ServiceGroupSearchParams({
+        values: options.searchParams,
+        maxLength: this.#searchParamsMaxLength,
+      }),
       signal: options.signal,
       timeout: options.timeout,
       url: this.createURL(options.path),

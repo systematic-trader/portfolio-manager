@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import type { ActiveUsersFilter } from '../../../types/derives/active-users-filter.ts'
 import { UserResponse } from '../../../types/records/user-response.ts'
 

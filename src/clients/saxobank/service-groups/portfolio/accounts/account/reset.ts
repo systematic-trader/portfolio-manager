@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../../service-group-client/service-group-client.ts'
 
 export class Reset {
   readonly #client: ServiceGroupClient

@@ -1,4 +1,4 @@
-import type { ServiceGroupClient } from '../service-group-client.ts'
+import type { ServiceGroupClient } from '../service-group-client/service-group-client.ts'
 import { AccountGroups } from './portfolio/account-groups.ts'
 import { Accounts } from './portfolio/accounts.ts'
 import { Balances } from './portfolio/balances.ts'

@@ -1,5 +1,5 @@
 import { array, optional } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import type { ServiceGroupClient } from '../../../../service-group-client.ts'
+import type { ServiceGroupClient } from '../../../../service-group-client/service-group-client.ts'
 import { CurrencyExposuresResponse } from '../../../../types/records/currency-exposures-response.ts'
 
 export class Me {
