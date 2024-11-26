@@ -66,11 +66,11 @@ export abstract class ServiceGroupRequest<T> {
   }
 
   /**
-   * Divides a list of values for a specific search parameter into smaller chunks and generates requests for each chunk.
+   * Divides a list of values for a specific search parameter into smaller partitions and generates requests for each chunk.
    * This is useful when a single request might exceed limits due to overly large search parameters.
    *
-   * @param key - The key of the search parameter to split into chunks.
-   * @param values - The array of values to split into chunks. If `undefined` or empty, the original request is yielded without modification.
+   * @param key - The key of the search parameter to split into partitions.
+   * @param values - The array of values to split into partitions. If `undefined` or empty, the original request is yielded without modification.
    *
    * @returns
    * A generator that yields the current request instance (`this`) for each chunk of the specified search parameter.
@@ -78,10 +78,10 @@ export abstract class ServiceGroupRequest<T> {
    * You can further modify the yielded requests before execution, but doing so may risk exceeding limits for search parameter length.
    *
    * @throws Error
-   * If the search parameter cannot be split into smaller chunks.
+   * If the search parameter cannot be split into smaller partitions.
    * This occurs when other search parameters consume too much space, leaving no room to add even a single value.
    */
-  public *chunkSearchParameter(
+  public *partitionBySearchParameter(
     { key, values }: {
       readonly key: string
       readonly values: undefined | ReadonlyArray<string | number>
@@ -91,25 +91,23 @@ export abstract class ServiceGroupRequest<T> {
       return yield this
     }
 
-    let currentChunk: (string | number)[] = []
+    let partition: (string | number)[] = []
 
     for (const value of values) {
-      const nextChunk = [...currentChunk, value]
-      const updated = this.searchParams.set(key, nextChunk)
+      partition.push(value)
 
-      if (updated === false) {
-        if (nextChunk.length === 1) {
+      if (this.searchParams.set(key, partition) === false) {
+        yield this
+
+        partition = [value]
+
+        if (this.searchParams.set(key, partition) === false) {
           throw new Error('Cannot add search parameter - existing parameters are too long')
         }
-
-        yield this
-        currentChunk = []
       }
-
-      currentChunk.push(value)
     }
 
-    if (currentChunk.length > 0) {
+    if (partition.length > 0) {
       yield this
     }
   }

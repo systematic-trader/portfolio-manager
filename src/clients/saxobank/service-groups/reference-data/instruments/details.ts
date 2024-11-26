@@ -105,7 +105,7 @@ export class InstrumentsDetails {
         searchParams,
         limit,
         timeout: options.timeout,
-      }).chunkSearchParameter({ key: 'Uics', values: Uics })
+      }).partitionBySearchParameter({ key: 'Uics', values: Uics })
     ) {
       try {
         for await (const instrument of request.execute()) {
