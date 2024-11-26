@@ -265,8 +265,8 @@ export class SaxoBankApplication implements Disposable {
         // We cannot recover from this error - but due to the counter-intuitive response code, we map the error to a more specific one.
         //
         // Please note that specific endpoint will, correctly, respond with http status code 404 as a part of their normal operation.
-        // A key difference here is that the response body will be JSON, not HTML.
-        // We use this to differentiate between the two cases.
+        // A key difference here is that the response body will be either empty or JSON.
+        // This is the key difference that allows us to distinguish between the search parameter error and normal operations.
         if (
           error instanceof HTTPClientError &&
           error.statusCode === 404 &&
