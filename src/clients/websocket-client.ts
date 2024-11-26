@@ -445,8 +445,18 @@ export class WebSocketClient implements AsyncDisposable {
     } = {},
   ): Promise<undefined | Error> {
     // If there isn't already an error set, associate the provided error (if any).
-    if (this.#state.status !== 'failed') {
-      this.#queue.addError(options.error)
+    if (this.#error !== undefined && options.error !== undefined) {
+      const { error } = options
+
+      this.#error = error
+
+      for (const listener of this.#always.error.values()) {
+        queueMicrotask(() => listener(new ErrorEvent('error', { error, message: error.message })))
+      }
+
+      for (const listener of this.#once.error.values()) {
+        queueMicrotask(() => listener(new ErrorEvent('error', { error, message: error.message })))
+      }
     }
 
     // If there is no active WebSocket instance, there's nothing to close. Exit early.
