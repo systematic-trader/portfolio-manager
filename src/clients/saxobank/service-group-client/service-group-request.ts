@@ -97,6 +97,10 @@ export abstract class ServiceGroupRequest<T> {
       partition.push(value)
 
       if (this.searchParams.set(key, partition) === false) {
+        if (partition.length === 1) {
+          throw new Error('Cannot add search parameter - existing parameters are too long')
+        }
+
         yield this
 
         partition = [value]
