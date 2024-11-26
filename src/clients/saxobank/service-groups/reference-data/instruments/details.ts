@@ -93,31 +93,34 @@ export class InstrumentsDetails {
 
     const assetTypesSet = AssetTypes === undefined || AssetTypes.length === 0 ? undefined : new Set<string>(AssetTypes)
 
-    try {
-      for await (
-        const instrument of this.#client.getPaginated<InstrumentDetailsType>({
-          searchParams: {
-            FieldGroups: 'OrderSetting,SupportedOrderTypeSettings,TradingSessions,MarketData',
-            AssetTypes,
-            Uics,
-            AccountKey,
-            Tags,
-          },
-          limit,
-          timeout: options.timeout,
-        }).execute()
-      ) {
-        if (assetTypesSet === undefined || assetTypesSet.has(instrument.AssetType)) {
-          yield assertReturnInstrumentDetails(instrument)
-        }
-      }
-    } catch (error) {
-      // Saxobank API response with a 404 if an asset type has no instruments in their database
-      if (error instanceof HTTPClientError && error.statusCode === 404) {
-        return
-      }
+    const searchParams = {
+      FieldGroups: ['OrderSetting', 'SupportedOrderTypeSettings', 'TradingSessions', 'MarketData'],
+      AssetTypes,
+      AccountKey,
+      Tags,
+    }
 
-      throw error
+    for (
+      const request of this.#client.getPaginated<InstrumentDetailsType>({
+        searchParams,
+        limit,
+        timeout: options.timeout,
+      }).chunkSearchParameter({ key: 'Uics', values: Uics })
+    ) {
+      try {
+        for await (const instrument of request.execute()) {
+          if (assetTypesSet === undefined || assetTypesSet.has(instrument.AssetType)) {
+            yield assertReturnInstrumentDetails(instrument)
+          }
+        }
+      } catch (error) {
+        // Saxobank API response with a 404 if an asset type has no instruments in their database
+        if (error instanceof HTTPClientError && error.statusCode === 404) {
+          return
+        }
+
+        throw error
+      }
     }
   }
 }

@@ -14,7 +14,7 @@ import { type HTTPClient, type HTTPClientOnErrorHandler, HTTPClientRequestAbortE
 import { sanitizeSaxobankValue } from './sanitize-saxobank-value.ts'
 import type { ServiceGroupSearchParams } from './service-group-search-params.ts'
 
-abstract class ServiceGroupRequest<T> {
+export abstract class ServiceGroupRequest<T> {
   readonly #client: HTTPClient
   readonly #guard: undefined | Guard<T>
   readonly #headers: undefined | Record<string, string>
@@ -63,6 +63,55 @@ abstract class ServiceGroupRequest<T> {
           }),
         ),
       }
+  }
+
+  /**
+   * Divides a list of values for a specific search parameter into smaller chunks and generates requests for each chunk.
+   * This is useful when a single request might exceed limits due to overly large search parameters.
+   *
+   * @param key - The key of the search parameter to split into chunks.
+   * @param values - The array of values to split into chunks. If `undefined` or empty, the original request is yielded without modification.
+   *
+   * @returns
+   * A generator that yields the current request instance (`this`) for each chunk of the specified search parameter.
+   * The search parameter is updated for each yielded instance.
+   * You can further modify the yielded requests before execution, but doing so may risk exceeding limits for search parameter length.
+   *
+   * @throws Error
+   * If the search parameter cannot be split into smaller chunks.
+   * This occurs when other search parameters consume too much space, leaving no room to add even a single value.
+   */
+  public *chunkSearchParameter(
+    { key, values }: {
+      readonly key: string
+      readonly values: undefined | ReadonlyArray<string | number>
+    },
+  ): Generator<this> {
+    if (values === undefined || values.length === 0) {
+      return yield this
+    }
+
+    let currentChunk: (string | number)[] = []
+
+    for (const value of values) {
+      const nextChunk = [...currentChunk, value]
+      const updated = this.searchParams.set(key, nextChunk)
+
+      if (updated === false) {
+        if (nextChunk.length === 1) {
+          throw new Error('Cannot add search parameter - existing parameters are too long')
+        }
+
+        yield this
+        currentChunk = []
+      }
+
+      currentChunk.push(value)
+    }
+
+    if (currentChunk.length > 0) {
+      yield this
+    }
   }
 
   protected async get(): Promise<T> {
