@@ -21,7 +21,7 @@ export class Subscriptions {
       /** Tag that subscriptions are marked with */
       readonly Tag?: undefined | string
     },
-    options: { readonly timeout?: undefined | number } = {},
+    options: { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
   ): Promise<void> {
     return await this.#client.delete({
       path: ContextId,
@@ -30,6 +30,7 @@ export class Subscriptions {
       },
       guard: DeleteSubscriptionsResponse,
       timeout: options.timeout,
+      signal: options.signal,
     })
   }
 }

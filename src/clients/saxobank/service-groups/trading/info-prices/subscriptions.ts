@@ -194,41 +194,44 @@ export class Subscriptions {
     this.#client = client.appendPath('subscriptions')
   }
 
-  async post(options: {
-    /**
-     * Arguments for the subscription request.
-     */
-    readonly Arguments: InfoPriceListRequest
-    /**
-     * The streaming context id that this request is associated with. This parameter must only contain letters (a-z) and numbers (0-9) as well as - (dash) and _ (underscore). It is case insensitive. Max length is 50 characters.
-     */
-    readonly ContextId: string
+  async post(
+    options: {
+      /**
+       * Arguments for the subscription request.
+       */
+      readonly Arguments: InfoPriceListRequest
+      /**
+       * The streaming context id that this request is associated with. This parameter must only contain letters (a-z) and numbers (0-9) as well as - (dash) and _ (underscore). It is case insensitive. Max length is 50 characters.
+       */
+      readonly ContextId: string
 
-    /**
-     * Optional Media type (RFC 2046) of the serialized data updates that are streamed to the client. Currently only application/json and application/x-protobuf is supported. If an unrecognized format is specified, the subscription end point will return HTTP status code 400 - Bad format.
-     */
-    readonly Format?: undefined | 'application/json' | 'application/x-protobuf'
+      /**
+       * Optional Media type (RFC 2046) of the serialized data updates that are streamed to the client. Currently only application/json and application/x-protobuf is supported. If an unrecognized format is specified, the subscription end point will return HTTP status code 400 - Bad format.
+       */
+      readonly Format?: undefined | 'application/json' | 'application/x-protobuf'
 
-    /**
-     * Mandatory client specified reference id for the subscription. This parameter must only contain alphanumberic characters as well as - (dash) and _ (underscore). Cannot start with _. It is case insensitive. Max length is 50 characters.
-     */
-    readonly ReferenceId: string
+      /**
+       * Mandatory client specified reference id for the subscription. This parameter must only contain alphanumberic characters as well as - (dash) and _ (underscore). Cannot start with _. It is case insensitive. Max length is 50 characters.
+       */
+      readonly ReferenceId: string
 
-    /**
-     * Optional custom refresh rate, measured in milliseconds, between each data update. Note that it is not possible to get a refresh rate lower than the rate specified in the customer service level agreement (SLA).
-     */
-    readonly RefreshRate?: undefined | number
+      /**
+       * Optional custom refresh rate, measured in milliseconds, between each data update. Note that it is not possible to get a refresh rate lower than the rate specified in the customer service level agreement (SLA).
+       */
+      readonly RefreshRate?: undefined | number
 
-    /**
-     * Reference id of the subscription that should be replaced.
-     */
-    readonly ReplaceReferenceId?: undefined | string
+      /**
+       * Reference id of the subscription that should be replaced.
+       */
+      readonly ReplaceReferenceId?: undefined | string
 
-    /**
-     * Optional client specified tag used for grouping subscriptions.
-     */
-    readonly Tag?: undefined | string
-  }): Promise<InfoPricesSubscriptionsResponse> {
+      /**
+       * Optional client specified tag used for grouping subscriptions.
+       */
+      readonly Tag?: undefined | string
+    },
+    httpOptions: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
+  ): Promise<InfoPricesSubscriptionsResponse> {
     return (await this.#client.post({
       body: {
         ...options,
@@ -238,15 +241,23 @@ export class Subscriptions {
         },
       },
       guard: InfoPricesSubscriptionsResponse[options.Arguments.AssetType] as Guard<unknown>,
+      timeout: httpOptions.timeout,
+      signal: httpOptions.signal,
     })) as InfoPricesSubscriptionsResponse
   }
 
-  async delete(options: {
-    readonly ContextId: string
-    readonly ReferenceId: string
-  }): Promise<void> {
+  async delete(
+    options: {
+      readonly ContextId: string
+      readonly ReferenceId: string
+    },
+    httpOptions?: undefined | {
+      readonly timeout?: undefined | number
+      readonly signal?: undefined | AbortSignal
+    },
+  ): Promise<void> {
     const client = this.#client.appendPath(`${options.ContextId}/${options.ReferenceId}`)
 
-    await client.delete()
+    await client.delete(httpOptions)
   }
 }
