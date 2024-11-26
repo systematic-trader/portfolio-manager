@@ -185,7 +185,7 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
     readonly url: string | URL
     readonly binaryType?: undefined | WebSocketClient['binaryType']
   }) {
-    super()
+    super((error) => this.close({ error }))
 
     this.#url = typeof url === 'string' ? new URL(url) : url
     this.#binaryType = binaryType
