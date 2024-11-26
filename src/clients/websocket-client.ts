@@ -1,3 +1,4 @@
+import { CallbackTarget } from '../utils/callback-target.ts'
 import { ensureError } from '../utils/error.ts'
 import { PromiseQueue } from '../utils/promise-queue.ts'
 import { mergeAbortSignals } from '../utils/signal.ts'
@@ -60,11 +61,18 @@ export class WebSocketClientAbortError extends WebSocketClientError {
   }
 }
 
+type CallbackTargetMap = {
+  open: [event: Event]
+  close: [event: CloseEvent]
+  error: [event: Event]
+  message: [event: MessageEvent]
+}
+
 /**
  * WebSocketClient provides a high-level API to manage WebSocket connections,
  * including reconnection logic, event handling, and inactivity timeout support.
  */
-export class WebSocketClient implements AsyncDisposable {
+export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implements AsyncDisposable {
   readonly #queue = new PromiseQueue((error) => {
     this.#close({ error })
   })
@@ -80,28 +88,6 @@ export class WebSocketClient implements AsyncDisposable {
   #closedAt = -1
   #errorAt = -1
   #messageAt = -1
-
-  readonly #always = {
-    // deno-lint-ignore no-explicit-any
-    open: new Map<(event: any) => unknown, (event: any) => unknown>(),
-    // deno-lint-ignore no-explicit-any
-    close: new Map<(event: any) => unknown, (event: any) => unknown>(),
-    // deno-lint-ignore no-explicit-any
-    error: new Map<(event: any) => unknown, (event: any) => unknown>(),
-    // deno-lint-ignore no-explicit-any
-    message: new Map<(event: any) => unknown, (event: any) => unknown>(),
-  }
-
-  readonly #once = {
-    // deno-lint-ignore no-explicit-any
-    open: new Map<(event: any) => unknown, (event: any) => unknown>(),
-    // deno-lint-ignore no-explicit-any
-    close: new Map<(event: any) => unknown, (event: any) => unknown>(),
-    // deno-lint-ignore no-explicit-any
-    error: new Map<(event: any) => unknown, (event: any) => unknown>(),
-    // deno-lint-ignore no-explicit-any
-    message: new Map<(event: any) => unknown, (event: any) => unknown>(),
-  }
 
   /**
    * The inactivity monitor instance associated with the WebSocket.
@@ -199,6 +185,8 @@ export class WebSocketClient implements AsyncDisposable {
     readonly url: string | URL
     readonly binaryType?: undefined | WebSocketClient['binaryType']
   }) {
+    super()
+
     this.#url = typeof url === 'string' ? new URL(url) : url
     this.#binaryType = binaryType
 
@@ -240,7 +228,7 @@ export class WebSocketClient implements AsyncDisposable {
   /**
    * Cleans up resources and closes the WebSocket connection.
    */
-  [Symbol.asyncDispose](): Promise<void> {
+  override [Symbol.asyncDispose](): Promise<void> {
     return this.close()
   }
 
@@ -334,15 +322,6 @@ export class WebSocketClient implements AsyncDisposable {
 
     // Listener to handle the WebSocket `open` event.
     const openListener = (event: Event) => {
-      // Trigger all registered `open` event listeners (both persistent and one-time).
-      for (const listener of this.#always.open.values()) {
-        queueMicrotask(() => listener(event))
-      }
-
-      for (const listener of this.#once.open.values()) {
-        queueMicrotask(() => listener(event))
-      }
-
       // Cleanup after successfully opening the connection.
       timeout?.cancel()
       signal?.removeEventListener('abort', signalAbortListener)
@@ -353,49 +332,29 @@ export class WebSocketClient implements AsyncDisposable {
       this.#openedAt = Date.now()
 
       // Add listeners for `message`, `error`, and `close` events on the WebSocket
-      websocket.addEventListener('message', () => {
+      websocket.addEventListener('message', (event) => {
         this.#messageAt = Date.now()
+        this.emit('message', event)
       })
 
-      websocket.addEventListener('error', () => {
+      websocket.addEventListener('error', (event) => {
         this.#errorAt = Date.now()
+        this.emit('error', event)
       })
 
-      websocket.addEventListener('close', () => {
+      websocket.addEventListener('close', (event) => {
         this.#closedAt = Date.now()
         this.#websocket = undefined
+        this.emit('close', event)
       }, { once: true })
-
-      // Attach any registered persistent or one-time listeners to the WebSocket.
-      for (const listener of this.#always.close.values()) {
-        websocket.addEventListener('close', listener, { once: true })
-      }
-
-      for (const listener of this.#always.error.values()) {
-        websocket.addEventListener('error', listener)
-      }
-
-      for (const listener of this.#always.message.values()) {
-        websocket.addEventListener('message', listener)
-      }
-
-      for (const listener of this.#once.close.values()) {
-        websocket.addEventListener('close', listener, { once: true })
-      }
-
-      for (const listener of this.#once.error.values()) {
-        websocket.addEventListener('error', listener, { once: true })
-      }
-
-      for (const listener of this.#once.message.values()) {
-        websocket.addEventListener('message', listener, { once: true })
-      }
 
       // Activate the inactivity monitor for this WebSocket.
       WebSocketClientInactivityMonitor.open(this.#inactivity, websocket)
 
       // Resolve the promise to indicate successful connection.
       resolve()
+
+      this.emit('open', event)
     }
 
     // Listener to handle the WebSocket `close` event during the connection phase.
@@ -445,18 +404,12 @@ export class WebSocketClient implements AsyncDisposable {
     } = {},
   ): Promise<undefined | Error> {
     // If there isn't already an error set, associate the provided error (if any).
-    if (this.#error !== undefined && options.error !== undefined) {
+    if (options.error !== undefined) {
       const { error } = options
 
       this.#error = error
 
-      for (const listener of this.#always.error.values()) {
-        queueMicrotask(() => listener(new ErrorEvent('error', { error, message: error.message })))
-      }
-
-      for (const listener of this.#once.error.values()) {
-        queueMicrotask(() => listener(new ErrorEvent('error', { error, message: error.message })))
-      }
+      this.emit('error', new ErrorEvent('error', { error, message: error.message }))
     }
 
     // If there is no active WebSocket instance, there's nothing to close. Exit early.
@@ -494,225 +447,6 @@ export class WebSocketClient implements AsyncDisposable {
 
     // Return `undefined` to indicate the WebSocket was successfully closed.
     return undefined
-  }
-
-  /**
-   * Adds an event listener for a specific event.
-   *
-   * @param type - The type of the event.
-   * @param listener - The event listener function.
-   * @returns The instance for method chaining.
-   */
-  add<K extends keyof WebSocketEventMap>(
-    type: K,
-    listener: (this: WebSocketClient, event: WebSocketEventMap[K]) => unknown,
-  ): this {
-    // Retrieve the map of persistent ("always") listeners for the specified event type.
-    const alwaysMap = this.#always[type]
-
-    // Retrieve the map of one-time listeners for the specified event type.
-    const onceMap = this.#once[type]
-
-    // Check if the listener is already registered as a persistent listener.
-    const existingAlwaysListener = alwaysMap.get(listener)
-
-    if (existingAlwaysListener !== undefined) {
-      // If the listener exists, remove it from the underlying WebSocket to avoid duplicate registrations.
-      this.#websocket?.removeEventListener(type, existingAlwaysListener)
-    }
-
-    // Check if the listener is already registered as a one-time listener.
-    const existingOnceListener = onceMap.get(listener)
-
-    if (existingOnceListener !== undefined) {
-      // If the listener exists, remove it from the underlying WebSocket to avoid conflicts.
-      this.#websocket?.removeEventListener(type, existingOnceListener)
-    }
-
-    // Define the actual listener function that will wrap the user-provided listener.
-    const alwaysListener = (event: WebSocketEventMap[K]) => {
-      // If the listener has been removed from the map, unregister it from the WebSocket.
-      if (alwaysMap.has(listener) === false) {
-        this.#websocket?.removeEventListener(type, alwaysListener as EventListener)
-        return
-      }
-
-      // Call the user-provided listener in the context of `self` (the WebSocketClient instance).
-      return listener.call(this, event)
-    }
-
-    // Store the newly created listener function in the persistent listener map.
-    alwaysMap.set(listener, alwaysListener)
-
-    // If a WebSocket is currently active, register the new listener with it.
-    this.#websocket?.addEventListener(type, alwaysListener, { once: type === 'close' })
-
-    // Return `this` to allow method chaining.
-    return this
-  }
-
-  /**
-   * Adds a one-time event listener for a specific event.
-   *
-   * @param type - The type of the event.
-   * @param listener - The event listener function.
-   * @returns The instance for method chaining.
-   */
-  once<K extends keyof WebSocketEventMap>(
-    type: K,
-    listener: (this: WebSocketClient, event: WebSocketEventMap[K]) => unknown,
-  ): this {
-    // Retrieve the map of persistent ("always") listeners for the specified event type.
-    const alwaysMap = this.#always[type]
-
-    // Retrieve the map of one-time listeners for the specified event type.
-    const onceMap = this.#once[type]
-
-    // Check if the listener is already registered as a persistent listener.
-    const existingAlwaysListener = alwaysMap.get(listener)
-
-    if (existingAlwaysListener !== undefined) {
-      // If the listener exists as a persistent listener, remove it from the WebSocket
-      // to prevent conflicts or duplicate handling.
-      this.#websocket?.removeEventListener(type, existingAlwaysListener)
-    }
-
-    // Check if the listener is already registered as a one-time listener.
-    const existingOnceListener = onceMap.get(listener)
-
-    if (existingOnceListener !== undefined) {
-      // If the listener exists as a one-time listener, remove it to avoid conflicts or duplication.
-      this.#websocket?.removeEventListener(type, existingOnceListener)
-    }
-
-    // Define the actual listener function to be registered, wrapping the user-provided listener.
-    const onceListener = (event: WebSocketEventMap[K]) => {
-      // Remove the listener immediately after it is called to ensure it only triggers once.
-      this.#websocket?.removeEventListener(type, onceListener)
-
-      // Check if the listener has been removed from the one-time map.
-      if (onceMap.has(listener) === false) {
-        return
-      }
-
-      // Remove the listener from the one-time map after it has been invoked.
-      onceMap.delete(listener)
-
-      // Call the user-provided listener with the correct context (`WebSocketClient`) and the event.
-      return listener.call(this, event)
-    }
-
-    // Add the wrapped listener to the one-time listener map for tracking.
-    onceMap.set(listener, onceListener)
-
-    // If a WebSocket is currently active, register the listener with the WebSocket.
-    this.#websocket?.addEventListener(type, onceListener, { once: true })
-
-    // Return `this` to allow method chaining.
-    return this
-  }
-
-  /**
-   * Checks if an event listener is registered for a specific event.
-   * @param type The type of the event.
-   * @param listener The event listener function.
-   * @returns `true` if the listener is registered for the event; otherwise, `false`.
-   */
-  has<K extends keyof WebSocketEventMap>(
-    type: K,
-    listener: (this: WebSocket, event: WebSocketEventMap[K]) => unknown,
-  ): boolean {
-    return this.#always[type].has(listener) || this.#once[type].has(listener)
-  }
-
-  /**
-   * Removes an event listener for a specific event.
-   *
-   * @param type - The type of the event.
-   * @param listener - The event listener function.
-   * @returns The instance for method chaining.
-   */
-  remove<K extends keyof WebSocketEventMap>(
-    type: K,
-    listener: (this: WebSocket, event: WebSocketEventMap[K]) => unknown,
-  ): this {
-    // Retrieve the map of persistent ("always") listeners for the specified event type.
-    const alwaysMap = this.#always[type]
-
-    // Retrieve the map of one-time listeners for the specified event type.
-    const onceMap = this.#once[type]
-
-    // Check if the listener exists in the persistent listener map.
-    const alwaysListener = alwaysMap.get(listener)
-
-    // Check if the listener exists in the one-time listener map.
-    const onceListener = onceMap.get(listener)
-
-    // Remove the listener from the persistent listener map.
-    alwaysMap.delete(listener)
-
-    // Remove the listener from the one-time listener map.
-    onceMap.delete(listener)
-
-    // If the listener was in the persistent map, remove it from the WebSocket.
-    if (alwaysListener !== undefined) {
-      this.#websocket?.removeEventListener(type, alwaysListener)
-    }
-
-    // If the listener was in the one-time map, remove it from the WebSocket.
-    if (onceListener !== undefined) {
-      this.#websocket?.removeEventListener(type, onceListener)
-    }
-
-    // Return `this` to allow method chaining.
-    return this
-  }
-
-  /**
-   * Removes all event listeners from the instance.
-   *
-   * @returns The instance for method chaining.
-   */
-  removeAll(): this {
-    // Check if there is an active WebSocket instance.
-    if (this.#websocket !== undefined) {
-      // Iterate over all event types in the `#always` map (persistent listeners).
-      for (const key in this.#always) {
-        // Retrieve the map of persistent listeners for the current event type.
-        const alwaysMap = this.#always[key as 'open' | 'close' | 'error' | 'message']
-
-        // Remove all persistent listeners for the current event type from the WebSocket.
-        for (const alwaysListener of alwaysMap.values()) {
-          this.#websocket.removeEventListener(key, alwaysListener)
-        }
-      }
-
-      // Iterate over all event types in the `#once` map (one-time listeners).
-      for (const key in this.#once) {
-        // Retrieve the map of one-time listeners for the current event type.
-        const onceMap = this.#once[key as 'open' | 'close' | 'error' | 'message']
-
-        // Remove all one-time listeners for the current event type from the WebSocket.
-        for (const onceListener of onceMap.values()) {
-          this.#websocket.removeEventListener(key, onceListener)
-        }
-      }
-    }
-
-    // Clear all persistent listeners from the `#always` maps for all event types.
-    this.#always.open.clear()
-    this.#always.close.clear()
-    this.#always.error.clear()
-    this.#always.message.clear()
-
-    // Clear all one-time listeners from the `#once` maps for all event types.
-    this.#once.open.clear()
-    this.#once.close.clear()
-    this.#once.error.clear()
-    this.#once.message.clear()
-
-    // Return the current instance for method chaining.
-    return this
   }
 
   /**

@@ -1,7 +1,7 @@
 import { Timeout } from '../utils/timeout.ts'
 
 export interface WebSocketClientInactivityCallback {
-  (): unknown
+  (): void | Promise<void>
 }
 
 /**
