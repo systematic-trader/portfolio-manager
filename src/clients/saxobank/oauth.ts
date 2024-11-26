@@ -9,6 +9,7 @@ import {
   record,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { CallbackTarget } from '../../utils/callback-target.ts'
 import { stringifyJSON } from '../../utils/json.ts'
 import { urlJoin } from '../../utils/url.ts'
 import { type HTTPClient, HTTPClientError, HTTPClientRequestAbortError } from '../http-client.ts'
@@ -37,14 +38,9 @@ export interface SaxoBankOpenAuthenticationSettings {
   }
 }
 
-export interface SaxoBankOpenAuthenticationCallback {
-  (accessToken: string): void | Promise<void>
-}
-
-export class SaxoBankOpenAuthentication {
+export class SaxoBankOpenAuthentication extends CallbackTarget<{ accessToken: [accessToken: string] }> {
   readonly #httpClient: HTTPClient
   readonly #settings: SaxoBankOpenAuthenticationSettings
-  readonly #accessTokenCallbacks = new Set<SaxoBankOpenAuthenticationCallback>()
 
   #writeFilePromise: Promise<void>
   #session: undefined | SaxoBankOAuthSession
@@ -58,6 +54,8 @@ export class SaxoBankOpenAuthentication {
   }
 
   constructor(client: HTTPClient, settings: SaxoBankOpenAuthenticationSettings) {
+    super()
+
     this.#httpClient = client
     this.#settings = settings
     this.#writeFilePromise = Promise.resolve()
@@ -78,28 +76,6 @@ export class SaxoBankOpenAuthentication {
 
       this.#session = session
     }
-  }
-
-  #invokeAccessTokenCallbacks(accessToken: string) {
-    if (this.#accessTokenCallbacks.size === 0) {
-      return
-    }
-
-    for (const callback of this.#accessTokenCallbacks) {
-      queueMicrotask(() => callback(accessToken))
-    }
-  }
-
-  add(callback: SaxoBankOpenAuthenticationCallback): void {
-    this.#accessTokenCallbacks.add(callback)
-  }
-
-  remove(callback: SaxoBankOpenAuthenticationCallback): void {
-    this.#accessTokenCallbacks.delete(callback)
-  }
-
-  removeAll(): void {
-    this.#accessTokenCallbacks.clear()
   }
 
   async refresh(signal?: undefined | AbortSignal): Promise<boolean> {
@@ -137,7 +113,7 @@ export class SaxoBankOpenAuthentication {
 
     await this.#writeFilePromise
 
-    this.#invokeAccessTokenCallbacks(refreshedSession.accessToken)
+    this.emit('accessToken', refreshedSession.accessToken)
 
     return true
   }
@@ -240,7 +216,7 @@ export class SaxoBankOpenAuthentication {
 
     await this.#writeFilePromise
 
-    this.#invokeAccessTokenCallbacks(newSession.accessToken)
+    this.emit('accessToken', newSession.accessToken)
 
     return true
   }
