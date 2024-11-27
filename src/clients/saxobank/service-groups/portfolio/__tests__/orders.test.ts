@@ -54,7 +54,7 @@ describe('portfolio/orders', () => {
               let count = 0
               for await (const instrument of instruments) {
                 await step(`${instrument.Description} (UIC ${instrument.Uic})`, async () => {
-                  const placeOrderResponse = await appSimulation.trade.orders.post({
+                  const placeOrderResponse = await appSimulation.trading.orders.post({
                     AssetType: assetType,
                     Amount: calculateMinimumTradeSize(instrument),
                     BuySell: 'Buy',
