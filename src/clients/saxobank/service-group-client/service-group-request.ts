@@ -164,7 +164,7 @@ export abstract class ServiceGroupRequest<T> {
     const headers = this.#createJSONHeaders()
 
     if (this.#guard === undefined) {
-      await this.#client.post(url, {
+      await this.#client.postOk(url, {
         body: stringifyJSON(body),
         headers,
         onError: this.#onError,
@@ -193,7 +193,7 @@ export abstract class ServiceGroupRequest<T> {
     const headers = this.#createJSONHeaders()
 
     if (this.#guard === undefined) {
-      await this.#client.put(url, {
+      await this.#client.putOk(url, {
         body: stringifyJSON(body),
         headers,
         onError: this.#onError,
@@ -219,7 +219,7 @@ export abstract class ServiceGroupRequest<T> {
     const url = this.#createFullURL()
 
     if (this.#guard === undefined) {
-      await this.#client.delete(url, {
+      await this.#client.deleteOk(url, {
         headers: this.#headers,
         onError: this.#onError,
         signal: this.#signal,
