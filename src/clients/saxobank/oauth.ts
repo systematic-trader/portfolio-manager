@@ -11,6 +11,7 @@ import {
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { CallbackTarget } from '../../utils/callback-target.ts'
 import { stringifyJSON } from '../../utils/json.ts'
+import { PromiseQueue } from '../../utils/promise-queue.ts'
 import { urlJoin } from '../../utils/url.ts'
 import { type HTTPClient, HTTPClientError, HTTPClientRequestAbortError } from '../http-client.ts'
 import { SaxoBankApplicationConfig, type SaxoBankApplicationType } from './config.ts'
@@ -42,7 +43,7 @@ export class SaxoBankOpenAuthentication extends CallbackTarget<{ accessToken: [a
   readonly #httpClient: HTTPClient
   readonly #settings: SaxoBankOpenAuthenticationSettings
 
-  #writeFilePromise: Promise<void>
+  #promise: Promise<void>
   #session: undefined | SaxoBankOAuthSession
 
   get type(): SaxoBankApplicationType {
@@ -54,11 +55,15 @@ export class SaxoBankOpenAuthentication extends CallbackTarget<{ accessToken: [a
   }
 
   constructor(client: HTTPClient, settings: SaxoBankOpenAuthenticationSettings) {
-    super()
+    super(
+      new PromiseQueue((error) => {
+        this.#promise = this.#promise.then(() => Promise.reject(error))
+      }),
+    )
 
     this.#httpClient = client
     this.#settings = settings
-    this.#writeFilePromise = Promise.resolve()
+    this.#promise = Promise.resolve()
     this.#session = undefined
 
     if (this.#settings.storedSessionPath !== undefined) {
@@ -105,15 +110,16 @@ export class SaxoBankOpenAuthentication extends CallbackTarget<{ accessToken: [a
 
     this.#session = refreshedSession
 
-    this.#writeFilePromise = this.#writeFilePromise.then(async () => {
+    this.#promise = this.#promise.then(async () => {
       if (this.#settings.storedSessionPath !== undefined) {
         await writeToSessionsFile(this.#settings.storedSessionPath!, this.#settings.key, refreshedSession)
       }
     })
 
-    await this.#writeFilePromise
-
     this.emit('accessToken', refreshedSession.accessToken)
+
+    await this.drain()
+    await this.#promise
 
     return true
   }
@@ -208,15 +214,16 @@ export class SaxoBankOpenAuthentication extends CallbackTarget<{ accessToken: [a
 
     this.#session = newSession
 
-    this.#writeFilePromise = this.#writeFilePromise.then(async () => {
+    this.#promise = this.#promise.then(async () => {
       if (this.#settings.storedSessionPath !== undefined) {
         await writeToSessionsFile(this.#settings.storedSessionPath!, this.#settings.key, newSession)
       }
     })
 
-    await this.#writeFilePromise
-
     this.emit('accessToken', newSession.accessToken)
+
+    await this.drain()
+    await this.#promise
 
     return true
   }
