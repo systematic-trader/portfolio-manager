@@ -85,15 +85,15 @@ test('listener', async () => {
 
   const callback = () => {}
 
-  expect(websocket.has('message', callback)).toBe(false)
+  expect(websocket.hasListener('message', callback)).toBe(false)
 
-  websocket.add('message', callback)
+  websocket.addListener('message', callback)
 
-  expect(websocket.has('message', callback)).toBe(true)
+  expect(websocket.hasListener('message', callback)).toBe(true)
 
-  websocket.remove('message', callback)
+  websocket.removeListener('message', callback)
 
-  expect(websocket.has('message', callback)).toBe(false)
+  expect(websocket.hasListener('message', callback)).toBe(false)
 })
 
 describe(`URL ${ECHO_URL}`, () => {
@@ -202,8 +202,8 @@ describe(`URL ${ECHO_URL}`, () => {
 
       const { promise: eventPromise, reject, resolve } = Promise.withResolvers<Event>()
 
-      websocket.once('open', resolve)
-      websocket.once('error', reject)
+      websocket.addListener('open', resolve, { once: true })
+      websocket.addListener('error', reject, { once: true })
 
       await websocket.connect()
 
@@ -217,8 +217,8 @@ describe(`URL ${ECHO_URL}`, () => {
 
       const { promise: eventPromise, reject, resolve } = Promise.withResolvers<Event>()
 
-      websocket.once('close', resolve)
-      websocket.once('error', reject)
+      websocket.addListener('close', resolve, { once: true })
+      websocket.addListener('error', reject, { once: true })
 
       await websocket.connect()
       await websocket.close()
@@ -234,8 +234,8 @@ describe(`URL ${ECHO_URL}`, () => {
 
       const { promise: eventPromise, reject, resolve } = Promise.withResolvers<Event>()
 
-      websocket.once('message', resolve)
-      websocket.once('error', reject)
+      websocket.addListener('message', resolve, { once: true })
+      websocket.addListener('error', reject, { once: true })
 
       const message = 'Hello, WebSocket!'
 
@@ -253,8 +253,8 @@ describe(`URL ${ECHO_URL}`, () => {
 
       const { promise: eventPromise, reject, resolve } = Promise.withResolvers<Event>()
 
-      websocket.once('message', resolve)
-      websocket.once('error', reject)
+      websocket.addListener('message', resolve, { once: true })
+      websocket.addListener('error', reject, { once: true })
 
       websocket.send(INVALID_FRAME)
 

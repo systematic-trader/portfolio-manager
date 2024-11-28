@@ -73,10 +73,8 @@ type CallbackTargetMap = {
  * including reconnection logic, event handling, and inactivity timeout support.
  */
 export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implements AsyncDisposable {
-  readonly #queue = new PromiseQueue((error) => {
-    this.#close({ error })
-  })
-
+  readonly #queue: PromiseQueue
+  readonly #eventQueue: PromiseQueue
   readonly #inactivity = new WebSocketClientInactivityMonitor()
 
   #websocket: undefined | WebSocket = undefined
@@ -185,13 +183,22 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
     readonly url: string | URL
     readonly binaryType?: undefined | WebSocketClient['binaryType']
   }) {
-    super((error) => this.close({ error }))
+    const queue = new PromiseQueue(async (error) => {
+      await this.#close({ error })
+    })
 
+    const eventQueue = new PromiseQueue(queue.addError)
+
+    super(eventQueue)
+
+    this.#queue = queue
+    this.#eventQueue = eventQueue
     this.#url = typeof url === 'string' ? new URL(url) : url
     this.#binaryType = binaryType
 
     // deno-lint-ignore no-this-alias
     const self = this
+
     this.#state = {
       get status() {
         if (self.#error !== undefined) {
@@ -219,17 +226,11 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
 
         throw new WebSocketClientError(`Unknown WebSocket readyState: ${readyState}`)
       },
+
       get error() {
         return self.#error
       },
     } as WebSocketClient['state']
-  }
-
-  /**
-   * Cleans up resources and closes the WebSocket connection.
-   */
-  override [Symbol.asyncDispose](): Promise<void> {
-    return this.close()
   }
 
   async #connect(
@@ -351,10 +352,10 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
       // Activate the inactivity monitor for this WebSocket.
       WebSocketClientInactivityMonitor.open(this.#inactivity, websocket)
 
+      this.emit('open', event)
+
       // Resolve the promise to indicate successful connection.
       resolve()
-
-      this.emit('open', event)
     }
 
     // Listener to handle the WebSocket `close` event during the connection phase.
@@ -447,6 +448,13 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
 
     // Return `undefined` to indicate the WebSocket was successfully closed.
     return undefined
+  }
+
+  /**
+   * Cleans up resources and closes the WebSocket connection.
+   */
+  [Symbol.asyncDispose](): Promise<void> {
+    return this.close()
   }
 
   /**
@@ -545,6 +553,9 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
 
     // Wait for the PromiseQueue to finish processing the close operation.
     await this.#queue.drain()
+
+    // After the queue has drained, await any events occurred during the close operation.
+    await this.#eventQueue.drain()
 
     // After the queue has drained, check if any error occurred during the close operation.
     if (closeError !== undefined) {
