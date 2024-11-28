@@ -231,7 +231,7 @@ export class ServiceGroupClient {
     setSearchParams(url, options.searchParams)
 
     if (options.guard === undefined) {
-      await this.#client.post(url, {
+      await this.#client.postOk(url, {
         headers,
         body: stringifyJSON(options.body),
         onError: this.#onError,
@@ -280,7 +280,7 @@ export class ServiceGroupClient {
       }
 
     if (options.guard === undefined) {
-      await this.#client.put(url, {
+      await this.#client.putOk(url, {
         headers,
         body: stringifyJSON(options.body),
         onError: this.#onError,
@@ -315,7 +315,7 @@ export class ServiceGroupClient {
     setSearchParams(url, options.searchParams)
 
     if (options.guard === undefined) {
-      await this.#client.delete(url, {
+      await this.#client.deleteOk(url, {
         headers: options.headers,
         onError: this.#onError,
         timeout: options.timeout,
