@@ -7,13 +7,9 @@ const TimestampSet = {
   set: new Set<string>(),
 }
 
-const placeholder: string[] = new Array(4)
+const placeholder: string[] = new Array(4) // Pre-allocated reusable array for performance.
 
 function createId(prefix: string): string {
-  if (prefix === 'context') {
-    throw new Error('Prefix cannot be "context". It is reserved for the contextId')
-  }
-
   const now = Date.now()
 
   if (now !== TimestampSet.timestamp) {
@@ -21,30 +17,40 @@ function createId(prefix: string): string {
     TimestampSet.set.clear()
   }
 
-  let random: undefined | string = undefined
+  let uniqueSuffix: undefined | string = undefined
 
   while (true) {
     for (let i = 0; i < placeholder.length; i++) {
       placeholder[i] = LETTERS[Math.floor(Math.random() * LETTERS.length)]!
     }
 
-    random = placeholder.join('')
+    uniqueSuffix = placeholder.join('')
 
-    if (TimestampSet.set.has(random) === false) {
-      TimestampSet.set.add(random)
+    if (TimestampSet.set.has(uniqueSuffix) === false) {
+      TimestampSet.set.add(uniqueSuffix)
       break
     }
   }
 
-  const suffix = '-' + random + '-' + now.toString()
+  const suffix = '-' + uniqueSuffix + '-' + now
+  const fixedPrefix = prefix.toLowerCase().substring(0, MAX_LENGTH - suffix.length)
 
-  return prefix.toLowerCase().substring(0, MAX_LENGTH - suffix.length) + suffix
+  return fixedPrefix + suffix
 }
 
 export function createStreamContextId(): string {
   return createId('stream-ctx')
 }
 
-export function createStreamReferenceId(prefix: string): string {
-  return createId('stream-ref-' + prefix)
+export function createStreamReferenceId(
+  identifier: number | string,
+  ...identifiers: ReadonlyArray<number | string>
+): string {
+  let ident = String(identifier)
+
+  for (let i = 0; i < identifiers.length; i++) {
+    ident += '-' + identifiers[i]
+  }
+
+  return createId('stream-ref-' + ident)
 }
