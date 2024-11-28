@@ -211,20 +211,28 @@ export class PromiseQueue {
     this.#countUp()
 
     if (immediately === true) {
-      this.#queue = PROMISE_VOID
-        .then(callback)
-        .then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
-        .catch(
-          onError === undefined ? this.addError : async (error: unknown) => {
-            try {
-              await onError(ensureError(error))
-            } catch (callbackError) {
-              this.addError(ensureError(callbackError))
-            }
-          },
-        )
-        .finally(this.#countDown)
-        .then(() => this.#queue)
+      let result: undefined | Promise<unknown> = undefined
+
+      try {
+        result = Promise.resolve(callback())
+      } catch (error) {
+        result = Promise.reject(error)
+      }
+
+      this.#queue = Promise.all([
+        this.#queue,
+        result
+          .catch(
+            onError === undefined ? this.addError : async (error: unknown) => {
+              try {
+                await onError(ensureError(error))
+              } catch (callbackError) {
+                this.addError(ensureError(callbackError))
+              }
+            },
+          )
+          .finally(this.#countDown),
+      ]).then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
     } else {
       this.#queue = this.#queue
         .then(callback)
