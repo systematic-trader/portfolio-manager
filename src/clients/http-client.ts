@@ -133,6 +133,29 @@ export class HTTPClient {
     })
   }
 
+  async getOk(
+    url: string | URL,
+    {
+      headers,
+      signal,
+      timeout,
+      onError,
+    }: {
+      readonly headers?: undefined | HTTPClientHeaders
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+      readonly onError?: undefined | HTTPClientOnErrorHandler
+    } = {},
+  ): Promise<Response> {
+    return await fetchOkResponse(this, url, {
+      method: 'GET',
+      headers,
+      signal,
+      timeout,
+      onError,
+    })
+  }
+
   async getOkJSON<T = unknown>(
     url: string | URL,
     {
@@ -151,8 +174,7 @@ export class HTTPClient {
       readonly onError?: undefined | HTTPClientOnErrorHandler
     } = {},
   ): Promise<T> {
-    const response = await fetchOkResponse(this, url, {
-      method: 'GET',
+    const response = await this.getOk(url, {
       headers: mergeHeaders(
         { 'accept': 'application/json' },
         headers,
@@ -161,8 +183,6 @@ export class HTTPClient {
       timeout,
       onError,
     })
-
-    // console.log(response.headers)
 
     let body = await response?.json()
 
@@ -191,8 +211,7 @@ export class HTTPClient {
       readonly onError?: undefined | HTTPClientOnErrorHandler
     } = {},
   ): Promise<Blob> {
-    const response = await fetchOkResponse(this, url, {
-      method: 'GET',
+    const response = await this.getOk(url, {
       headers,
       signal,
       timeout,
@@ -218,8 +237,7 @@ export class HTTPClient {
       readonly onError?: undefined | HTTPClientOnErrorHandler
     } = {},
   ): Promise<string> {
-    const response = await fetchOkResponse(this, url, {
-      method: 'GET',
+    const response = await this.getOk(url, {
       headers,
       signal,
       timeout,
@@ -261,6 +279,32 @@ export class HTTPClient {
     })
   }
 
+  async postOk(
+    url: string | URL,
+    {
+      headers,
+      body,
+      signal,
+      timeout,
+      onError,
+    }: {
+      readonly headers?: undefined | HTTPClientHeaders
+      readonly body?: RequestInit['body']
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+      readonly onError?: undefined | HTTPClientOnErrorHandler
+    } = {},
+  ): Promise<Response> {
+    return await fetchOkResponse(this, url, {
+      method: 'POST',
+      headers,
+      signal,
+      timeout,
+      onError,
+      body,
+    })
+  }
+
   async postOkJSON<T = unknown>(
     url: string | URL,
     {
@@ -281,8 +325,7 @@ export class HTTPClient {
       readonly onError?: undefined | HTTPClientOnErrorHandler
     } = {},
   ): Promise<T> {
-    const response = await fetchOkResponse(this, url, {
-      method: 'POST',
+    const response = await this.postOk(url, {
       headers: mergeHeaders(
         {
           'accept': 'application/json',
@@ -339,6 +382,32 @@ export class HTTPClient {
     })
   }
 
+  async putOk(
+    url: string | URL,
+    {
+      headers,
+      body,
+      signal,
+      timeout,
+      onError,
+    }: {
+      readonly headers?: undefined | HTTPClientHeaders
+      readonly body?: RequestInit['body']
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+      readonly onError?: undefined | HTTPClientOnErrorHandler
+    } = {},
+  ): Promise<Response> {
+    return await fetchOkResponse(this, url, {
+      method: 'PUT',
+      headers,
+      signal,
+      timeout,
+      onError,
+      body,
+    })
+  }
+
   async putOkJSON<T = unknown>(
     url: string | URL,
     {
@@ -359,8 +428,7 @@ export class HTTPClient {
       readonly onError?: undefined | HTTPClientOnErrorHandler
     } = {},
   ): Promise<T> {
-    const response = await fetchOkResponse(this, url, {
-      method: 'PUT',
+    const response = await this.putOk(url, {
       headers: mergeHeaders(
         {
           'accept': 'application/json',
@@ -414,6 +482,29 @@ export class HTTPClient {
     })
   }
 
+  async deleteOk(
+    url: string | URL,
+    {
+      headers,
+      signal,
+      timeout,
+      onError,
+    }: {
+      readonly headers?: undefined | HTTPClientHeaders
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+      readonly onError?: undefined | HTTPClientOnErrorHandler
+    } = {},
+  ): Promise<Response> {
+    return await fetchOkResponse(this, url, {
+      method: 'DELETE',
+      headers,
+      signal,
+      timeout,
+      onError,
+    })
+  }
+
   async deleteOkJSON<T = unknown>(
     url: string | URL,
     {
@@ -432,8 +523,7 @@ export class HTTPClient {
       readonly onError?: undefined | HTTPClientOnErrorHandler
     } = {},
   ): Promise<T> {
-    const response = await fetchOkResponse(this, url, {
-      method: 'DELETE',
+    const response = await this.deleteOk(url, {
       headers: mergeHeaders(
         { 'accept': 'application/json' },
         headers,
