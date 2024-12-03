@@ -32,7 +32,7 @@ export const PositionStatic = props({
   Amount: number(),
 
   /** The AssetType */
-  AssetType: AssetType, // todo this probably determines which of the types are present
+  AssetType: AssetType,
 
   /** Indicates if the position may be closed */
   CanBeClosed: boolean(),
@@ -113,7 +113,7 @@ export const PositionStatic = props({
   SourceOrderId: optional(string()),
 
   /** The date on which settlement is to occur for an Fx spot transaction */
-  SpotDate: optional(string()), // todo e.g. 2021-05-21T00:00:00
+  SpotDate: optional(string()), // e.g. 2021-05-21T00:00:00
 
   /** SRD Last Trade Date */
   SrdLastTradeDate: optional(string({ format: 'date-iso8601' })),

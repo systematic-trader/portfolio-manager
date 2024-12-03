@@ -33,7 +33,7 @@ export const NetPositionStatic = props({
   AmountShort: number(),
 
   /** The AssetType */
-  AssetType: AssetType, // todo this probably determines which fields are present
+  AssetType: AssetType,
 
   /** Stock blocking Quantity */
   BlockedQuantity: optional(number()),

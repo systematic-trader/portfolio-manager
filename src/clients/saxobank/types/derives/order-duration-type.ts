@@ -14,7 +14,7 @@ export const OrderDurationType = enums([
   'FillOrKill',
 
   /** Good for Period */
-  'GoodForPeriod', // todo when is this used?
+  'GoodForPeriod',
 
   /** Good till Cancel */
   'GoodTillCancel',
