@@ -42,6 +42,68 @@ const Base = props({
   PriceValueType: optional(literal('AuctionPrice')),
 })
 
+// Both ask and bid are given
+export const QuoteKnown = Base.merge(props({
+  PriceTypeAsk: PriceQuality.extract(['Tradable', 'Indicative', 'OldIndicative']),
+  Ask: number(),
+  AskSize: number(),
+
+  PriceTypeBid: PriceQuality.extract(['Tradable', 'Indicative', 'OldIndicative']),
+  Bid: number(),
+  BidSize: number(),
+
+  Mid: number(),
+  MarketState: MarketState,
+}))
+export interface QuoteKnown extends GuardType<typeof QuoteKnown> {}
+
+// Ask is given, bid might not be given
+export const QuoteAskKnown = Base.merge(props({
+  PriceTypeAsk: PriceQuality.extract(['Tradable', 'Indicative', 'OldIndicative']),
+  Ask: number(),
+  AskSize: number(),
+
+  PriceTypeBid: PriceQuality.exclude(['Tradable', 'Indicative']),
+  Bid: optional(number()),
+  BidSize: optional(number()),
+
+  Mid: optional(number()),
+  MarketState: MarketState,
+}))
+export interface QuoteAskKnown extends GuardType<typeof QuoteAskKnown> {}
+
+// Bid is given, ask might not be given
+export const QuoteBidKnown = Base.merge(props({
+  PriceTypeAsk: PriceQuality.exclude(['Tradable', 'Indicative']),
+  Ask: optional(number()),
+  AskSize: optional(number()),
+
+  PriceTypeBid: PriceQuality.extract(['Tradable', 'Indicative', 'OldIndicative']),
+  Bid: number(),
+  BidSize: number(),
+
+  Mid: optional(number()),
+  MarketState: MarketState,
+}))
+export interface QuoteBidKnown extends GuardType<typeof QuoteBidKnown> {}
+
+// Neither ask nor bid may be given
+export const QuoteUnknown = Base.merge(props({
+  Amount: optional(Base.pluck('Amount')),
+
+  PriceTypeAsk: PriceQuality.exclude(['Tradable', 'Indicative']),
+  Ask: optional(number()),
+  AskSize: optional(number()),
+
+  PriceTypeBid: PriceQuality.exclude(['Tradable', 'Indicative']),
+  Bid: optional(number()),
+  BidSize: optional(number()),
+
+  Mid: optional(number()),
+  MarketState: optional(MarketState),
+}))
+export interface QuoteUnknown extends GuardType<typeof QuoteUnknown> {}
+
 /**
  * Additional information related to the instrument
  *
@@ -49,63 +111,10 @@ const Base = props({
  * This can mean no data, delayed data or real time data dependent on the callers subscription setup.
  */
 export const Quote = union([
-  // Both ask and bid are given
-  Base.merge(props({
-    PriceTypeAsk: PriceQuality.extract(['Tradable', 'Indicative', 'OldIndicative']),
-    Ask: number(),
-    AskSize: number(),
-
-    PriceTypeBid: PriceQuality.extract(['Tradable', 'Indicative', 'OldIndicative']),
-    Bid: number(),
-    BidSize: number(),
-
-    Mid: number(),
-    MarketState: MarketState,
-  })),
-
-  // Ask is given, bid might not be given
-  Base.merge(props({
-    PriceTypeAsk: PriceQuality.extract(['Tradable', 'Indicative', 'OldIndicative']),
-    Ask: number(),
-    AskSize: number(),
-
-    PriceTypeBid: PriceQuality.exclude(['Tradable', 'Indicative']),
-    Bid: optional(number()),
-    BidSize: optional(number()),
-
-    Mid: optional(number()),
-    MarketState: MarketState,
-  })),
-
-  // Bid is given, ask might not be given
-  Base.merge(props({
-    PriceTypeAsk: PriceQuality.exclude(['Tradable', 'Indicative']),
-    Ask: optional(number()),
-    AskSize: optional(number()),
-
-    PriceTypeBid: PriceQuality.extract(['Tradable', 'Indicative', 'OldIndicative']),
-    Bid: number(),
-    BidSize: number(),
-
-    Mid: optional(number()),
-    MarketState: MarketState,
-  })),
-
-  // Neither ask nor bid may be given
-  Base.merge(props({
-    Amount: optional(Base.pluck('Amount')),
-
-    PriceTypeAsk: PriceQuality.exclude(['Tradable', 'Indicative']),
-    Ask: optional(number()),
-    AskSize: optional(number()),
-
-    PriceTypeBid: PriceQuality.exclude(['Tradable', 'Indicative']),
-    Bid: optional(number()),
-    BidSize: optional(number()),
-
-    Mid: optional(number()),
-    MarketState: optional(MarketState),
-  })),
+  QuoteKnown,
+  QuoteAskKnown,
+  QuoteBidKnown,
+  QuoteUnknown,
 ])
 
 export type Quote = GuardType<typeof Quote>

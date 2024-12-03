@@ -1,4 +1,5 @@
 import {
+  array,
   assertReturn,
   enums,
   type GuardType,
@@ -10,21 +11,18 @@ import {
   props,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import type { InfoPriceGroupSpec } from '../../types/derives/info-price-group-spec.ts'
-import type { OrderAmountType } from '../../types/derives/order-amount-type.ts'
-
-import { extractKeys } from '../../../../utils/object.ts'
-import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
-import { PutCall } from '../../types/derives/put-call.ts'
-import { ToOpenClose } from '../../types/derives/to-open-close.ts'
-import { InfoPriceResponse } from '../../types/records/info-price-response.ts'
-import { List } from './info-prices/list.ts'
-import { Subscriptions } from './info-prices/subscriptions.ts'
+import { extractKeys } from '../../../../../utils/object.ts'
+import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
+import type { InfoPriceGroupSpec } from '../../../types/derives/info-price-group-spec.ts'
+import type { OrderAmountType } from '../../../types/derives/order-amount-type.ts'
+import { PutCall } from '../../../types/derives/put-call.ts'
+import { ToOpenClose } from '../../../types/derives/to-open-close.ts'
+import { InfoPriceResponse } from '../../../types/records/info-price-response.ts'
 
 const InfoPricesBaseParameters = props({
   AssetType: enums(extractKeys(InfoPriceResponse)),
   AccountKey: optional(string()),
-  Uic: integer(),
+  Uics: array(integer()),
   Amount: optional(number()),
   ToOpenClose: optional(ToOpenClose),
 })
@@ -265,27 +263,21 @@ export type InfoPricesParameters = {
   CfdOnRights: InfoPricesParametersCfdOnRights
 }
 
-export class InfoPrices {
+export class List {
   readonly #client: ServiceGroupClient
 
-  readonly subscriptions: Subscriptions
-  readonly list: List
-
   constructor({ client }: { readonly client: ServiceGroupClient }) {
-    this.#client = client.appendPath('v1/infoprices')
-
-    this.subscriptions = new Subscriptions({ client: this.#client })
-    this.list = new List({ client: this.#client })
+    this.#client = client.appendPath('list')
   }
 
-  async get<AssetType extends keyof InfoPriceResponse>(
+  async *get<AssetType extends keyof InfoPriceResponse>(
     parameters:
       & ({
         /** The instrument's asset type */
         readonly AssetType: AssetType
 
         /** Unique instrument identifier */
-        readonly Uic: InfoPricesBaseParameters['Uic']
+        readonly Uics: InfoPricesBaseParameters['Uics']
 
         /**
          * Unique key identifying the account used in retrieving the infoprice.
@@ -364,14 +356,8 @@ export class InfoPrices {
           readonly ForwardDateFarLeg: InfoPricesParameters['FxSwap']['ForwardDateFarLeg']
         }
         : object),
-  ): Promise<
-    InfoPriceResponse[AssetType]
-  >
-
-  async get(
-    parameters: InfoPriceResponse[keyof InfoPriceResponse],
     options: { readonly timeout?: undefined | number } = {},
-  ): Promise<InfoPriceResponse[keyof InfoPriceResponse]> {
+  ): AsyncGenerator<InfoPriceResponse[keyof InfoPriceResponse], void, undefined> {
     const AmountType: OrderAmountType = 'Quantity'
     const FieldGroups: readonly InfoPriceGroupSpec[] = [
       'Commissions',
@@ -393,123 +379,16 @@ export class InfoPrices {
       ...assertedParameters,
     }
 
-    const response = await this.#client.get<object>({
+    const infoPrices = this.#client.getPaginated<object>({
       searchParams,
       timeout: options.timeout,
     }).execute()
 
-    switch (parameters.AssetType) {
-      case 'Bond': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CfdOnIndex': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CompanyWarrant': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CfdOnCompanyWarrant': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'Stock': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CfdOnStock': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'StockIndexOption': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'StockOption': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'ContractFutures': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CfdOnFutures': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'Etc': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CfdOnEtc': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'Etf': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CfdOnEtf': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'Etn': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CfdOnEtn': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'Fund': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CfdOnFund': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'FuturesOption': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'FxForwards': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'FxNoTouchOption': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'FxOneTouchOption': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'FxSpot': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'FxSwap': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'FxVanillaOption': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'Rights': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      case 'CfdOnRights': {
-        return assertReturn(InfoPriceResponse[parameters.AssetType], response)
-      }
-
-      default: {
-        throw new Error('Unsupported asset type')
-      }
+    for await (const infoPrice of infoPrices) {
+      yield assertReturn(
+        InfoPriceResponse[parameters.AssetType] as ObjectGuard,
+        infoPrice,
+      ) as InfoPriceResponse[keyof InfoPriceResponse]
     }
   }
 }

@@ -1,7 +1,14 @@
 import { toArray } from '../../../../../utils/async-iterable.ts'
+import { extractEntries } from '../../../../../utils/object.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
+
+function filterOrderTypes<T extends string>(
+  candidate: T,
+): candidate is Exclude<T, 'TriggerBreakout' | 'TriggerLimit' | 'TriggerStop'> {
+  return ['TriggerBreakout', 'TriggerLimit', 'TriggerStop'].includes(candidate) === false
+}
 
 describe('portfolio/orders', () => {
   describe('simulation', () => {
@@ -10,12 +17,10 @@ describe('portfolio/orders', () => {
     })
 
     const {
-      // getPrice,
-      // roundPriceToInstrumentSpecification,
       findTradableInstruments,
-      resetSimulationAccount,
       getFirstAccount,
-      calculateMinimumTradeSize,
+      placeFavourableOrder,
+      resetSimulationAccount,
     } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
@@ -31,57 +36,92 @@ describe('portfolio/orders', () => {
       expect(orders).toHaveLength(0)
     })
 
-    test('response passes guard for different order types', async ({ step }) => {
+    test.only('response passes guard for different order types', async ({ step }) => {
       const { ClientKey } = await getFirstAccount()
-
       const limit = 5
 
-      const assetTypes = ['Stock'] as const // todo include more
+      const assetTypes = {
+        Bond: ['Long'],
+        CfdOnEtc: ['Long', 'Short'],
+        CfdOnEtf: ['Long', 'Short'],
+        CfdOnEtn: ['Long', 'Short'],
+        CfdOnFund: ['Long', 'Short'],
+        CfdOnFutures: ['Long', 'Short'],
+        CfdOnIndex: ['Long', 'Short'],
+        CfdOnStock: ['Long', 'Short'],
+        ContractFutures: ['Long', 'Short'],
+        Etc: ['Long'],
+        Etf: ['Long'],
+        Etn: ['Long'],
+        Fund: ['Long'],
+        FxForwards: ['Long', 'Short'],
+        FxSpot: ['Long', 'Short'],
+        Stock: ['Long'],
+      }
 
-      for (const assetType of assetTypes) {
+      for (const [assetType, tradeDirectionsToTest] of extractEntries(assetTypes)) {
         await step(assetType, async ({ step }) => {
-          const supportedOrderTypes = ['Market'] as const // todo include more
+          const tradeableInstruments = findTradableInstruments({
+            assetType,
+            // uics: [1351],
+            // supportedOrderTypes: ['Market', 'Limit', 'Stop', 'StopIfTraded'],
+            // supportedTradeDirections: ['Sell'],
+            sessions: ['Closed'], // using closed will make sure that our orders are not executed
+            limit,
+          })
 
-          for (const orderType of supportedOrderTypes) {
-            await step(orderType, async ({ step }) => {
-              const instruments = findTradableInstruments({
-                assetTypes: [assetType],
-                supportedOrderTypes: supportedOrderTypes,
-                sessions: ['Closed'], // using closed will make sure that our orders are not executed
-                limit,
-              })
+          let count = 0
 
-              let count = 0
-              for await (const instrument of instruments) {
-                await step(`${instrument.Description} (UIC ${instrument.Uic})`, async () => {
-                  const placeOrderResponse = await appSimulation.trading.orders.post({
-                    AssetType: assetType,
-                    Amount: calculateMinimumTradeSize(instrument),
-                    BuySell: 'Buy',
-                    ManualOrder: false,
-                    OrderType: orderType,
-                    OrderDuration: { DurationType: 'DayOrder' },
-                    ExternalReference: crypto.randomUUID(),
-                    Uic: instrument.Uic,
-                  })
-                  expect(placeOrderResponse).toBeDefined()
+          for await (const { instrument, quote, tradeDirections: supportedTradeDirections } of tradeableInstruments) {
+            const progres = `${count + 1}/${limit}`
+            await step(`${progres}: ${instrument.Description} (UIC ${instrument.Uic})`, async ({ step }) => {
+              const orderTypesToTest = instrument.SupportedOrderTypes.filter(filterOrderTypes)
 
-                  const orders = await toArray(appSimulation.portfolio.orders.get({
-                    ClientKey,
-                  }))
-                  expect(orders).toBeDefined()
-                  expect(orders).toHaveLength(1)
+              const tradeDirections = supportedTradeDirections.filter((tradeDirection) =>
+                tradeDirectionsToTest.includes(tradeDirection)
+              )
+              for (const tradeDirection of tradeDirections) {
+                await step(tradeDirection, async ({ step }) => {
+                  for (const orderType of orderTypesToTest) {
+                    await step(orderType, async () => {
+                      // Before we start, we should reset the simulation account, so we have no leftover orders
+                      await resetSimulationAccount()
 
-                  await resetSimulationAccount()
+                      // Then we place the order
+                      const placeOrderResponse = await placeFavourableOrder({
+                        instrument,
+                        orderType,
+                        buySell: tradeDirection === 'Long' ? 'Buy' : 'Sell',
+                        quote,
+                      })
+                      expect(placeOrderResponse).toBeDefined()
+
+                      const externalReference = placeOrderResponse.ExternalReference
+
+                      // After the order has been placed, we should be able to find it
+                      const orders = await toArray(appSimulation.portfolio.orders.get({
+                        ClientKey,
+                      }))
+
+                      expect(orders).toBeDefined()
+                      expect(orders).toHaveLength(1)
+
+                      const orderMatchingExternalReference = orders.find((candidate) =>
+                        candidate.ExternalReference === externalReference
+                      )
+                      expect(orderMatchingExternalReference).toBeDefined()
+                      expect(orderMatchingExternalReference?.AssetType).toStrictEqual(instrument.AssetType)
+                    })
+                  }
                 })
-
-                count++
-              }
-
-              if (count === 0) {
-                throw new Error('Failed to find any instruments to base the test on')
               }
             })
+
+            count++
+          }
+
+          if (count === 0) {
+            throw new Error('Failed to find any instruments to base the test on')
           }
         })
       }
