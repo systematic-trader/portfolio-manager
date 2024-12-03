@@ -22,7 +22,7 @@ export const ClosedPosition = props({
   Amount: number(),
 
   /** The AssetType */
-  AssetType: AssetType, // todo this probabilly determines if other fields are present - the guard should reflect this
+  AssetType: AssetType,
 
   /** Closing direction - Buy or Sell */
   BuyOrSell: BuySell,

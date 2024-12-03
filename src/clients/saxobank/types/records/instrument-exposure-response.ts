@@ -19,7 +19,6 @@ export const InstrumentExposureResponse = props({
   Amount: number(),
 
   /** The AssetType */
-  // todo this is probably a union type - looks like it's most relevant for options and fx forwards
   AssetType: AssetType,
 
   /** The average price of all the positions that make up the exposure */

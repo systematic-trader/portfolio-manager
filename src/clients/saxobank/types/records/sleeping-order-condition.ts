@@ -29,7 +29,7 @@ export const SleepingOrderCondition = props({
   Amount: number(),
 
   /** The instrument asset type. */
-  AssetType: AssetType, // todo this probably determines which of the types are present
+  AssetType: AssetType,
 
   /** Used for conditional BreakoutTrigger orders. Lower trigger price. If the instrument price falls below this level, a stop loss order will be activated. */
   BreakoutTriggerDownPrice: number(),
