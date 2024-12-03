@@ -1,5 +1,6 @@
 import {
   type GuardType,
+  optional,
   props,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
@@ -11,12 +12,6 @@ export const Order = props({
   /** Id of order */
   OrderId: string(),
 
-  /**
-   * Unique identifier for the multi-leg order.
-   * Same for all legs.
-   */
-  MultiLegOrderId: string(),
-
   /** Contains error info when cancel of order failed */
-  ErrorInfo: StringErrorResponse,
+  ErrorInfo: optional(StringErrorResponse),
 })

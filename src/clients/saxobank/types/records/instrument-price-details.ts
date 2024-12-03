@@ -189,4 +189,10 @@ export const InstrumentPriceDetails = props({
 
   /** Not documented */
   NearLegMidPrice: number(),
+
+  /** Not documented */
+  AskPricePerContract: number(),
+
+  /** Not documented */
+  BidPricePerContract: number(),
 })

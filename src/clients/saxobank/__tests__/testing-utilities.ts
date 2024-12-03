@@ -2,10 +2,11 @@ import { toArray } from '../../../utils/async-iterable.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
 import type {
-  PlaceOrderParametersEntryWithNoRelatedOrders,
-  PlaceOrderResponse,
+  PlaceOrderResponseEntryWithNoRelatedOrders,
+  SupportedPlacableOrderTypes,
 } from '../service-groups/trading/orders.ts'
 import type { AssetType } from '../types/derives/asset-type.ts'
+import type { BuySell } from '../types/derives/buy-sell.ts'
 import type { InstrumentSessionState } from '../types/derives/instrument-session-state.ts'
 import type { PlaceableOrderType } from '../types/derives/placeable-order-type.ts'
 import type { AccountResponse } from '../types/records/account-response.ts'
@@ -17,6 +18,7 @@ import type {
   InstrumentDetailsStock,
   InstrumentDetailsUnion,
 } from '../types/records/instrument-details.ts'
+import { QuoteKnown } from '../types/records/quote.ts'
 import type { TickSizeScheme } from '../types/records/tick-size-scheme.ts'
 
 const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
@@ -43,6 +45,11 @@ export class TestingUtilities {
     this.findTradableInstruments = this.findTradableInstruments.bind(this)
     this.getPrice = this.getPrice.bind(this)
     this.roundPriceToInstrumentSpecification = this.roundPriceToInstrumentSpecification.bind(this)
+    this.roundPriceToTickSize = this.roundPriceToTickSize.bind(this)
+    this.roundPriceToTickScheme = this.roundPriceToTickScheme.bind(this)
+    this.calculateMinimumTradeSize = this.calculateMinimumTradeSize.bind(this)
+    this.calculateFavourableOrderPrice = this.calculateFavourableOrderPrice.bind(this)
+    this.placeFavourableOrder = this.placeFavourableOrder.bind(this)
   }
 
   #clientCached: Promise<ClientResponse> | undefined
@@ -86,7 +93,7 @@ export class TestingUtilities {
     /**
      * The balance to reset the account to.
      * Must be within the range of 0 to 10,000,000.
-     * The default is 50,000.
+     * The default is 1,000,000.
      */
     readonly balance?: undefined | number
   } = {}): Promise<void> {
@@ -204,22 +211,73 @@ export class TestingUtilities {
    * Find tradable instruments for the given asset types, based on reference data.
    * Instruments that are explicitly marked as non-tradable will be excluded (either by `IsTradable` or `NonTradableReason`).
    */
-  async *findTradableInstruments<T extends AssetType>({
-    app: appOverride,
-    assetTypes,
-    uics,
-    sessions,
-    limit,
-    supportedOrderTypes,
-  }: {
+  findTradableInstruments<
+    AssetType extends
+      | 'Etn'
+      | 'Stock'
+      | 'StockIndex'
+      | 'Bond'
+      | 'CfdOnCompanyWarrant'
+      | 'CfdOnEtc'
+      | 'CfdOnEtf'
+      | 'CfdOnEtn'
+      | 'CfdOnFund'
+      | 'CfdOnFutures'
+      | 'CfdOnIndex'
+      | 'CfdOnRights'
+      | 'CfdOnStock'
+      | 'CompanyWarrant'
+      | 'ContractFutures'
+      | 'Etc'
+      | 'Etf'
+      | 'Fund'
+      | 'FxForwards'
+      | 'FxNoTouchOption'
+      | 'FxOneTouchOption'
+      | 'FxSpot'
+      | 'FxSwap'
+      | 'FxVanillaOption'
+      | 'Rights',
+  >(parameters: {
     readonly app?: undefined | SaxoBankApplication
-    readonly assetTypes: readonly [T, ...readonly T[]]
+    readonly assetType: AssetType
     readonly uics?: undefined | readonly number[]
     readonly sessions?: undefined | readonly InstrumentSessionState[]
     readonly limit?: undefined | number
     readonly supportedOrderTypes?: undefined | readonly PlaceableOrderType[]
+    readonly supportedTradeDirections?: undefined | readonly ('Long' | 'Short')[]
   }): AsyncGenerator<
-    Extract<InstrumentDetailsUnion, { readonly AssetType: T }>,
+    {
+      readonly instrument: Extract<InstrumentDetailsUnion, { readonly AssetType: AssetType }>
+      readonly quote: QuoteKnown
+      readonly tradeDirections: readonly ['Long'] | readonly ['Long', 'Short']
+    },
+    void,
+    undefined
+  >
+
+  async *findTradableInstruments({
+    app: appOverride,
+    assetType,
+    uics,
+    sessions,
+    limit,
+    supportedOrderTypes,
+    supportedTradeDirections,
+  }: {
+    readonly app?: undefined | SaxoBankApplication
+    readonly assetType: AssetType & keyof InfoPriceResponse
+    readonly uics?: undefined | readonly number[]
+    readonly sessions?: undefined | readonly InstrumentSessionState[]
+    readonly limit?: undefined | number
+    readonly supportedOrderTypes?: undefined | readonly PlaceableOrderType[]
+    readonly supportedTradeDirections?: undefined | readonly ('Long' | 'Short')[]
+  }): AsyncGenerator<
+    {
+      readonly instrument: InstrumentDetailsUnion
+      readonly quote: QuoteKnown
+      readonly tradeDirections: readonly ['Long'] | readonly ['Long', 'Short']
+    },
     void,
     undefined
   > {
@@ -230,7 +288,7 @@ export class TestingUtilities {
     const app = appOverride ?? this.#app
 
     const instruments = app.referenceData.instruments.details.get({
-      AssetTypes: assetTypes,
+      AssetTypes: [assetType],
       Uics: uics,
     })
 
@@ -238,13 +296,20 @@ export class TestingUtilities {
     for await (const instrument of instruments) {
       const now = new Date().toISOString()
       const supportedOrderTypesSet = new Set(supportedOrderTypes)
+      const supportedTradeDirectionsSet = new Set(supportedTradeDirections)
 
       // Filter out any instruments that are not tradable
+      // From talking to the Saxobank support, I've learned that "tradability" is twofold:
+      // 1. The property "IsTradable" indicates whether the instrument is tradable for us specifically.
+      // 2. The properties "TradingStatus" and "NonTradableReason" indicates wheather the instrument is tradable in general.
       if ('IsTradable' in instrument && instrument.IsTradable === false) {
-        continue
+        continue // We, specifically, are not allowed to trade this instrument
       }
-      if ('NonTradableReason' in instrument && ['None'].includes(instrument.NonTradableReason) === false) {
-        continue
+      if (
+        'TradingStatus' in instrument && ['Tradable'].includes(instrument.TradingStatus) === false ||
+        'NonTradableReason' in instrument && ['None'].includes(instrument.NonTradableReason) === false
+      ) {
+        continue // The instrument is not tradable in general - please note that we also filter out any reduce-only positions, since it would be pretty hard to acquire them in a test
       }
 
       // Filter out any instruments, where the market is not in the specified session (e.g. open)
@@ -273,7 +338,36 @@ export class TestingUtilities {
         }
       }
 
-      yield instrument
+      // todo use info prices list instead (collect a few uics, fetch the info prices and then yield them)
+      const infoPrice = await app.trading.infoPrices.get({
+        AssetType: instrument.AssetType,
+        Uic: instrument.Uic,
+      })
+
+      if (QuoteKnown.accept(infoPrice.Quote) === false) {
+        continue
+      }
+
+      // Some instruments have short selling disabled
+      // This information is available through the prices or info prices endpoint. It does not seem to be available directly on the instrument details.
+      // When placing a sell-order on an instrument that does not support short selling, the API will return an error.
+      // It seems that going long is always enabled, if the instrument is tradable.
+      const tradeDirections = (infoPrice.InstrumentPriceDetails?.ShortTradeDisabled === true)
+        ? ['Long'] as const
+        : ['Long', 'Short'] as const
+
+      // Filter any instruments that do not support the specified trade directions
+      if (supportedTradeDirectionsSet.size > 0) {
+        if (tradeDirections.every((tradeDirection) => supportedTradeDirectionsSet.has(tradeDirection) === false)) {
+          continue // instrument does not support any of the specified order types
+        }
+      }
+
+      yield {
+        instrument,
+        quote: infoPrice.Quote,
+        tradeDirections,
+      }
 
       if (++count === limit) {
         break
@@ -333,28 +427,161 @@ export class TestingUtilities {
     }
   }
 
+  calculateFavourableOrderPrice(options: {
+    readonly instrument: InstrumentDetailsUnion
+    readonly quote: QuoteKnown
+    readonly orderType: Extract<
+      SupportedPlacableOrderTypes,
+      | 'Limit'
+      | 'Stop'
+      | 'StopIfTraded'
+      | 'TrailingStop'
+      | 'TrailingStopIfTraded'
+    >
+    readonly buySell: BuySell
+    readonly tolerance?: undefined | number
+  }): {
+    readonly orderPrice: number
+    readonly stopLimitPrice?: never
+    readonly tickSize?: undefined | number
+  }
+
+  calculateFavourableOrderPrice(options: {
+    readonly instrument: InstrumentDetailsUnion
+    readonly quote: QuoteKnown
+    readonly orderType: Extract<SupportedPlacableOrderTypes, 'StopLimit'>
+    readonly buySell: BuySell
+    readonly tolerance?: undefined | number
+  }): {
+    readonly orderPrice: number
+    readonly stopLimitPrice: number
+    readonly tickSize?: undefined | number
+  }
+
+  calculateFavourableOrderPrice({
+    instrument,
+    quote,
+    orderType,
+    buySell,
+    tolerance = 0.01, // todo can this be based on something from the instrument details?
+  }: {
+    readonly instrument: InstrumentDetailsUnion
+    readonly quote: QuoteKnown
+    readonly orderType: Extract<
+      SupportedPlacableOrderTypes,
+      | 'Limit'
+      | 'Stop'
+      | 'StopIfTraded'
+      | 'TrailingStop'
+      | 'TrailingStopIfTraded'
+      | 'StopLimit'
+    >
+    readonly buySell: BuySell
+    readonly tolerance?: undefined | number
+  }): {
+    readonly orderPrice: number
+    readonly stopLimitPrice?: never
+    readonly tickSize?: undefined | number
+  } | {
+    readonly orderPrice: number
+    readonly stopLimitPrice: number
+    readonly tickSize?: undefined | number
+  } {
+    switch (orderType) {
+      case 'Limit': {
+        const base = buySell === 'Buy' ? quote.Bid : quote.Ask
+        const multiplier = buySell === 'Buy' ? (1 - tolerance) : (1 + tolerance)
+
+        const { price: orderPrice, tickSize } = this.roundPriceToInstrumentSpecification({
+          price: base * multiplier,
+          instrument,
+        })
+
+        return { orderPrice, tickSize }
+      }
+
+      case 'Stop':
+      case 'StopIfTraded':
+      case 'TrailingStop':
+      case 'TrailingStopIfTraded': {
+        const base = buySell === 'Buy' ? quote.Ask : quote.Bid
+        const multiplier = buySell === 'Buy' ? (1 + tolerance) : (1 - tolerance)
+
+        const { price: orderPrice, tickSize } = this.roundPriceToInstrumentSpecification({
+          price: base * multiplier,
+          instrument,
+        })
+
+        return { orderPrice, tickSize }
+      }
+
+      case 'StopLimit': {
+        const base = buySell === 'Buy' ? quote.Ask : quote.Bid
+        const multiplier = buySell === 'Buy' ? (1 + tolerance) : (1 - tolerance)
+
+        const { price: orderPrice, tickSize } = this.roundPriceToInstrumentSpecification({
+          price: base * multiplier,
+          instrument,
+        })
+
+        const { price: stopLimitPrice } = this.roundPriceToInstrumentSpecification({
+          price: base * (multiplier ** 2),
+          instrument,
+        })
+
+        return { orderPrice, stopLimitPrice, tickSize }
+      }
+
+      default: {
+        throw new TypeError('Unknown order type')
+      }
+    }
+  }
+
+  roundPriceToDecimals({ price, decimals }: {
+    readonly price: number
+    readonly decimals: number
+  }): number {
+    const multiplier = 10 ** decimals
+    return Math.round(price * multiplier) / multiplier
+  }
+
   roundPriceToTickSize({
     price,
     tickSize,
   }: {
     readonly price: number
     readonly tickSize: number
-  }): number {
-    return Math.round(price / tickSize) * tickSize
+  }): {
+    readonly price: number
+    readonly tickSize: number
+  } {
+    // Calculate the precision based on the tick size
+    const precision = Math.ceil(-Math.log10(tickSize))
+    const roundedPrice = Math.round((price + Number.EPSILON) / tickSize) * tickSize
+
+    // Fix the precision to avoid floating-point artifacts
+    return {
+      price: parseFloat(roundedPrice.toFixed(precision)),
+      tickSize,
+    }
   }
 
-  roundPriceToTickScheme({
-    price,
-    tickSizeScheme,
-  }: {
+  roundPriceToTickScheme({ price, tickSizeScheme }: {
     readonly price: number
     readonly tickSizeScheme: TickSizeScheme
-  }): number {
+  }): {
+    readonly price: number
+    readonly tickSize: number
+  } {
     if (tickSizeScheme.Elements === undefined) {
-      return tickSizeScheme.DefaultTickSize
+      return this.roundPriceToTickSize({
+        price,
+        tickSize: tickSizeScheme.DefaultTickSize,
+      })
     }
 
-    const tickSizesSorted = [...tickSizeScheme.Elements].sort((left, right) => right.HighPrice - left.HighPrice)
+    const tickSizesSorted = [...tickSizeScheme.Elements].sort((left, right) => left.HighPrice - right.HighPrice)
     const firstMatchingTickSize = tickSizesSorted.find((element) => price < element.HighPrice)
     const tickSize = firstMatchingTickSize?.TickSize ?? tickSizeScheme.DefaultTickSize
 
@@ -369,10 +596,13 @@ export class TestingUtilities {
     instrument,
   }: {
     readonly price: number
-    readonly instrument: InstrumentDetailsStock
-  }): number {
+    readonly instrument: InstrumentDetailsUnion
+  }): {
+    readonly price: number
+    readonly tickSize?: undefined | number
+  } {
     // Firstly, use the tick size scheme, if provided
-    if (instrument.TickSizeScheme !== undefined) {
+    if ('TickSizeScheme' in instrument && instrument.TickSizeScheme !== undefined) {
       return this.roundPriceToTickScheme({
         price,
         tickSizeScheme: instrument.TickSizeScheme,
@@ -381,13 +611,23 @@ export class TestingUtilities {
 
     // Otherwise use the fixed tick size
     if (instrument.TickSize !== undefined) {
-      this.roundPriceToTickSize({
+      return this.roundPriceToTickSize({
         price,
         tickSize: instrument.TickSize,
       })
     }
 
-    return price
+    // If neither is provided, the price should be rounded to the instrument's number of decimals
+    return {
+      price: this.roundPriceToDecimals({
+        price,
+
+        // A price is always denoted in the the number of decimals supported by the instrument.
+        // The number of decimals can be found on the instrument data looked up in the Reference Data.
+        // However for certain Fx crosses the number is one higher if the format has the flag AllowDecimalPips.
+        decimals: instrument.Format.Decimals + (instrument.Format.Format === 'AllowDecimalPips' ? 1 : 0),
+      }),
+    }
   }
 
   async getPrice(parameters: {
@@ -441,84 +681,241 @@ export class TestingUtilities {
     }
   }
 
-  // todo rename - we just need an easy way of placing orders for different order types
-  async placeDayOrder<
-    AssetType extends Exclude<
-      PlaceOrderParametersEntryWithNoRelatedOrders['AssetType'],
-      'StockIndexOption' | 'StockOption' | 'FuturesOption'
-    >,
-    Instrument extends InstrumentDetails[AssetType],
-  >(parameters: {
+  async placeFavourableOrder({
+    app: appOverride,
+    instrument,
+    orderType,
+    buySell,
+    quote,
+  }: {
     readonly app?: undefined | SaxoBankApplication
-    readonly instrument: Instrument // todo add support for options
-    readonly orderType: never
-  }): Promise<PlaceOrderResponse> {
-    const app = parameters.app ?? this.#app
+    readonly instrument: InstrumentDetailsUnion
+    readonly orderType: SupportedPlacableOrderTypes
+    readonly buySell: BuySell
+    readonly quote: QuoteKnown
+  }): Promise<PlaceOrderResponseEntryWithNoRelatedOrders> {
+    const app = appOverride ?? this.#app
 
-    const amount = this.calculateMinimumTradeSize(parameters.instrument)
+    const amount = this.calculateMinimumTradeSize(instrument)
+    const externalReference = crypto.randomUUID() // todo move and re-implement this in saxobank-random.ts
 
-    switch (parameters.instrument.AssetType) {
-      case 'FxForwards': {
-        const [forwardDate] = await toArray(app.referenceData.standarddates.forwardTenor.get({
-          Uic: parameters.instrument.Uic,
-        }))
-
-        if (forwardDate === undefined) {
-          throw new Error(
-            `Could not determine forward date for ${parameters.instrument.AssetType} (UIC ${parameters.instrument.Uic})`,
-          )
-        }
-
-        return await app.trading.orders.post({
-          AssetType: 'FxForwards',
-          ForwardDate: forwardDate.Date,
-          Amount: amount,
-          BuySell: 'Buy',
-          ManualOrder: false,
-          OrderType: 'Market', // todo parameter
-          OrderDuration: { DurationType: 'ImmediateOrCancel' },
-          ExternalReference: crypto.randomUUID(),
-          Uic: parameters.instrument.Uic,
-        })
-      }
-
+    switch (instrument.AssetType) {
       case 'Bond':
+      case 'CfdOnEtc':
+      case 'CfdOnEtf':
+      case 'CfdOnEtn':
+      case 'CfdOnFund':
+      case 'CfdOnFutures':
       case 'CfdOnIndex':
-      case 'CompanyWarrant':
-      case 'CfdOnCompanyWarrant':
-      case 'Stock':
       case 'CfdOnStock':
       case 'ContractFutures':
-      case 'CfdOnFutures':
       case 'Etc':
-      case 'CfdOnEtc':
       case 'Etf':
-      case 'CfdOnEtf':
       case 'Etn':
-      case 'CfdOnEtn':
       case 'Fund':
-      case 'CfdOnFund':
-      case 'FxNoTouchOption':
-      case 'FxOneTouchOption':
       case 'FxSpot':
-      case 'FxSwap':
-      case 'FxVanillaOption':
-      case 'Rights':
-      case 'CfdOnRights': {
-        return await app.trading.orders.post({
-          AssetType: parameters.instrument.AssetType,
-          Amount: amount,
-          BuySell: 'Buy',
-          ManualOrder: false,
-          OrderType: 'Market', // todo parameter
-          OrderDuration: { DurationType: 'DayOrder' },
-          ExternalReference: crypto.randomUUID(),
-          Uic: parameters.instrument.Uic,
-        })
+      case 'Stock': {
+        switch (orderType) {
+          case 'Market': {
+            return await app.trading.orders.post({
+              AssetType: instrument.AssetType,
+              Amount: amount,
+              BuySell: buySell,
+              ManualOrder: false,
+              OrderType: orderType,
+              OrderDuration: { DurationType: 'DayOrder' },
+              ExternalReference: externalReference,
+              Uic: instrument.Uic,
+            })
+          }
+
+          case 'Stop':
+          case 'StopIfTraded':
+          case 'Limit': {
+            const { orderPrice } = this.calculateFavourableOrderPrice({
+              buySell: buySell,
+              instrument,
+              orderType,
+              quote,
+            })
+
+            return await app.trading.orders.post({
+              AssetType: instrument.AssetType,
+              Amount: amount,
+              BuySell: buySell,
+              ManualOrder: false,
+              OrderType: orderType,
+              OrderPrice: orderPrice,
+              OrderDuration: { DurationType: 'DayOrder' },
+              ExternalReference: externalReference,
+              Uic: instrument.Uic,
+            })
+          }
+
+          case 'TrailingStop':
+          case 'TrailingStopIfTraded': {
+            const { orderPrice, tickSize } = this.calculateFavourableOrderPrice({
+              buySell: buySell,
+              instrument,
+              orderType,
+              quote,
+            })
+
+            return await app.trading.orders.post({
+              AssetType: instrument.AssetType,
+              Amount: amount,
+              BuySell: buySell,
+              ManualOrder: false,
+              OrderType: orderType,
+              OrderPrice: orderPrice,
+              OrderDuration: { DurationType: 'DayOrder' },
+              ExternalReference: externalReference,
+              Uic: instrument.Uic,
+              TrailingStopStep: tickSize ?? 1,
+              TrailingStopDistanceToMarket: tickSize ?? 1,
+            })
+          }
+
+          case 'StopLimit': {
+            const { orderPrice, stopLimitPrice } = this.calculateFavourableOrderPrice({
+              buySell: buySell,
+              instrument,
+              orderType,
+              quote,
+            })
+
+            return await app.trading.orders.post({
+              AssetType: instrument.AssetType,
+              Amount: amount,
+              BuySell: buySell,
+              ManualOrder: false,
+              OrderType: orderType,
+              OrderPrice: orderPrice,
+              StopLimitPrice: stopLimitPrice,
+              OrderDuration: { DurationType: 'DayOrder' },
+              ExternalReference: externalReference,
+              Uic: instrument.Uic,
+            })
+          }
+
+          default: {
+            throw new Error(`Unsupported order type for asset type ${instrument.AssetType}`)
+          }
+        }
+
+        // @ts-expect-error -- this code is unreachable, but if we don't include this break, Deno will complain about fall-throughs
+        break
+      }
+
+      case 'FxForwards': {
+        const forwardDates = await toArray(app.referenceData.standarddates.forwardTenor.get({
+          Uic: instrument.Uic,
+        }))
+
+        // It seems that the first date is not always valid
+        // Forinstance on 2024-12-03, the first standard date is 2024-12-05, but when placing orders for the 5th, an error response is returned
+        // I've contacted Saxo support regarding this - and until I get a response, we will just use the second earliest date
+        const [_, earliestForwardStandardDate] = forwardDates.sort((left, right) => left.Date.localeCompare(right.Date))
+        if (earliestForwardStandardDate === undefined) {
+          throw new Error('Could not determine forward date')
+        }
+
+        const forwardDate = earliestForwardStandardDate.Date
+
+        switch (orderType) {
+          case 'Market': {
+            return await app.trading.orders.post({
+              AssetType: instrument.AssetType,
+              ForwardDate: forwardDate,
+              Amount: amount,
+              BuySell: buySell,
+              ManualOrder: false,
+              OrderType: orderType,
+              OrderDuration: { DurationType: 'ImmediateOrCancel' },
+              ExternalReference: externalReference,
+              Uic: instrument.Uic,
+            })
+          }
+
+          case 'Stop':
+          case 'StopIfTraded':
+          case 'Limit': {
+            const { orderPrice } = this.calculateFavourableOrderPrice({
+              buySell: buySell,
+              instrument,
+              orderType,
+              quote,
+            })
+
+            return await app.trading.orders.post({
+              AssetType: instrument.AssetType,
+              ForwardDate: forwardDate,
+              Amount: amount,
+              BuySell: buySell,
+              ManualOrder: false,
+              OrderType: orderType,
+              OrderPrice: orderPrice,
+              OrderDuration: { DurationType: 'ImmediateOrCancel' },
+              ExternalReference: externalReference,
+              Uic: instrument.Uic,
+            })
+          }
+
+          case 'TrailingStop':
+          case 'TrailingStopIfTraded': {
+            const { orderPrice, tickSize } = this.calculateFavourableOrderPrice({
+              buySell: buySell,
+              instrument,
+              orderType,
+              quote,
+            })
+
+            return await app.trading.orders.post({
+              AssetType: instrument.AssetType,
+              ForwardDate: forwardDate,
+              Amount: amount,
+              BuySell: buySell,
+              ManualOrder: false,
+              OrderType: orderType,
+              OrderPrice: orderPrice,
+              OrderDuration: { DurationType: 'ImmediateOrCancel' },
+              ExternalReference: externalReference,
+              Uic: instrument.Uic,
+              TrailingStopStep: tickSize ?? 1,
+              TrailingStopDistanceToMarket: tickSize ?? 1,
+            })
+          }
+
+          case 'StopLimit': {
+            const { orderPrice, stopLimitPrice } = this.calculateFavourableOrderPrice({
+              buySell: buySell,
+              instrument,
+              orderType,
+              quote,
+            })
+
+            return await app.trading.orders.post({
+              AssetType: instrument.AssetType,
+              ForwardDate: forwardDate,
+              Amount: amount,
+              BuySell: buySell,
+              ManualOrder: false,
+              OrderType: orderType,
+              OrderPrice: orderPrice,
+              StopLimitPrice: stopLimitPrice,
+              OrderDuration: { DurationType: 'ImmediateOrCancel' },
+              ExternalReference: externalReference,
+              Uic: instrument.Uic,
+            })
+          }
+        }
+
+        // @ts-expect-error -- this code is unreachable, but if we don't include this break, Deno will complain about fall-throughs
+        break
       }
 
       default: {
-        throw new Error(`Unknown asset type`)
+        throw new Error(`Unsupported asset type and order type: ${instrument.AssetType} / ${orderType.toString()}`)
       }
     }
   }
