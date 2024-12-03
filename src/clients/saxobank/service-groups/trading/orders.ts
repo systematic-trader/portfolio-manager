@@ -15,96 +15,53 @@ import type { OrderDuration } from '../../types/records/order-duration.ts'
 import { Order } from '../../types/records/order.ts'
 import { StringErrorResponse } from '../../types/records/string-error-response.ts'
 
-// todo implement arguments:
-// AccountKey	AccountKey	Body	Unique key identifying the account to place the order on.
-// todo AlgoOrderData	AlgorithmicOrderData	Body	Specification of StrategyName and parameters for AlgoOrders. Note: AlgoOrders are only supported on the live system.
-// todo AllocationKeyId	String	Body	Set AllocationKey if block trade on IB account.
-// Amount	Number	Body	Order size.
-// todo AmountType	OrderAmountType	Body	Indicates if the order Amount is specified as lots/shares/contracts or as a monetary purchase amount in instrument currency. If CurrencyAmount, then use CashAmount. Defaults to Quantity Currently only supported on MutualFunds
-// AssetType	AssetType	Body	The Instruments AssetType.
-// BuySell	BuySell	Body	The direction of the order; buy or sell.
-// CancelOrders	Boolean	Body	If set True, it will cancel all orders placed against the instrument of this order.
-// ClearForceOpen	Boolean	Body	If set True, it will clear the ForceOpen flag for all positions belongs to instrument of this order.And will be set to True implicitly if not set explicitly resulting cancel all orders against the instrument of this order.
-// todo DealCapture 	DealCapture	Body	Deal capture information, only applicable for DealCaptures orders.
-// todo DecisionMakerUserID	String	Body	The ID of the user who has accepted the advice to place an order.
-// ExternalReference	String	Body	Optional reference from the app, to correlate orders with Saxo Bank issues order IDs. Maximum length: 50 characters. The order will be rejected if the reference is too long. This reference doesn’t have to be unique. // todo if specified, should also be included in the return type
-// todo ForwardDate	Date	Body	Forward date that is only used for FxForward entry orders (no OCO, no related orders).
-// IsForceOpen	Boolean	Body	If true, the order's resulting position will only be netted with positions in the opposite direction when explicitly closed.
-// ManualOrder	Boolean	Body	Indicator for whether order is placed automatically or manually.
-// OrderDuration	OrderDuration	Body	The Order Duration.
-// OrderId	String	Body	Used when placing related orders for an existing order.
-// OrderPrice	Number	Body	Order Price. Optional for market orders.
-// Orders	PlaceRelatedOrOcoOrder []	Body	Optional related orders or OCO orders.
-// OrderType	PlaceableOrderType	Body	Order type.
-// PositionId	String	Body	Used when placing related orders for an existing position.
-// todo QuoteCurrency	Boolean	Body	Indicates whether order request is done in quote (2nd) currency. (FxSpot only).
-// StopLimitPrice	Number	Body	Stop limit price for Stop Limit order
-// todo SwitchInstrumentUic	Integer	Body	The Uic of the instrument to be used for Switch And Traspaso orders, Mutual Funds Specific
-// todo ToOpenClose	ToOpenClose	Body	Whether the order should be created to open/increase or close/decrease a position. (Only relevant for options)
-// todo TraderId	String	Body	Trader Id, Used only if the application is configured for supporting it with length of 2-16 chars.
-// TrailingStopDistanceToMarket	Number	Body	Distance to market for a trailing stop order.
-// TrailingStopStep	Number	Body	Step size for trailing stop order.
-// todo TraspasoIn	TraspasoInDetails	Body	Information about Traspaso in external source instrument
-// Uic	Integer	Body	Unique id of the instrument to place the order for.
-// WithAdvice	Boolean	Body	Indicates whether order is placed with advice to client.
-
 type OrderParametersByOrderType = {
   readonly OrderType: 'Market'
+  readonly OrderPrice?: never
+  readonly StopLimitPrice?: never
+  readonly TrailingStopStep?: never
+  readonly TrailingStopDistanceToMarket?: never
 } | {
-  readonly OrderType: 'Limit'
+  readonly OrderType: 'Limit' | 'Stop' | 'StopIfTraded'
   readonly OrderPrice: number
-} | {
-  readonly OrderType: 'Stop'
-  readonly OrderPrice: number
-} | {
-  readonly OrderType: 'StopIfTraded'
-  readonly OrderPrice: number
+  readonly StopLimitPrice?: never
+  readonly TrailingStopStep?: never
+  readonly TrailingStopDistanceToMarket?: never
 } | {
   readonly OrderType: 'StopLimit'
   readonly OrderPrice: number
   readonly StopLimitPrice: number
+  readonly TrailingStopStep?: never
+  readonly TrailingStopDistanceToMarket?: never
 } | {
-  readonly OrderType: 'TrailingStop'
+  readonly OrderType: 'TrailingStop' | 'TrailingStopIfTraded'
   readonly OrderPrice: number
   readonly TrailingStopStep: number
   readonly TrailingStopDistanceToMarket: number
-} | {
-  readonly OrderType: 'TrailingStopIfTraded'
-  readonly OrderPrice: number
-  readonly TrailingStopStep: number
-  readonly TrailingStopDistanceToMarket: number
+  readonly StopLimitPrice?: never
 }
+
+export type SupportedPlacableOrderTypes = OrderParametersByOrderType['OrderType']
 
 type PlaceOrderParametersByAssetType =
   | {
     readonly AssetType: Extract<
       AssetType,
       | 'Bond'
-      | 'CfdOnIndex'
-      | 'CompanyWarrant'
-      | 'CfdOnCompanyWarrant'
-      | 'Stock'
-      | 'CfdOnStock'
-      | 'StockIndexOption'
-      | 'StockOption'
-      | 'ContractFutures'
-      | 'CfdOnFutures'
-      | 'Etc'
       | 'CfdOnEtc'
-      | 'Etf'
       | 'CfdOnEtf'
-      | 'Etn'
       | 'CfdOnEtn'
-      | 'Fund'
       | 'CfdOnFund'
-      | 'FuturesOption'
-      | 'FxNoTouchOption'
-      | 'FxOneTouchOption'
+      | 'CfdOnFutures'
+      | 'CfdOnIndex'
+      | 'CfdOnStock'
+      | 'ContractFutures'
+      | 'Etc'
+      | 'Etf'
+      | 'Etn'
+      | 'Fund'
       | 'FxSpot'
-      | 'FxSwap'
-      | 'FxVanillaOption'
-      | 'Rights'
-      | 'CfdOnRights'
+      | 'Stock'
     >
     readonly OrderDuration: OrderDuration
   }

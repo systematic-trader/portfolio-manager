@@ -2152,14 +2152,12 @@ export const InstrumentDetailsStockIndex = props({
     'Close',
   ])),
   SupportedOrderTypes: array(PlaceableOrderType.extract([
-    'Market',
     'TriggerBreakout',
     'TriggerStop',
     'TriggerLimit',
   ])),
   SupportedOrderTypeSettings: array(props({
     OrderType: PlaceableOrderType.extract([
-      'Market',
       'TriggerBreakout',
       'TriggerStop',
       'TriggerLimit',

@@ -244,6 +244,8 @@ export const InfoPriceResponseContractFutures = props({
   Commissions: Commissions,
   HistoricalChanges: optional(HistoricalChanges),
   InstrumentPriceDetails: InstrumentPriceDetails.pick([
+    'AskPricePerContract',
+    'BidPricePerContract',
     'AverageVolume',
     'IsMarketOpen',
     'NoticeDate',

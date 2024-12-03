@@ -2,87 +2,6 @@ import { toArray } from '../../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
-import type { InfoPricesParameters } from '../info-prices.ts'
-
-// todo write tests for different order types (can probably be simple entry orders)
-// todo write some tests that result in errors (e.g. wrong side of market + wrong duration etc)
-// todo test long/short
-
-const MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE = 1
-
-function roundPrice(price: number, tickSize: number): number {
-  const rounded = Math.round(price / tickSize) * tickSize
-  return parseFloat(rounded.toFixed(10)) // Use toFixed and parseFloat to avoid floating-point precision errors
-}
-
-// todo use TickSizeScheme
-// todo refactor this to a function that returns both order type and adjusted price, based on a tolerance
-async function findSuiteablePrice({ app, assetType, uic, forwardDate }: {
-  readonly app: SaxoBankApplication
-  readonly assetType: keyof InfoPricesParameters
-  readonly uic: number
-  readonly delta?: undefined | number
-  readonly forwardDate?: undefined | string
-}) {
-  const infoPrice = await app.trading.infoPrices.get({
-    AssetType: assetType,
-    Uic: uic,
-    ForwardDate: forwardDate,
-  })
-
-  const bid = infoPrice.Quote.Bid
-  if (bid === undefined) {
-    throw new Error(`Could not determine bid price for ${assetType} ${uic}`)
-  }
-
-  const ask = infoPrice.Quote.Ask
-  if (ask === undefined) {
-    throw new Error(`Could not determine ask price for ${assetType} ${uic}`)
-  }
-
-  if (assetType !== 'FxSpot' && assetType !== 'FxForwards') {
-    throw new Error('Sikke noget!') // todo
-  }
-
-  // todo we should acceot this as a parameter
-  const [instrument] = await toArray(app.referenceData.instruments.details.get({
-    AssetTypes: [assetType],
-    Uics: [uic],
-  }))
-  if (instrument === undefined) {
-    throw new Error(`Could not determine instrument for ${assetType} ${uic}`)
-  }
-
-  function adjust(basis: 'bid' | 'ask', ticks: number, orderType: 'stop' | 'limit') {
-    if (instrument === undefined) {
-      throw new Error(`Could not determine instrument for ${assetType} ${uic}`)
-    }
-
-    const tickSize = orderType === 'stop'
-      ? instrument.TickSizeStopOrder
-      : orderType === 'limit'
-      ? instrument.TickSizeLimitOrder
-      : instrument.TickSize
-
-    const priceBasis = basis === 'bid' ? bid : ask
-
-    if (priceBasis === undefined) {
-      throw new Error(`${basis} price is not defined`)
-    }
-
-    if (instrument === undefined) {
-      throw new Error(`Could not determine instrument for ${assetType} ${uic}`)
-    }
-
-    return roundPrice(priceBasis + ticks * tickSize, tickSize)
-  }
-
-  return {
-    bid,
-    ask,
-    adjust,
-  }
-}
 
 describe('trade/orders', () => {
   using app = new SaxoBankApplication({
@@ -94,6 +13,8 @@ describe('trade/orders', () => {
     getFirstAccount,
     resetSimulationAccount,
     findTradableInstruments,
+    calculateFavourableOrderPrice,
+    placeFavourableOrder,
   } = new TestingUtilities({ app })
 
   // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
@@ -121,19 +42,33 @@ describe('trade/orders', () => {
     })
 
     test('Method 2: Placing a single order, with one related order', async () => {
-      const price = await findSuiteablePrice({
-        app,
+      const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21],
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const { instrument, quote } = record
+      const { orderPrice: limitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Sell',
+        orderType: 'Limit',
       })
+
+      const amount = calculateMinimumTradeSize(instrument)
 
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
-        Uic: 21,
+        Uic: instrument.Uic,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: amount,
         ManualOrder: false,
         ExternalReference: crypto.randomUUID(),
         OrderType: 'Market',
@@ -143,13 +78,13 @@ describe('trade/orders', () => {
 
         Orders: [{
           AssetType: 'FxSpot',
-          Uic: 21,
+          Uic: instrument.Uic,
           BuySell: 'Sell',
-          Amount: 50_000,
+          Amount: amount,
           ManualOrder: false,
           ExternalReference: crypto.randomUUID(),
           OrderType: 'Limit',
-          OrderPrice: price.adjust('ask', 100, 'limit'),
+          OrderPrice: limitOrderPrice,
           OrderDuration: {
             DurationType: 'GoodTillCancel',
           },
@@ -160,19 +95,40 @@ describe('trade/orders', () => {
     })
 
     test('Method 3: Placing a single order, with two related orders', async () => {
-      const price = await findSuiteablePrice({
-        app,
+      const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21],
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const { instrument, quote } = record
+
+      const { orderPrice: sellLimitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Sell',
+        orderType: 'Limit',
       })
+      const { orderPrice: sellStopOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Sell',
+        orderType: 'Stop',
+      })
+
+      const amount = calculateMinimumTradeSize(instrument)
 
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         AssetType: 'FxSpot',
-        Uic: 21,
+        Uic: instrument.Uic,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: amount,
         ManualOrder: false,
         ExternalReference: crypto.randomUUID(),
         OrderType: 'Market',
@@ -182,25 +138,25 @@ describe('trade/orders', () => {
 
         Orders: [{
           AssetType: 'FxSpot',
-          Uic: 21,
+          Uic: instrument.Uic,
           BuySell: 'Sell',
-          Amount: 50_000,
+          Amount: amount,
           ManualOrder: false,
           ExternalReference: crypto.randomUUID(),
           OrderType: 'Limit',
-          OrderPrice: price.adjust('ask', 20, 'limit'),
+          OrderPrice: sellLimitOrderPrice,
           OrderDuration: {
             DurationType: 'GoodTillCancel',
           },
         }, {
           AssetType: 'FxSpot',
-          Uic: 21,
+          Uic: instrument.Uic,
           BuySell: 'Sell',
-          Amount: 50_000,
+          Amount: amount,
           ManualOrder: false,
           ExternalReference: crypto.randomUUID(),
           OrderType: 'Stop',
-          OrderPrice: price.adjust('bid', -20, 'stop'),
+          OrderPrice: sellStopOrderPrice,
           OrderDuration: {
             DurationType: 'GoodTillCancel',
           },
@@ -211,11 +167,31 @@ describe('trade/orders', () => {
     })
 
     test('Method 4: Placing a single related order to an existing order', async () => {
-      const price = await findSuiteablePrice({
-        app,
+      const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21],
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const { instrument, quote } = record
+      const { orderPrice: buyLimitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
       })
+      const { orderPrice: sellLimitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Sell',
+        orderType: 'Limit',
+      })
+
+      const amount = calculateMinimumTradeSize(instrument)
 
       // First, place the initial entry order
       const entryOrderResponse = await app.trading.orders.post({
@@ -224,11 +200,11 @@ describe('trade/orders', () => {
         AssetType: 'FxSpot',
         Uic: 21,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: amount,
         ManualOrder: false,
         ExternalReference: crypto.randomUUID(),
         OrderType: 'Limit',
-        OrderPrice: price.adjust('bid', -20, 'limit'),
+        OrderPrice: buyLimitOrderPrice,
         OrderDuration: {
           DurationType: 'DayOrder',
         },
@@ -244,13 +220,13 @@ describe('trade/orders', () => {
 
         Orders: [{
           AssetType: 'FxSpot',
-          Uic: 21,
+          Uic: instrument.Uic,
           BuySell: 'Sell',
-          Amount: 50_000,
+          Amount: amount,
           ManualOrder: false,
           ExternalReference: crypto.randomUUID(),
           OrderType: 'Limit',
-          OrderPrice: price.adjust('ask', 20, 'limit'),
+          OrderPrice: sellLimitOrderPrice,
           OrderDuration: {
             DurationType: 'GoodTillCancel',
           },
@@ -261,24 +237,52 @@ describe('trade/orders', () => {
     })
 
     test('Method 5: Placing two related orders to an existing order', async () => {
-      const price = await findSuiteablePrice({
-        app,
+      const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21],
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const { instrument, quote } = record
+      const { orderPrice: buyLimitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
       })
+      const { orderPrice: sellLimitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Sell',
+        orderType: 'Limit',
+        tolerance: 0.01,
+      })
+      const { orderPrice: sellStopOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Sell',
+        orderType: 'Stop',
+        tolerance: 0.02,
+      })
+
+      const amount = calculateMinimumTradeSize(instrument)
 
       // First, place the initial entry order
       const entryOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
-        AssetType: 'FxSpot',
-        Uic: 21,
+        AssetType: instrument.AssetType,
+        Uic: instrument.Uic,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: amount,
         ManualOrder: false,
         ExternalReference: crypto.randomUUID(),
         OrderType: 'Limit',
-        OrderPrice: price.adjust('bid', -20, 'limit'),
+        OrderPrice: buyLimitOrderPrice,
         OrderDuration: {
           DurationType: 'DayOrder',
         },
@@ -293,26 +297,26 @@ describe('trade/orders', () => {
         OrderId: entryOrderResponse.OrderId,
 
         Orders: [{
-          AssetType: 'FxSpot',
-          Uic: 21,
+          AssetType: instrument.AssetType,
+          Uic: instrument.Uic,
           BuySell: 'Sell',
-          Amount: 50_000,
+          Amount: amount,
           ManualOrder: false,
           ExternalReference: crypto.randomUUID(),
           OrderType: 'Limit',
-          OrderPrice: price.adjust('ask', 20, 'limit'),
+          OrderPrice: sellLimitOrderPrice,
           OrderDuration: {
             DurationType: 'GoodTillCancel',
           },
         }, {
-          AssetType: 'FxSpot',
-          Uic: 21,
+          AssetType: instrument.AssetType,
+          Uic: instrument.Uic,
           BuySell: 'Sell',
-          Amount: 50_000,
+          Amount: amount,
           ManualOrder: false,
           ExternalReference: crypto.randomUUID(),
           OrderType: 'Stop',
-          OrderPrice: price.adjust('bid', -40, 'stop'),
+          OrderPrice: sellStopOrderPrice,
           OrderDuration: {
             DurationType: 'GoodTillCancel',
           },
@@ -323,44 +327,64 @@ describe('trade/orders', () => {
     })
 
     test('Method 6: Placing a single related order to an existing position', async () => {
-      // todo implement this
+      // not implemented
     })
 
     test('Method 7: Placing two related orders to an existing position', async () => {
-      // todo implement this
+      // not implemented
     })
 
     test('Method 8: Placing two orders that are OCO (One Cancels Other) orders.', async () => {
-      const price = await findSuiteablePrice({
-        app,
+      const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21],
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const { instrument, quote } = record
+      const { orderPrice: limitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
       })
+      const { orderPrice: stopOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Buy',
+        orderType: 'Stop',
+      })
+
+      const amount = calculateMinimumTradeSize(instrument)
 
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
         Orders: [{
-          AssetType: 'FxSpot',
-          Uic: 21,
+          AssetType: instrument.AssetType,
+          Uic: instrument.Uic,
           BuySell: 'Buy',
-          Amount: 50_000,
+          Amount: amount,
           ManualOrder: false,
           ExternalReference: crypto.randomUUID(),
           OrderType: 'Limit',
-          OrderPrice: price.adjust('bid', -20, 'limit'),
+          OrderPrice: limitOrderPrice,
           OrderDuration: {
             DurationType: 'GoodTillCancel',
           },
         }, {
-          AssetType: 'FxSpot',
-          Uic: 21,
+          AssetType: instrument.AssetType,
+          Uic: instrument.Uic,
           BuySell: 'Buy',
-          Amount: 50_000,
+          Amount: amount,
           ManualOrder: false,
           ExternalReference: crypto.randomUUID(),
           OrderType: 'Stop',
-          OrderPrice: price.adjust('ask', 20, 'stop'),
+          OrderPrice: stopOrderPrice,
           OrderDuration: {
             DurationType: 'GoodTillCancel',
           },
@@ -373,31 +397,43 @@ describe('trade/orders', () => {
 
   describe('placing orders with different duration', () => {
     test('AtTheClose', () => {
-      // todo I'm unable to find any instruments that support this
+      // There are no instruments that support this on sim
     })
 
     test('AtTheOpening', () => {
-      // todo I'm unable to find any instruments that support this
+      // There are no instruments that support this on sim
     })
 
     test('DayOrder', async () => {
-      const price = await findSuiteablePrice({
-        app,
+      const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21],
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const { instrument, quote } = record
+      const { orderPrice: limitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
       })
 
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
-        AssetType: 'FxSpot',
-        Uic: 21,
+        AssetType: instrument.AssetType,
+        Uic: instrument.Uic,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: calculateMinimumTradeSize(instrument),
         ManualOrder: false,
         ExternalReference: crypto.randomUUID(),
         OrderType: 'Limit',
-        OrderPrice: price.adjust('ask', 20, 'limit'),
+        OrderPrice: limitOrderPrice,
         OrderDuration: {
           DurationType: 'DayOrder',
         },
@@ -407,13 +443,24 @@ describe('trade/orders', () => {
     })
 
     test('FillOrKill', async () => {
+      const [record] = await toArray(findTradableInstruments({
+        assetType: 'Bond',
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('Could not find any tradable bond')
+      }
+
+      const { instrument } = record
+
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
-        AssetType: 'Bond',
-        Uic: 17642865, // United States of America 1.25% 15 May 2050, USD
+        AssetType: instrument.AssetType,
+        Uic: instrument.Uic,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: calculateMinimumTradeSize(instrument),
         ManualOrder: false,
         ExternalReference: crypto.randomUUID(),
         OrderType: 'Market',
@@ -426,27 +473,39 @@ describe('trade/orders', () => {
     })
 
     test('GoodForPeriod', () => {
-      // todo I'm unable to find any instruments that support this
+      // There are no instruments that support this on sim
     })
 
     test('GoodTillCancel', async () => {
-      const price = await findSuiteablePrice({
-        app,
+      const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21],
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const { instrument, quote } = record
+      const { orderPrice: limitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
       })
 
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
-        AssetType: 'FxSpot',
-        Uic: 21,
+        AssetType: instrument.AssetType,
+        Uic: instrument.Uic,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: calculateMinimumTradeSize(instrument),
         ManualOrder: false,
         ExternalReference: crypto.randomUUID(),
         OrderType: 'Limit',
-        OrderPrice: price.adjust('ask', 20, 'limit'),
+        OrderPrice: limitOrderPrice,
         OrderDuration: {
           DurationType: 'GoodTillCancel',
         },
@@ -459,10 +518,22 @@ describe('trade/orders', () => {
       const today = new Date()
       const nextYear = today.getFullYear() + 1
 
-      const price = await findSuiteablePrice({
-        app,
+      const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21],
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const { instrument, quote } = record
+      const { orderPrice: limitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
       })
 
       const testCases = [
@@ -490,14 +561,14 @@ describe('trade/orders', () => {
             const placeOrderResponse = await app.trading.orders.post({
               RequestId: crypto.randomUUID(),
 
-              AssetType: 'FxSpot',
-              Uic: 21,
+              AssetType: instrument.AssetType,
+              Uic: instrument.Uic,
               BuySell: 'Buy',
-              Amount: 50_000,
+              Amount: calculateMinimumTradeSize(instrument),
               ManualOrder: false,
               ExternalReference: crypto.randomUUID(),
               OrderType: 'Limit',
-              OrderPrice: price.adjust('ask', 20, 'limit'),
+              OrderPrice: limitOrderPrice,
               OrderDuration: {
                 DurationType: 'GoodTillDate',
                 ExpirationDateContainsTime: testCase.ExpirationDateContainsTime,
@@ -515,15 +586,6 @@ describe('trade/orders', () => {
     })
 
     test('ImmediateOrCancel', async () => {
-      // Wait for a bit to avoid "Repeated trade on auto quote"-errors
-      await new Promise((resolve) => setTimeout(resolve, 15_000))
-
-      const price = await findSuiteablePrice({
-        app,
-        assetType: 'FxSpot',
-        uic: 21,
-      })
-
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: crypto.randomUUID(),
 
@@ -533,8 +595,7 @@ describe('trade/orders', () => {
         Amount: 50_000,
         ManualOrder: false,
         ExternalReference: crypto.randomUUID(),
-        OrderType: 'Limit',
-        OrderPrice: price.adjust('ask', 20, 'limit'),
+        OrderType: 'Market',
         OrderDuration: {
           DurationType: 'ImmediateOrCancel',
         },
@@ -544,159 +605,46 @@ describe('trade/orders', () => {
     })
   })
 
-  describe.only('placing orders for different asset types', () => {
-    // todo is this all?
+  describe('placing orders for different asset types', () => {
     const assetTypesToTest = [
       'Bond',
-      'CfdOnCompanyWarrant',
       'CfdOnEtc',
       'CfdOnEtf',
       'CfdOnEtn',
       'CfdOnFund',
       'CfdOnFutures',
       'CfdOnIndex',
-      'CfdOnRights', // todo there are no instruments of this type
       'CfdOnStock',
-      'CompanyWarrant',
       'ContractFutures',
       'Etc',
       'Etf',
       'Etn',
       'Fund',
-      // todo 'FuturesOption',
       'FxForwards',
-      // todo 'FxNoTouchOption',
-      // todo 'FxOneTouchOption',
       'FxSpot',
-      'FxSwap', // todo ForwardDateNearLeg is mandatory - ForwardDateFarLeg is mandatory
-      // todo 'FxVanillaOption',
-      'Rights',
       'Stock',
-      // todo 'StockIndexOption',
-      // todo 'StockOption',
     ] as const
 
-    // todo remove this
-    const whitelist = new Set<typeof assetTypesToTest[number]>(['FxForwards'])
-
     for (const assetType of assetTypesToTest) {
-      if (whitelist.has(assetType) === false) {
-        continue
-      }
+      test(assetType, async () => {
+        const limit = 1
 
-      test(assetType, async ({ step }) => {
-        switch (assetType) {
-          case 'Bond':
-          case 'CfdOnEtc':
-          case 'CfdOnCompanyWarrant':
-          case 'CfdOnEtf':
-          case 'CfdOnEtn':
-          case 'CfdOnFund':
-          case 'CfdOnFutures':
-          case 'CfdOnIndex':
-          case 'CfdOnRights':
-          case 'CfdOnStock':
-          case 'CompanyWarrant':
-          case 'ContractFutures':
-          case 'Etc':
-          case 'Etf':
-          case 'Etn':
-          case 'FxSpot':
-          case 'FxSwap':
-          case 'Rights':
-          case 'Stock':
-          case 'Fund': {
-            const instruments = findTradableInstruments({
-              assetTypes: [assetType],
-              limit: MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE,
-            })
+        await resetSimulationAccount()
 
-            for await (const instrument of instruments) {
-              await step(`${instrument.Description} (UIC ${instrument.Uic})`, async () => {
-                const placeOrderResponse = await app.trading.orders.post({
-                  RequestId: crypto.randomUUID(),
+        const tradableInstruments = findTradableInstruments({
+          assetType,
+          limit,
+        })
 
-                  AssetType: assetType,
-                  Uic: instrument.Uic,
-                  BuySell: 'Buy',
-                  Amount: calculateMinimumTradeSize(instrument),
-                  ManualOrder: false,
-                  ExternalReference: crypto.randomUUID(),
-                  OrderType: 'Market',
-                  OrderDuration: {
-                    DurationType: 'DayOrder',
-                  },
-                })
+        for await (const { instrument, quote } of tradableInstruments) {
+          const placeOrderResponse = await placeFavourableOrder({
+            instrument,
+            buySell: 'Buy',
+            orderType: 'Market',
+            quote,
+          })
 
-                expect(placeOrderResponse).toBeDefined()
-              })
-
-              await resetSimulationAccount()
-            }
-
-            break
-          }
-
-          case 'FxForwards': {
-            const instruments = findTradableInstruments({
-              assetTypes: [assetType],
-              limit: MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE,
-            })
-
-            for await (const instrument of instruments) {
-              await step(`${instrument.Description} (UIC ${instrument.Uic})`, async () => {
-                // todo find a way to remove this (repeated trade on auto quote)
-                await new Promise((resolve) => setTimeout(resolve, 2000))
-
-                const forwardDate = '2024-11-14'
-
-                const price = await findSuiteablePrice({
-                  app,
-                  assetType: 'FxForwards',
-                  uic: instrument.Uic,
-                  forwardDate,
-                })
-
-                const [instrumentDetails] = await toArray(app.referenceData.instruments.details.get({
-                  AssetTypes: [assetType],
-                  Uics: [instrument.Uic],
-                }))
-                if (instrumentDetails === undefined) {
-                  throw new Error(
-                    `Could not determine details for ${instrument.Description} (UIC ${instrument.Uic})`,
-                  )
-                }
-
-                const placeOrderResponse = await app.trading.orders.post({
-                  RequestId: crypto.randomUUID(),
-
-                  AssetType: assetType,
-                  Uic: instrument.Uic,
-                  BuySell: 'Buy',
-                  Amount: calculateMinimumTradeSize(instrumentDetails),
-                  ManualOrder: false,
-                  ExternalReference: crypto.randomUUID(),
-                  OrderType: 'Limit',
-                  OrderPrice: price.adjust('ask', 20, 'limit'),
-                  ForwardDate: forwardDate,
-                  OrderDuration: {
-                    DurationType: 'ImmediateOrCancel',
-                  },
-                })
-
-                expect(placeOrderResponse).toBeDefined()
-              })
-
-              // todo only do this every few orders to speed things up
-              await resetSimulationAccount()
-            }
-
-            break
-          }
-
-          default: {
-            throw new Error('Unsupported asset type')
-          }
+          expect(placeOrderResponse).toBeDefined()
         }
       })
     }
@@ -706,23 +654,33 @@ describe('trade/orders', () => {
     test('Deleting order by order id', async () => {
       const { AccountKey } = await getFirstAccount()
 
-      const price = await findSuiteablePrice({
-        app,
+      const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21],
+        limit: 1,
+      }))
+
+      if (record === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const { instrument, quote } = record
+      const { orderPrice: limitOrderPrice } = calculateFavourableOrderPrice({
+        instrument,
+        quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
       })
 
       const placeOrderResponse = await app.trading.orders.post({
         ManualOrder: false,
         AssetType: 'FxSpot',
-        Uic: 21,
+        Uic: instrument.Uic,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: calculateMinimumTradeSize(instrument),
         OrderType: 'Limit',
-        OrderPrice: price.adjust('bid', -200, 'limit'),
-        OrderDuration: {
-          DurationType: 'DayOrder',
-        },
+        OrderPrice: limitOrderPrice,
+        OrderDuration: { DurationType: 'DayOrder' },
         ExternalReference: crypto.randomUUID(),
       })
 
@@ -745,27 +703,44 @@ describe('trade/orders', () => {
         throw new Error(`Could not determine account for simulation user`)
       }
 
-      const priceEURUSD = await findSuiteablePrice({
-        app,
+      const records = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
-        uic: 21,
+        uics: [21, 16],
+      }))
+
+      const eurusdRecord = records.find((candidate) => candidate.instrument.Uic === 21)
+      if (eurusdRecord === undefined) {
+        throw new Error('FxSpot UIC 21 is not tradable')
+      }
+
+      const eurdkkRecord = records.find((candidate) => candidate.instrument.Uic === 16)
+      if (eurdkkRecord === undefined) {
+        throw new Error('FxSpot UIC 16 is not tradable')
+      }
+
+      const { orderPrice: eurusdOrderPrice } = calculateFavourableOrderPrice({
+        instrument: eurusdRecord.instrument,
+        quote: eurusdRecord.quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
       })
 
-      const priceEURDKK = await findSuiteablePrice({
-        app,
-        assetType: 'FxSpot',
-        uic: 16,
+      const { orderPrice: eurdkkOrderPrice } = calculateFavourableOrderPrice({
+        instrument: eurusdRecord.instrument,
+        quote: eurusdRecord.quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
       })
 
       const placeEURUSDOrderResponse = await app.trading.orders.post({
         ManualOrder: false,
         AssetType: 'FxSpot',
-        Uic: 21,
+        Uic: eurusdRecord.instrument.Uic,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: calculateMinimumTradeSize(eurusdRecord.instrument),
 
         OrderType: 'Limit',
-        OrderPrice: priceEURUSD.adjust('bid', -200, 'limit'),
+        OrderPrice: eurusdOrderPrice,
         OrderDuration: {
           DurationType: 'GoodTillCancel',
         },
@@ -777,12 +752,12 @@ describe('trade/orders', () => {
       const placeEURDKKOrderResponse = await app.trading.orders.post({
         ManualOrder: false,
         AssetType: 'FxSpot',
-        Uic: 16,
+        Uic: eurdkkRecord.instrument.Uic,
         BuySell: 'Buy',
-        Amount: 50_000,
+        Amount: calculateMinimumTradeSize(eurdkkRecord.instrument),
 
         OrderType: 'Limit',
-        OrderPrice: priceEURDKK.adjust('bid', -200, 'limit'),
+        OrderPrice: eurdkkOrderPrice,
         OrderDuration: {
           DurationType: 'GoodTillCancel',
         },
