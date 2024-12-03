@@ -1,6 +1,7 @@
 import { toArray } from '../../../utils/async-iterable.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
+import { createOrderExternalReference } from '../saxobank-random.ts'
 import type {
   PlaceOrderResponseEntryWithNoRelatedOrders,
   SupportedPlacableOrderTypes,
@@ -697,7 +698,7 @@ export class TestingUtilities {
     const app = appOverride ?? this.#app
 
     const amount = this.calculateMinimumTradeSize(instrument)
-    const externalReference = crypto.randomUUID() // todo move and re-implement this in saxobank-random.ts
+    const externalReference = createOrderExternalReference()
 
     switch (instrument.AssetType) {
       case 'Bond':
