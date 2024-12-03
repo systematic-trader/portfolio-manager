@@ -197,8 +197,10 @@ export const BalanceResponse = props({
   /** Net current settlement value, long and short positions combined */
   SettlementValue: number(),
 
-  /** Available spending power on the account/client */
-  // todo only optional on sim
+  /**
+   * Available spending power on the account/client.
+   * Seems to be optional only on the simulation environment.
+   */
   SpendingPowerDetail: optional(SpendingPower),
 
   /** The utilization state and risk credit limit */
@@ -246,8 +248,10 @@ export const BalanceResponse = props({
   /** Maximmum amount that may be withdrawn from unrealized derivatives positions (VariationMargin) */
   VariationMarginThreshold: optional(number()),
 
-  /** Not documented */
-  // todo only optional on sim
+  /**
+   * Not documented.
+   * Seems to be optional only on the simulation environment.
+   */
   ExtendedTradingHoursData: optional(props({
     CostToClosePositions: number(),
     InitialMarginUncertainty: number(),
@@ -263,15 +267,21 @@ export const BalanceResponse = props({
     UnrealizedPositionsValue: number(),
   })),
 
-  /** Not documented */
-  // todo only optional on sim
+  /**
+   * Not documented.
+   * Seems to be optional only on the simulation environment.
+   */
   ExtendedTradingHoursUncertaintyValue: optional(number()),
 
-  /** Not documented */
-  // todo only optional on sim
+  /**
+   * Not documented.
+   * Seems to be optional only on the simulation environment.
+   */
   SpendingPower: optional(number()),
 
-  /** Not documented */
-  // todo only optional on sim
+  /**
+   * Not documented.
+   * Seems to be optional only on the simulation environment.
+   */
   SrdSpendingPower: optional(number()),
 })

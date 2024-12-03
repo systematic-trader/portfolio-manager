@@ -118,8 +118,10 @@ export const ClientResponse = props({
   /** If True, Client has been marked to reduce exposure */
   ReduceExposureOnly: boolean(),
 
-  /** Indicates if the client is enabled for security lending */
-  // todo only optional on sim
+  /**
+   * Indicates if the client is enabled for security lending.
+   * Seems to be optional only on the simulation environment.
+   */
   SecurityLendingEnabled: optional(SecurityLendingEnabled),
 
   /**
@@ -134,8 +136,10 @@ export const ClientResponse = props({
   /** Not documented */
   ClientType: ClientType,
 
-  /** Not documented */
-  // todo only optional on sim
+  /**
+   * Not documented.
+   * Seems to be optional only on the simulation environment.
+   */
   CountryOfResidence: optional(CountryCodeA2),
 
   /** Not documented */
