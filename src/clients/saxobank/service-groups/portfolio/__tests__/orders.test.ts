@@ -36,7 +36,7 @@ describe('portfolio/orders', () => {
       expect(orders).toHaveLength(0)
     })
 
-    test.only('response passes guard for different order types', async ({ step }) => {
+    test('response passes guard for different order types', async ({ step }) => {
       const { ClientKey } = await getFirstAccount()
       const limit = 5
 
