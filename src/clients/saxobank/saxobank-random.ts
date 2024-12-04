@@ -56,7 +56,7 @@ export function createStreamReferenceId(
 }
 
 export function createOrderRequestId(infix?: undefined | string): string {
-  if (infix === undefined) {
+  if (infix !== undefined) {
     return createId(`order-request-${infix}`)
   }
 
@@ -64,7 +64,7 @@ export function createOrderRequestId(infix?: undefined | string): string {
 }
 
 export function createOrderExternalReference(infix?: undefined | string): string {
-  if (infix === undefined) {
+  if (infix !== undefined) {
     return createId(`order-reference-${infix}`)
   }
 
