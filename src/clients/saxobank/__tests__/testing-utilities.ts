@@ -153,17 +153,16 @@ export class TestingUtilities {
       const remaining = timeout - elapsed
 
       if (remaining <= 0) {
-        throw new Error(`Timeout waiting for portfolio state.`)
+        throw new Error('Timeout waiting for portfolio state')
       }
 
       if (orders) {
         await Timeout.wait(delay)
 
-        const currentOrders = await toArray(app.portfolio.orders.get({
-          ClientKey: clientKey,
-        }, {
-          timeout: remaining,
-        }))
+        const currentOrders = await toArray(app.portfolio.orders.get(
+          { ClientKey: clientKey },
+          { timeout: remaining },
+        ))
 
         if (this.#valueMatchesCondition(currentOrders.length, orders)) {
           return
@@ -173,11 +172,10 @@ export class TestingUtilities {
       if (positions) {
         await Timeout.wait(delay)
 
-        const currentPositions = await toArray(app.portfolio.positions.get({
-          ClientKey: clientKey,
-        }, {
-          timeout: remaining,
-        }))
+        const currentPositions = await toArray(app.portfolio.positions.get(
+          { ClientKey: clientKey },
+          { timeout: remaining },
+        ))
 
         if (this.#valueMatchesCondition(currentPositions.length, positions)) {
           return
