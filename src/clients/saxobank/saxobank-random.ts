@@ -32,14 +32,14 @@ function createId(prefix: string): string {
     }
   }
 
-  const suffix = '-' + uniqueSuffix + '-' + now
+  const suffix = '-' + uniqueSuffix + now
   const fixedPrefix = prefix.toLowerCase().substring(0, MAX_LENGTH - suffix.length)
 
   return fixedPrefix + suffix
 }
 
 export function createStreamContextId(): string {
-  return createId('stream-ctx')
+  return createId('ctx')
 }
 
 export function createStreamReferenceId(
@@ -52,5 +52,5 @@ export function createStreamReferenceId(
     ident += '-' + identifiers[i]
   }
 
-  return createId('stream-ref-' + ident)
+  return createId('ref-' + ident)
 }

@@ -325,6 +325,8 @@ export class HTTPClient {
       readonly onError?: undefined | HTTPClientOnErrorHandler
     } = {},
   ): Promise<T> {
+    console.log('postOkJSON', new URL(url).href)
+
     const response = await this.postOk(url, {
       headers: mergeHeaders(
         {
@@ -584,6 +586,16 @@ async function fetchResponse(client: HTTPClient, url: string | URL, options: {
   readonly timeout?: undefined | number
   readonly onError?: undefined | HTTPClientOnErrorHandler
 }, retries = 0): Promise<Response> {
+  if (
+    options.timeout !== undefined &&
+    (
+      Number.isSafeInteger(options.timeout) === false ||
+      options.timeout < 1
+    )
+  ) {
+    throw new TypeError(`Expected timeout to be a positive integer, got ${options.timeout}`)
+  }
+
   using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
 
   const signal = mergeAbortSignals(
@@ -644,6 +656,16 @@ async function fetchOkResponse(client: HTTPClient, url: string | URL, options: {
   readonly timeout?: undefined | number
   readonly onError?: undefined | HTTPClientOnErrorHandler
 }, retries = 0): Promise<Response> {
+  if (
+    options.timeout !== undefined &&
+    (
+      Number.isSafeInteger(options.timeout) === false ||
+      options.timeout < 1
+    )
+  ) {
+    throw new TypeError(`Expected timeout to be a positive integer, got ${options.timeout}`)
+  }
+
   using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
 
   const signal = mergeAbortSignals(

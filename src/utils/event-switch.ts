@@ -1,49 +1,47 @@
-import { PromiseQueue } from './promise-queue.ts'
-
-function CallbackTargetErrorHandle(error: Error): void {
-  throw error
-}
+import type { PromiseQueue } from './promise-queue.ts'
 
 const EmitImmediately = { immediately: true } as const
 
-interface AnyCallback<This> {
+interface AnyCallback {
   // deno-lint-ignore no-explicit-any
-  (this: This, ...args: ReadonlyArray<any>): void | Promise<void>
+  (this: any, ...args: ReadonlyArray<any>): void | Promise<void>
 }
 
-export interface CallbackTargetQueueFunction {
-  (callback: () => void | Promise<void>): void | Promise<void>
+export interface SubscriptionSwitchOptions {
+  readonly once?: undefined | boolean
+  readonly persistent?: undefined | boolean
+  readonly sequential?: undefined | boolean
 }
 
 /**
  * An asynchronous event emitter with typed events.
  *
- * The `CallbackTarget` class allows you to register event listeners for specific event types, where each event type has a defined set of argument types.
+ * The `EventSwitch` class allows you to register event listeners for specific event types, where each event type has a defined set of argument types.
  * Listeners can be registered to be invoked continuously or only once. Event emission is asynchronous and listeners are invoked in the order they were registered.
  */
-export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
+export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
   // WeakSet to keep track of persistent callbacks that shouldn't be removed when calling removeAllListeners.
-  readonly #persistentMap: Map<keyof T, WeakSet<AnyCallback<this>>>
+  readonly #persistentMap: Map<keyof T, WeakSet<AnyCallback>>
   // Map of event types to their continuous callbacks.
-  readonly #continuousMap: Map<keyof T, Set<AnyCallback<this>>>
+  readonly #continuousMap: Map<keyof T, Set<AnyCallback>>
   // Map of event types to their once callbacks.
-  readonly #onceMap: Map<keyof T, Set<AnyCallback<this>>>
+  readonly #onceMap: Map<keyof T, Set<AnyCallback>>
   // Main PromiseQueue to manage the execution order and error handling of callbacks.
   readonly #queue: PromiseQueue
   // Options for the queue execution, such as whether to execute immediately.
   readonly #queueOptions: { readonly immediately?: undefined | boolean }
-  // WeakMap to store custom queue functions for callbacks, allowing per-callback execution control.
-  readonly #callbackQueueMap: Map<keyof T, WeakMap<AnyCallback<this>, CallbackTargetQueueFunction>>
+  // WeakMap to store custom queues for callbacks, allowing per-callback execution control.
+  readonly #callbackQueueMap: Map<keyof T, WeakMap<AnyCallback, PromiseQueue>>
 
   /**
    * Creates a new `CallbackTarget` instance.
    *
    * @param queue - The main PromiseQueue used to manage callback execution order and error handling.
-   * @param options - Optional settings for queue execution, such as immediate execution.
+   * @param options - Optional settings for queue execution, such as sequential execution.
    */
   constructor(
-    queue?: undefined | PromiseQueue,
-    options: undefined | { readonly immediately?: undefined | boolean } = EmitImmediately,
+    queue: PromiseQueue,
+    options?: undefined | { readonly sequential?: undefined | boolean },
   ) {
     // Initialize the Map for persistent callbacks.
     this.#persistentMap = new Map()
@@ -52,9 +50,9 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
     // Initialize maps to store once callbacks per event type.
     this.#onceMap = new Map()
     // Assign the provided PromiseQueue for managing execution.
-    this.#queue = queue ?? new PromiseQueue(CallbackTargetErrorHandle)
+    this.#queue = queue
     // Store the queue options.
-    this.#queueOptions = options
+    this.#queueOptions = options?.sequential === true ? {} : EmitImmediately
     // Initialize the WeakMap for custom callback queue functions.
     this.#callbackQueueMap = new Map()
 
@@ -66,24 +64,17 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
   }
 
   /**
-   * Drains the main PromiseQueue, ensuring all pending callbacks are executed.
-   *
-   * @returns A promise that resolves when the queue is drained.
-   */
-  protected drain(): Promise<void> {
-    return this.#queue.drain()
-  }
-
-  /**
-   * Emits an event of the specified type, invoking all registered listeners asynchronously with the provided arguments.
+   * Emits an event of the specified type, invoking all registered listeners with the provided arguments.
    *
    * @param type - The event type to emit.
    * @param args - The arguments to pass to the event listeners.
    */
-  protected emit<Type extends keyof T>(
+  emit<Type extends keyof T>(
     type: Type,
     ...args: T[Type]
   ): void {
+    console.log('emit', type)
+
     const continuousTypeSet = this.#continuousMap.get(type)
 
     if (continuousTypeSet !== undefined) {
@@ -91,16 +82,16 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
 
       // Iterate over continuous callbacks for this event type.
       for (const callback of continuousTypeSet) {
-        // Get the custom queue function for this callback, if any.
-        const callBackQueue = callbackQueueMap?.get(callback)
+        // Get the custom queue for this callback, if any.
+        const callbackQueue = callbackQueueMap?.get(callback)
 
-        if (callBackQueue === undefined) {
+        if (callbackQueue === undefined) {
           // If no custom queue, use the main queue to execute the callback.
           this.#queue.call(callback.bind(this, ...args), this.#queueOptions)
         } else {
           try {
-            // If a custom queue function is provided, use it to execute the callback.
-            callBackQueue(callback.bind(this, ...args))
+            // If a custom queue is provided, use it to execute the callback.
+            callbackQueue.call(callback.bind(this, ...args))
           } catch (error) {
             this.#queue.addError(error)
           }
@@ -131,7 +122,7 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
    * @param options - Additional options for the listener.
    *   - `once`: If true, the listener is invoked only once and then removed.
    *   - `persistent`: If true, the listener cannot be removed when calling `removeAllListeners`.
-   *   - `queue`: A custom queue function to manage the execution of the callback.
+   *   - `sequential`: If true, the emitted events are processed in the order they were added and each callback is awaited before the next one is invoked.
    *
    * @returns Returns the instance to allow method chaining.
    */
@@ -141,7 +132,7 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
     options?: undefined | {
       readonly once?: undefined | boolean
       readonly persistent?: undefined | boolean
-      readonly queue?: undefined | CallbackTargetQueueFunction
+      readonly sequential?: undefined | boolean
     },
   ): this {
     let onceTypeSet = this.#onceMap.get(type)
@@ -189,20 +180,30 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
       persistentSet?.delete(callback)
     }
 
-    if (options?.queue === undefined) {
-      // If no custom queue function is provided, remove any existing one.
-      this.#callbackQueueMap.get(type)?.delete(callback)
-    } else {
+    if (options?.sequential === true) {
       let callbackQueueMap = this.#callbackQueueMap.get(type)
 
       if (callbackQueueMap === undefined) {
-        // Create a new WeakMap for custom queue functions if it doesn't exist.
+        // Create a new WeakMap for custom queues if it doesn't exist.
         callbackQueueMap = new WeakMap()
         this.#callbackQueueMap.set(type, callbackQueueMap)
       }
 
-      // Associate the custom queue function with the callback.
-      callbackQueueMap.set(callback, options.queue)
+      if (callbackQueueMap.has(callback) === false) {
+        // Associate the custom queue with the callback.
+        callbackQueueMap.set(callback, this.#queue.createNested())
+      }
+    } else {
+      const callbackQueue = this.#callbackQueueMap.get(type)?.get(callback)
+
+      if (callbackQueue !== undefined) {
+        this.#queue.add(callbackQueue.drain())
+        // Remove the custom queue if the sequential option is set.
+        this.#callbackQueueMap.get(type)?.delete(callback)
+      }
+
+      // If no custom queue is provided, remove any existing one.
+      this.#callbackQueueMap.get(type)?.delete(callback)
     }
 
     return this
@@ -265,8 +266,17 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
       this.#onceMap.delete(type)
     }
 
-    // Remove any custom queue function associated with the callback.
-    this.#callbackQueueMap.get(type)?.delete(callback)
+    // Remove any custom queue associated with the callback.
+    const callbackQueueMap = this.#callbackQueueMap.get(type)
+
+    if (callbackQueueMap !== undefined) {
+      const callbackQueue = callbackQueueMap.get(callback)
+
+      if (callbackQueue !== undefined) {
+        this.#queue.add(callbackQueue.drain())
+        callbackQueueMap.delete(callback)
+      }
+    }
 
     if (this.#continuousMap.has(type) === false && this.#onceMap.has(type) === false) {
       // If no listeners remain for the event type, remove the persistent mark.
@@ -295,7 +305,7 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
           // Remove callbacks that are not marked as persistent.
           if (persistentSet === undefined || persistentSet.has(callback) === false) {
             continuousTypeSet.delete(callback)
-            // Remove any custom queue function associated with the callback.
+            // Remove any custom queue associated with the callback.
             callbackQueueMap?.delete(callback)
           }
         }
@@ -314,7 +324,7 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
           // Remove callbacks that are not marked as persistent.
           if (persistentSet === undefined || persistentSet.has(callback) === false) {
             onceTypeSet.delete(callback)
-            // Remove any custom queue function associated with the callback.
+            // Remove any custom queue associated with the callback.
             callbackQueueMap?.delete(callback)
           }
         }
@@ -334,7 +344,7 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
         for (const callback of continuousTypeSet) {
           if (persistentSet === undefined || persistentSet.has(callback) === false) {
             continuousTypeSet.delete(callback)
-            // Remove any custom queue function associated with the callback.
+            // Remove any custom queue associated with the callback.
             callbackQueueMap?.delete(callback)
           }
         }
@@ -350,7 +360,7 @@ export class CallbackTarget<T extends Record<string, ReadonlyArray<unknown>>> {
         for (const callback of onceTypeSet) {
           if (persistentSet === undefined || persistentSet.has(callback) === false) {
             onceTypeSet.delete(callback)
-            // Remove any custom queue function associated with the callback.
+            // Remove any custom queue associated with the callback.
             callbackQueueMap?.delete(callback)
           }
         }

@@ -1,7 +1,23 @@
 import { ensureError } from './error.ts'
 
 const PROMISE_VOID = Promise.resolve()
-const PROMISE_THEN_CALLBACK = () => PROMISE_VOID
+const PROMISE_THEN_VOID_CALLBACK = () => PROMISE_VOID
+const EMBEDDED_PROMISE_CALLBACK = (promise: Promise<void>) => promise
+const CUSTOM_ON_ERROR_CALLBACK = async (
+  customOnError: undefined | PromiseQueueErrorHandler,
+  defaultOnError: PromiseQueueErrorHandler,
+  error: unknown,
+): Promise<void> => {
+  if (customOnError === undefined) {
+    await defaultOnError(ensureError(error))
+  } else {
+    try {
+      await customOnError(ensureError(error))
+    } catch (callbackError) {
+      await defaultOnError(ensureError(callbackError))
+    }
+  }
+}
 
 /**
  * A function type that defines how errors in the `PromiseQueue` are handled.
@@ -50,7 +66,12 @@ export class PromiseQueue {
   /**
    * An optional callback that gets invoked whenever a rejection is encountered.
    */
-  readonly #onError: PromiseQueueErrorHandler
+  #onError: PromiseQueueErrorHandler
+
+  /**
+   * A set of nested `PromiseQueue` instances that are executed in parallel with the current queue.
+   */
+  readonly #nested = new Set<PromiseQueue>()
 
   /**
    * Tracks the number of promises currently in the queue.
@@ -90,7 +111,17 @@ export class PromiseQueue {
    * console.log(queue.empty) // true
    */
   get empty(): boolean {
-    return this.#count === 0
+    if (this.#count === 0 && this.#nested.size === 0) {
+      return true
+    }
+
+    for (const nested of this.#nested) {
+      if (nested.empty === false) {
+        return false
+      }
+    }
+
+    return true
   }
 
   /**
@@ -138,11 +169,11 @@ export class PromiseQueue {
       // The onError-callback must be called directly after the promise is rejected,
       // and not when the queue is processing the next promise.
       const promiseWithCatch = promise
-        .then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
+        .then(PROMISE_THEN_VOID_CALLBACK /* chain empty promise to "free" the return of the callback */)
         .catch(this.addError)
         .finally(this.#countDown)
 
-      this.#queue = this.#queue.then(() => promiseWithCatch)
+      this.#queue = this.#queue.then(EMBEDDED_PROMISE_CALLBACK.bind(undefined, promiseWithCatch))
     }
 
     return this
@@ -222,30 +253,14 @@ export class PromiseQueue {
       this.#queue = Promise.all([
         this.#queue,
         result
-          .catch(
-            onError === undefined ? this.addError : async (error: unknown) => {
-              try {
-                await onError(ensureError(error))
-              } catch (callbackError) {
-                this.addError(ensureError(callbackError))
-              }
-            },
-          )
+          .catch(CUSTOM_ON_ERROR_CALLBACK.bind(undefined, onError, this.#onError))
           .finally(this.#countDown),
-      ]).then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
+      ]).then(PROMISE_THEN_VOID_CALLBACK /* chain empty promise to "free" the return of the callback */)
     } else {
       this.#queue = this.#queue
         .then(callback)
-        .then(PROMISE_THEN_CALLBACK /* chain empty promise to "free" the return of the callback */)
-        .catch(
-          onError === undefined ? this.addError : async (error: unknown) => {
-            try {
-              await onError(ensureError(error))
-            } catch (callbackError) {
-              this.addError(ensureError(callbackError))
-            }
-          },
-        )
+        .then(PROMISE_THEN_VOID_CALLBACK /* chain empty promise to "free" the return of the callback */)
+        .catch(CUSTOM_ON_ERROR_CALLBACK.bind(undefined, onError, this.#onError))
         .finally(this.#countDown)
     }
 
@@ -261,12 +276,79 @@ export class PromiseQueue {
    *
    * @returns A promise that resolves when the queue is fully drained.
    */
-  async drain(): Promise<void> {
-    if (this.#count === 0) {
-      return
+  drain(): Promise<void> {
+    if (this.#nested.size === 0) {
+      if (this.#count === 0) {
+        return PROMISE_VOID
+      }
+
+      return this.#queue
     }
 
-    // Wait for the entire queue to settle.
-    await this.#queue
+    const promiseArray: Array<Promise<void>> = []
+
+    for (const nested of this.#nested) {
+      const drainPromise = nested.#count === 0 ? PROMISE_VOID : nested.drain()
+
+      if (drainPromise !== PROMISE_VOID) {
+        promiseArray.push(drainPromise)
+      }
+    }
+
+    if (promiseArray.length === 0) {
+      if (this.#count === 0) {
+        return PROMISE_VOID
+      }
+
+      return this.#queue
+    }
+
+    promiseArray.push(this.#queue)
+
+    // Wait for the queue and nested queues to settle.
+    return Promise.all(promiseArray).then(PROMISE_THEN_VOID_CALLBACK)
+  }
+
+  /**
+   * Creates a new nested `PromiseQueue` instance that runs in parallel with the current queue.
+   * @param onError - An optional error handler for the nested queue. If not provided, the current queue's error handler is used.
+   * @returns A new `PromiseQueue` instance that runs in parallel with the current queue.
+   */
+  createNested(onError?: undefined | PromiseQueueErrorHandler): PromiseQueue {
+    const nested = new PromiseQueue(onError ?? this.#onError)
+
+    this.#nested.add(nested)
+
+    return nested
+  }
+
+  /**
+   * Adds a nested `PromiseQueue` instance to the current queue for parallel execution.
+   * Sets the error handler for the nested queue to the current queue's error handler.
+   *
+   * @param nested - The nested queue to add.
+   * @returns The current instance for method chaining.
+   */
+  nest(nested: PromiseQueue): void {
+    this.#nested.add(nested)
+
+    nested.setOnError(this.#onError)
+  }
+
+  /**
+   * Replace the error handler for the current queue.
+   * @param onError - The error handler to set.
+   */
+  setOnError(onError: PromiseQueueErrorHandler): void {
+    this.#onError = onError
+  }
+
+  /**
+   * Removes a nested `PromiseQueue` instance from the current queue and make it independent.
+   * @param nested - The nested queue to remove.
+   * @returns `true` if the nested queue was removed; otherwise, `false`.
+   */
+  unnest(nested: PromiseQueue): boolean {
+    return this.#nested.delete(nested)
   }
 }
