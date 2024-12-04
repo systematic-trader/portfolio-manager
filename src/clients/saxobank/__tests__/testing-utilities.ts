@@ -23,8 +23,7 @@ import { QuoteKnown } from '../types/records/quote.ts'
 import type { TickSizeScheme } from '../types/records/tick-size-scheme.ts'
 
 const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
-  // this is a bit more than the rate limit of 240 requests per minute
-  delay: 300,
+  delay: 60_000 / 240, // This matches the OpenAPI rate limit of 240 requests per minute.
   timeout: 80_000,
 }
 
