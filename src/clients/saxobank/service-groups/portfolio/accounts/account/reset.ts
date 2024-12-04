@@ -21,7 +21,7 @@ export class Reset {
     options: { readonly timeout?: undefined | number } = {},
   ): Promise<void> {
     if (Number.isSafeInteger(NewBalance) === false || NewBalance <= 0 || NewBalance > 10_000_000) {
-      throw new Error('The account newBalance must be a positive integer between 1 and 100000000')
+      throw new Error('The account newBalance must be a positive integer between 1 and 10000000')
     }
 
     return await this.#client.put({
