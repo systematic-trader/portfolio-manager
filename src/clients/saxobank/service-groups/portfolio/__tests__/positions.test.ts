@@ -87,28 +87,25 @@ describe('portfolio/positions', () => {
 
     test.only('response passes guard for different order types', async ({ step }) => {
       const { ClientKey } = await getFirstAccount()
-
-      const batchSize = 9
-      const skip = 1 * batchSize
-      const limit = skip + 5 * batchSize
+      const limit = 50
 
       const assetTypes = {
-        // Bond: ['Long'],
-        // CfdOnEtc: ['Long', 'Short'],
-        // CfdOnEtf: ['Long', 'Short'],
-        // CfdOnEtn: ['Long', 'Short'],
-        // CfdOnFund: ['Long', 'Short'],
-        // CfdOnFutures: ['Long', 'Short'],
-        // CfdOnIndex: ['Long', 'Short'],
-        // CfdOnStock: ['Long', 'Short'],
-        // ContractFutures: ['Long', 'Short'],
-        // Etc: ['Long'],
-        // Etf: ['Long'],
-        // Etn: ['Long'],
+        Bond: ['Long'],
+        CfdOnEtc: ['Long', 'Short'],
+        CfdOnEtf: ['Long', 'Short'],
+        CfdOnEtn: ['Long', 'Short'],
+        CfdOnFund: ['Long', 'Short'],
+        CfdOnFutures: ['Long', 'Short'],
+        CfdOnIndex: ['Long', 'Short'],
+        CfdOnStock: ['Long', 'Short'],
+        ContractFutures: ['Long', 'Short'],
+        Etc: ['Long'],
+        Etf: ['Long'],
+        Etn: ['Long'],
         Fund: ['Long'],
-        // FxForwards: ['Long', 'Short'],
-        // FxSpot: ['Long', 'Short'],
-        // Stock: ['Long'],
+        FxForwards: ['Long', 'Short'],
+        FxSpot: ['Long', 'Short'],
+        Stock: ['Long'],
       }
 
       for (const [assetType, tradeDirectionsToTest] of extractEntries(assetTypes)) {
@@ -123,11 +120,6 @@ describe('portfolio/positions', () => {
           let count = 0
 
           for await (const { instrument, quote, tradeDirections: supportedTradeDirections } of tradeableInstruments) {
-            if (count < skip) {
-              count++
-              continue
-            }
-
             const progres = `${count + 1}/${limit}`
             await step(`${progres}: ${instrument.Description} (UIC ${instrument.Uic})`, async ({ step }) => {
               const tradeDirections = supportedTradeDirections.filter((tradeDirection) =>

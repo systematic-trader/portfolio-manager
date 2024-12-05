@@ -359,148 +359,462 @@ export const PositionResponseBond = props({
 export interface PositionResponseBond extends GuardType<typeof PositionResponseBond> {}
 // #endregion
 
-// todo
 // #region CfdOnEtc
 export const PositionResponseCfdOnEtc = props({
   PositionBase: props({
     AssetType: literal('CfdOnEtc'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-  // Costs: optional(never()),
-  // DisplayAndFormat: optional(never()),
-  // Exchange: optional(never()),
-  // NetPositionId: optional(never()),
-  // PositionId: optional(never()),
-  // PositionView: optional(never()),
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
 
 export interface PositionResponseCfdOnEtc extends GuardType<typeof PositionResponseCfdOnEtc> {}
 // #endregion
 
-// todo
 // #region CfdOnEtf
 export const PositionResponseCfdOnEtf = props({
   PositionBase: props({
     AssetType: literal('CfdOnEtf'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    // ExpiryDate: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
 
 export interface PositionResponseCfdOnEtf extends GuardType<typeof PositionResponseCfdOnEtf> {}
 // #endregion
 
-// todo
 // #region CfdOnEtn
 export const PositionResponseCfdOnEtn = props({
   PositionBase: props({
     AssetType: literal('CfdOnEtn'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    // ExpiryDate: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
 
 export interface PositionResponseCfdOnEtn extends GuardType<typeof PositionResponseCfdOnEtn> {}
 // #endregion
 
-// todo
 // #region CfdOnFund
 export const PositionResponseCfdOnFund = props({
   PositionBase: props({
     AssetType: literal('CfdOnFund'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
 
 export interface PositionResponseCfdOnFund extends GuardType<typeof PositionResponseCfdOnFund> {}
 // #endregion
 
-// todo
 // #region CfdOnFutures
 export const PositionResponseCfdOnFutures = props({
   PositionBase: props({
     AssetType: literal('CfdOnFutures'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExpiryDate: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails.omit(['Description', 'ExchangeId']),
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
 
 export interface PositionResponseCfdOnFutures extends GuardType<typeof PositionResponseCfdOnFutures> {}
 // #endregion
 
-// todo
 // #region CfdOnIndex
 export const PositionResponseCfdOnIndex = props({
   PositionBase: props({
     AssetType: literal('CfdOnIndex'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails.omit(['Description', 'ExchangeId']),
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
 
 export interface PositionResponseCfdOnIndex extends GuardType<typeof PositionResponseCfdOnIndex> {}
 // #endregion
 
-// todo
 // #region CfdOnStock
 export const PositionResponseCfdOnStock = props({
   PositionBase: props({
     AssetType: literal('CfdOnStock'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
 
 export interface PositionResponseCfdOnStock extends GuardType<typeof PositionResponseCfdOnStock> {}
 // #endregion
 
-// todo
 // #region ContractFutures
 export const PositionResponseContractFutures = props({
   PositionBase: props({
     AssetType: literal('ContractFutures'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExpiryDate: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    NoticeDate: optional(string({ format: 'date-iso8601' })),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    OpenInterest: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
 
 export interface PositionResponseContractFutures extends GuardType<typeof PositionResponseContractFutures> {}
 // #endregion
 
-// todo
 // #region Etc
 export const PositionResponseEtc = props({
   PositionBase: props({
     AssetType: literal('Etc'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
-
-export interface PositionResponseEtc extends GuardType<typeof PositionResponseEtc> {}
-// #endregion
-
-// todo
-// #region Etf
-export const PositionResponseEtf = props({
-  PositionBase: props({
-    AssetType: literal('Etf'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
-
-export interface PositionResponseEtf extends GuardType<typeof PositionResponseEtf> {}
-// #endregion
-
-// todo
-// #region Etn
-export const PositionResponseEtn = props({
-  PositionBase: props({
-    AssetType: literal('Etn'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
-
-export interface PositionResponseEtn extends GuardType<typeof PositionResponseEtn> {}
-// #endregion
-
-// #region Fund
-export const PositionResponseFund = props({
-  PositionBase: props({
-    AssetType: literal('Fund'),
 
     AccountId: string(),
     AccountKey: string(),
@@ -553,29 +867,297 @@ export const PositionResponseFund = props({
   }),
 })
 
+export interface PositionResponseEtc extends GuardType<typeof PositionResponseEtc> {}
+// #endregion
+
+// #region Etf
+export const PositionResponseEtf = props({
+  PositionBase: props({
+    AssetType: literal('Etf'),
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    MarketValueOpen: number(),
+    MarketValueOpenInBaseCurrency: number(),
+    ProfitLossCurrencyConversion: optional(number()),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
+
+export interface PositionResponseEtf extends GuardType<typeof PositionResponseEtf> {}
+// #endregion
+
+// #region Etn
+export const PositionResponseEtn = props({
+  PositionBase: props({
+    AssetType: literal('Etn'),
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    MarketValueOpen: number(),
+    MarketValueOpenInBaseCurrency: number(),
+    ProfitLossCurrencyConversion: optional(number()),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
+
+export interface PositionResponseEtn extends GuardType<typeof PositionResponseEtn> {}
+// #endregion
+
+// #region Fund
+export const PositionResponseFund = props({
+  PositionBase: props({
+    AssetType: literal('Fund'),
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    MarketValueOpen: number(),
+    MarketValueOpenInBaseCurrency: number(),
+    ProfitLossCurrencyConversion: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+    UnderlyingCurrentPrice: number(),
+  }),
+})
+
 export interface PositionResponseFund extends GuardType<typeof PositionResponseFund> {}
 // #endregion
 
-// todo
 // #region FxForwards
 export const PositionResponseFxForwards = props({
   PositionBase: props({
     AssetType: literal('FxForwards'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    OpenSwap: optional(number()),
+    SourceOrderId: string(),
+    SpotDate: string({ format: 'date-iso8601' }),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    Ask: number(),
+    Bid: number(),
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+  }),
+})
 
 export interface PositionResponseFxForwards extends GuardType<typeof PositionResponseFxForwards> {}
 // #endregion
 
-// todo
 // #region FxSpot
 export const PositionResponseFxSpot = props({
   PositionBase: props({
     AssetType: literal('FxSpot'),
-    ExternalReference: optional(string()),
-  }, { extendable: true }), // todo remove extendable
-}, { extendable: true }) // todo remove extendable
+
+    AccountId: string(),
+    AccountKey: string(),
+    Amount: number(),
+    CanBeClosed: boolean(),
+    ClientId: string(),
+    CloseConversionRateSettled: boolean(),
+    CorrelationKey: string(),
+    ExecutionTimeOpen: string({ format: 'date-iso8601' }),
+    ExternalReference: string(),
+    IsForceOpen: boolean(),
+    IsMarketOpen: boolean(),
+    LockedByBackOffice: boolean(),
+    OpenPrice: number(),
+    OpenPriceIncludingCosts: number(),
+    SourceOrderId: string(),
+    SpotDate: string({ format: 'date-iso8601' }),
+    Status: PositionStatus,
+    Uic: integer(),
+    ValueDate: string({ format: 'date-iso8601' }),
+  }),
+  Costs: PositionCost,
+  DisplayAndFormat: InstrumentDisplayAndFormat,
+  Exchange: InstrumentExchangeDetails,
+  NetPositionId: string(),
+  PositionId: string(),
+  PositionView: props({
+    Ask: number(),
+    Bid: number(),
+    CalculationReliability: CalculationReliability,
+    ConversionRateCurrent: number(),
+    ConversionRateOpen: number(),
+    CurrentPrice: number(),
+    CurrentPriceDelayMinutes: integer(),
+    CurrentPriceType: PriceType,
+    Exposure: number(),
+    ExposureCurrency: Currency3,
+    ExposureInBaseCurrency: number(),
+    InstrumentPriceDayPercentChange: number(),
+    MarketState: MarketState,
+    MarketValue: number(),
+    MarketValueInBaseCurrency: number(),
+    ProfitLossOnTrade: number(),
+    ProfitLossOnTradeInBaseCurrency: number(),
+    ProfitLossOnTradeIntraday: number(),
+    ProfitLossOnTradeIntradayInBaseCurrency: number(),
+    TradeCostsTotal: number(),
+    TradeCostsTotalInBaseCurrency: number(),
+  }),
+})
 
 export interface PositionResponseFxSpot extends GuardType<typeof PositionResponseFxSpot> {}
 // #endregion

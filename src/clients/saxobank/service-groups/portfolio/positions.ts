@@ -18,6 +18,7 @@ import {
   PositionResponseEtf,
   PositionResponseEtn,
   PositionResponseFund,
+  PositionResponseFxForwards,
   PositionResponseFxSpot,
   PositionResponseStock,
   type PositionResponseUnion,
@@ -156,6 +157,10 @@ function assertReturnPositionResponse(
 
     case 'FxSpot': {
       return assertReturn(PositionResponseFxSpot, position)
+    }
+
+    case 'FxForwards': {
+      return assertReturn(PositionResponseFxForwards, position)
     }
 
     case 'Stock': {
