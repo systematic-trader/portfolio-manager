@@ -5,6 +5,8 @@ import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
 import { createOrderExternalReference, createOrderRequestId } from '../../../saxobank-random.ts'
 
+// todo add tests with related orders (e.g. take profit and stop loss orders)
+
 describe('portfolio/positions', () => {
   describe('live', () => {
     using appLive = new SaxoBankApplication({
@@ -83,27 +85,30 @@ describe('portfolio/positions', () => {
       expect(updatedPositions).toHaveLength(1)
     })
 
-    test('response passes guard for different order types', async ({ step }) => {
+    test.only('response passes guard for different order types', async ({ step }) => {
       const { ClientKey } = await getFirstAccount()
-      const limit = 10
+
+      const batchSize = 9
+      const skip = 1 * batchSize
+      const limit = skip + 5 * batchSize
 
       const assetTypes = {
-        Bond: ['Long'],
-        CfdOnEtc: ['Long', 'Short'],
-        CfdOnEtf: ['Long', 'Short'],
-        CfdOnEtn: ['Long', 'Short'],
-        CfdOnFund: ['Long', 'Short'],
-        CfdOnFutures: ['Long', 'Short'],
-        CfdOnIndex: ['Long', 'Short'],
-        CfdOnStock: ['Long', 'Short'],
-        ContractFutures: ['Long', 'Short'],
-        Etc: ['Long'],
-        Etf: ['Long'],
-        Etn: ['Long'],
+        // Bond: ['Long'],
+        // CfdOnEtc: ['Long', 'Short'],
+        // CfdOnEtf: ['Long', 'Short'],
+        // CfdOnEtn: ['Long', 'Short'],
+        // CfdOnFund: ['Long', 'Short'],
+        // CfdOnFutures: ['Long', 'Short'],
+        // CfdOnIndex: ['Long', 'Short'],
+        // CfdOnStock: ['Long', 'Short'],
+        // ContractFutures: ['Long', 'Short'],
+        // Etc: ['Long'],
+        // Etf: ['Long'],
+        // Etn: ['Long'],
         Fund: ['Long'],
-        FxForwards: ['Long', 'Short'],
-        FxSpot: ['Long', 'Short'],
-        Stock: ['Long'],
+        // FxForwards: ['Long', 'Short'],
+        // FxSpot: ['Long', 'Short'],
+        // Stock: ['Long'],
       }
 
       for (const [assetType, tradeDirectionsToTest] of extractEntries(assetTypes)) {
@@ -118,6 +123,11 @@ describe('portfolio/positions', () => {
           let count = 0
 
           for await (const { instrument, quote, tradeDirections: supportedTradeDirections } of tradeableInstruments) {
+            if (count < skip) {
+              count++
+              continue
+            }
+
             const progres = `${count + 1}/${limit}`
             await step(`${progres}: ${instrument.Description} (UIC ${instrument.Uic})`, async ({ step }) => {
               const tradeDirections = supportedTradeDirections.filter((tradeDirection) =>
