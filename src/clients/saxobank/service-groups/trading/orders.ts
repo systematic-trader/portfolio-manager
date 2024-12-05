@@ -448,6 +448,14 @@ export class Orders {
    * Please note that the placing the following order types are not supported by this implementation:
    * - Algorithmic orders, i.e. "Iceberg"-algorithm
    * - Condition-orders, i.e. order types "TriggerBreakout", "TriggerLimit", and, "TriggerStop"
+   *
+   * Also note that the OpenAPI only allows for 1 request to be made each second.
+   * Performing multiple requests in quick succession will result in a 429 response - and this is fine - and the client will automatically retry the request.
+   * However, when re-trying the request, the client will use the same x-request-id as the original request (if specified through the RequestId parameter).
+   * Based on testing on the simulation environment, it seems that this can cause requests to be rejected by OpenAPi (since the x-request-id must be unique).
+   * When this happens, the response will be have a http status code 400 and the body will contain an error message stating "repeated request on auto quote".
+   * You can circumvent this entire problem by simply slowing down your request rate to, at most, 1 request per second.
+   * See also https://www.developer.saxo/openapi/learn/rate-limiting#RateLimiting-Preventingduplicateorderoperations
    */
   async post(
     { RequestId, ...parameters }:
