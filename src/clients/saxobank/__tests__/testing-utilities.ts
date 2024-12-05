@@ -1,7 +1,7 @@
 import { toArray } from '../../../utils/async-iterable.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
-import { createOrderExternalReference } from '../saxobank-random.ts'
+import { createOrderExternalReference, createOrderRequestId } from '../saxobank-random.ts'
 import type {
   PlaceOrderResponseEntryWithNoRelatedOrders,
   SupportedPlacableOrderTypes,
@@ -686,6 +686,8 @@ export class TestingUtilities {
     }
   }
 
+  #orderPlacementTimestamp = 0
+
   async placeFavourableOrder({
     app: appOverride,
     instrument,
@@ -703,6 +705,19 @@ export class TestingUtilities {
 
     const amount = this.calculateMinimumTradeSize(instrument)
     const externalReference = createOrderExternalReference()
+    const requestId = createOrderRequestId()
+
+    // Wait at least 1 second since the last order was placed.
+    // Firstly, this is preventing rate limit errors (you can only place 1 order every second).
+    // Secondly, when placing orders in quick succession, the OpenAPI will sometimes respond with a "RepeatTradeOnAutoQuote"-error.
+    // This seems to happen when we re-try the order-placing request after receiving a rate-limit response, resulting in us retrying the request with the same request id and external reference.
+    const now = Date.now()
+    const deltaTime = now - this.#orderPlacementTimestamp
+    if (deltaTime < 1000) {
+      await Timeout.wait(1000 - deltaTime)
+    }
+
+    const { promise, reject, resolve } = Promise.withResolvers<PlaceOrderResponseEntryWithNoRelatedOrders>()
 
     switch (instrument.AssetType) {
       case 'Bond':
@@ -722,16 +737,20 @@ export class TestingUtilities {
       case 'Stock': {
         switch (orderType) {
           case 'Market': {
-            return await app.trading.orders.post({
-              AssetType: instrument.AssetType,
-              Amount: amount,
-              BuySell: buySell,
-              ManualOrder: false,
-              OrderType: orderType,
-              OrderDuration: { DurationType: 'DayOrder' },
-              ExternalReference: externalReference,
-              Uic: instrument.Uic,
-            })
+            resolve(
+              await app.trading.orders.post({
+                Amount: amount,
+                AssetType: instrument.AssetType,
+                BuySell: buySell,
+                ExternalReference: externalReference,
+                ManualOrder: false,
+                OrderDuration: { DurationType: 'DayOrder' },
+                OrderType: orderType,
+                RequestId: requestId,
+                Uic: instrument.Uic,
+              }),
+            )
+            break
           }
 
           case 'Stop':
@@ -744,17 +763,21 @@ export class TestingUtilities {
               quote,
             })
 
-            return await app.trading.orders.post({
-              AssetType: instrument.AssetType,
-              Amount: amount,
-              BuySell: buySell,
-              ManualOrder: false,
-              OrderType: orderType,
-              OrderPrice: orderPrice,
-              OrderDuration: { DurationType: 'DayOrder' },
-              ExternalReference: externalReference,
-              Uic: instrument.Uic,
-            })
+            resolve(
+              await app.trading.orders.post({
+                Amount: amount,
+                AssetType: instrument.AssetType,
+                BuySell: buySell,
+                ExternalReference: externalReference,
+                ManualOrder: false,
+                OrderDuration: { DurationType: 'DayOrder' },
+                OrderPrice: orderPrice,
+                OrderType: orderType,
+                RequestId: requestId,
+                Uic: instrument.Uic,
+              }),
+            )
+            break
           }
 
           case 'TrailingStop':
@@ -766,19 +789,23 @@ export class TestingUtilities {
               quote,
             })
 
-            return await app.trading.orders.post({
-              AssetType: instrument.AssetType,
-              Amount: amount,
-              BuySell: buySell,
-              ManualOrder: false,
-              OrderType: orderType,
-              OrderPrice: orderPrice,
-              OrderDuration: { DurationType: 'DayOrder' },
-              ExternalReference: externalReference,
-              Uic: instrument.Uic,
-              TrailingStopStep: tickSize ?? 1,
-              TrailingStopDistanceToMarket: tickSize ?? 1,
-            })
+            resolve(
+              await app.trading.orders.post({
+                Amount: amount,
+                AssetType: instrument.AssetType,
+                BuySell: buySell,
+                ExternalReference: externalReference,
+                ManualOrder: false,
+                OrderDuration: { DurationType: 'DayOrder' },
+                OrderPrice: orderPrice,
+                OrderType: orderType,
+                RequestId: requestId,
+                TrailingStopDistanceToMarket: tickSize ?? 1,
+                TrailingStopStep: tickSize ?? 1,
+                Uic: instrument.Uic,
+              }),
+            )
+            break
           }
 
           case 'StopLimit': {
@@ -789,18 +816,22 @@ export class TestingUtilities {
               quote,
             })
 
-            return await app.trading.orders.post({
-              AssetType: instrument.AssetType,
-              Amount: amount,
-              BuySell: buySell,
-              ManualOrder: false,
-              OrderType: orderType,
-              OrderPrice: orderPrice,
-              StopLimitPrice: stopLimitPrice,
-              OrderDuration: { DurationType: 'DayOrder' },
-              ExternalReference: externalReference,
-              Uic: instrument.Uic,
-            })
+            resolve(
+              await app.trading.orders.post({
+                Amount: amount,
+                AssetType: instrument.AssetType,
+                BuySell: buySell,
+                ExternalReference: externalReference,
+                ManualOrder: false,
+                OrderDuration: { DurationType: 'DayOrder' },
+                OrderPrice: orderPrice,
+                OrderType: orderType,
+                RequestId: requestId,
+                StopLimitPrice: stopLimitPrice,
+                Uic: instrument.Uic,
+              }),
+            )
+            break
           }
 
           default: {
@@ -808,7 +839,6 @@ export class TestingUtilities {
           }
         }
 
-        // @ts-expect-error -- this code is unreachable, but if we don't include this break, Deno will complain about fall-throughs
         break
       }
 
@@ -829,17 +859,21 @@ export class TestingUtilities {
 
         switch (orderType) {
           case 'Market': {
-            return await app.trading.orders.post({
-              AssetType: instrument.AssetType,
-              ForwardDate: forwardDate,
-              Amount: amount,
-              BuySell: buySell,
-              ManualOrder: false,
-              OrderType: orderType,
-              OrderDuration: { DurationType: 'ImmediateOrCancel' },
-              ExternalReference: externalReference,
-              Uic: instrument.Uic,
-            })
+            resolve(
+              await app.trading.orders.post({
+                Amount: amount,
+                AssetType: instrument.AssetType,
+                BuySell: buySell,
+                ExternalReference: externalReference,
+                ForwardDate: forwardDate,
+                ManualOrder: false,
+                OrderDuration: { DurationType: 'ImmediateOrCancel' },
+                OrderType: orderType,
+                RequestId: requestId,
+                Uic: instrument.Uic,
+              }),
+            )
+            break
           }
 
           case 'Stop':
@@ -852,18 +886,22 @@ export class TestingUtilities {
               quote,
             })
 
-            return await app.trading.orders.post({
-              AssetType: instrument.AssetType,
-              ForwardDate: forwardDate,
-              Amount: amount,
-              BuySell: buySell,
-              ManualOrder: false,
-              OrderType: orderType,
-              OrderPrice: orderPrice,
-              OrderDuration: { DurationType: 'ImmediateOrCancel' },
-              ExternalReference: externalReference,
-              Uic: instrument.Uic,
-            })
+            resolve(
+              await app.trading.orders.post({
+                Amount: amount,
+                AssetType: instrument.AssetType,
+                BuySell: buySell,
+                ExternalReference: externalReference,
+                ForwardDate: forwardDate,
+                ManualOrder: false,
+                OrderDuration: { DurationType: 'ImmediateOrCancel' },
+                OrderPrice: orderPrice,
+                OrderType: orderType,
+                RequestId: requestId,
+                Uic: instrument.Uic,
+              }),
+            )
+            break
           }
 
           case 'TrailingStop':
@@ -875,20 +913,24 @@ export class TestingUtilities {
               quote,
             })
 
-            return await app.trading.orders.post({
-              AssetType: instrument.AssetType,
-              ForwardDate: forwardDate,
-              Amount: amount,
-              BuySell: buySell,
-              ManualOrder: false,
-              OrderType: orderType,
-              OrderPrice: orderPrice,
-              OrderDuration: { DurationType: 'ImmediateOrCancel' },
-              ExternalReference: externalReference,
-              Uic: instrument.Uic,
-              TrailingStopStep: tickSize ?? 1,
-              TrailingStopDistanceToMarket: tickSize ?? 1,
-            })
+            resolve(
+              await app.trading.orders.post({
+                Amount: amount,
+                AssetType: instrument.AssetType,
+                BuySell: buySell,
+                ExternalReference: externalReference,
+                ForwardDate: forwardDate,
+                ManualOrder: false,
+                OrderDuration: { DurationType: 'ImmediateOrCancel' },
+                OrderPrice: orderPrice,
+                OrderType: orderType,
+                RequestId: requestId,
+                TrailingStopDistanceToMarket: tickSize ?? 1,
+                TrailingStopStep: tickSize ?? 1,
+                Uic: instrument.Uic,
+              }),
+            )
+            break
           }
 
           case 'StopLimit': {
@@ -899,29 +941,38 @@ export class TestingUtilities {
               quote,
             })
 
-            return await app.trading.orders.post({
-              AssetType: instrument.AssetType,
-              ForwardDate: forwardDate,
-              Amount: amount,
-              BuySell: buySell,
-              ManualOrder: false,
-              OrderType: orderType,
-              OrderPrice: orderPrice,
-              StopLimitPrice: stopLimitPrice,
-              OrderDuration: { DurationType: 'ImmediateOrCancel' },
-              ExternalReference: externalReference,
-              Uic: instrument.Uic,
-            })
+            resolve(
+              await app.trading.orders.post({
+                Amount: amount,
+                AssetType: instrument.AssetType,
+                BuySell: buySell,
+                ExternalReference: externalReference,
+                ForwardDate: forwardDate,
+                ManualOrder: false,
+                OrderDuration: { DurationType: 'ImmediateOrCancel' },
+                OrderPrice: orderPrice,
+                OrderType: orderType,
+                StopLimitPrice: stopLimitPrice,
+                Uic: instrument.Uic,
+              }),
+            )
+            break
           }
         }
 
-        // @ts-expect-error -- this code is unreachable, but if we don't include this break, Deno will complain about fall-throughs
         break
       }
 
       default: {
-        throw new Error(`Unsupported asset type and order type: ${instrument.AssetType} / ${orderType.toString()}`)
+        reject(`Unsupported asset type and order type: ${instrument.AssetType} / ${orderType.toString()}`)
+        break
       }
     }
+
+    const orderResponse = await promise
+
+    this.#orderPlacementTimestamp = Date.now()
+
+    return orderResponse
   }
 }
