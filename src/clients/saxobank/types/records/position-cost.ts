@@ -10,13 +10,13 @@ export interface PositionCost extends GuardType<typeof PositionCost> {}
 
 export const PositionCost = props({
   /** Costs associated with the closing trade */
-  CloseCost: CostData,
+  CloseCost: optional(CostData),
 
   /**
    * A Estimate of the cost of closing all underlying positions
    * in requested account or client currency.
    */
-  CloseCostInBaseCurrency: CostData,
+  CloseCostInBaseCurrency: optional(CostData),
 
   /** Currency cut percentage */
   CurrencyCutPct: optional(number()),

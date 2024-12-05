@@ -1,6 +1,28 @@
+import {
+  AssertionError,
+  assertReturn,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import type { PositionFieldGroup } from '../../types/derives/position-field-group.ts'
-import { PositionResponse } from '../../types/records/position-response.ts'
+import {
+  PositionResponseBond,
+  PositionResponseCfdOnEtc,
+  PositionResponseCfdOnEtf,
+  PositionResponseCfdOnEtn,
+  PositionResponseCfdOnFund,
+  PositionResponseCfdOnFutures,
+  PositionResponseCfdOnIndex,
+  PositionResponseCfdOnStock,
+  PositionResponseContractFutures,
+  PositionResponseEtc,
+  PositionResponseEtf,
+  PositionResponseEtn,
+  PositionResponseFund,
+  PositionResponseFxSpot,
+  PositionResponseStock,
+  type PositionResponseUnion,
+  PositionResponseUnknown,
+} from '../../types/records/position-response.ts'
 
 const FieldGroups: PositionFieldGroup[] = [
   'Costs',
@@ -47,8 +69,8 @@ export class Positions {
       readonly WatchlistId?: undefined | string
     },
     options: { readonly timeout?: undefined | number } = {},
-  ): AsyncIterable<PositionResponse, void, undefined> {
-    yield* this.#client.getPaginated({
+  ): AsyncIterable<PositionResponseUnion, void, undefined> {
+    const positions = this.#client.getPaginated<PositionResponseUnion>({
       searchParams: {
         AccountGroupKey,
         AccountKey,
@@ -58,8 +80,90 @@ export class Positions {
         WatchlistId,
         FieldGroups,
       },
-      guard: PositionResponse,
       timeout: options.timeout,
     }).execute()
+
+    for await (const position of positions) {
+      try {
+        yield assertReturnPositionResponse(position)
+      } catch (error) {
+        if (error instanceof AssertionError) {
+          // deno-lint-ignore no-console
+          console.trace(error.invalidations)
+        }
+
+        throw error
+      }
+    }
+  }
+}
+
+function assertReturnPositionResponse(
+  position: PositionResponseUnion,
+): PositionResponseUnion {
+  switch (position.PositionBase.AssetType) {
+    case 'Bond': {
+      return assertReturn(PositionResponseBond, position)
+    }
+
+    case 'CfdOnEtc': {
+      return assertReturn(PositionResponseCfdOnEtc, position)
+    }
+
+    case 'CfdOnEtf': {
+      return assertReturn(PositionResponseCfdOnEtf, position)
+    }
+
+    case 'CfdOnEtn': {
+      return assertReturn(PositionResponseCfdOnEtn, position)
+    }
+
+    case 'CfdOnFund': {
+      return assertReturn(PositionResponseCfdOnFund, position)
+    }
+
+    case 'CfdOnFutures': {
+      return assertReturn(PositionResponseCfdOnFutures, position)
+    }
+
+    case 'CfdOnIndex': {
+      return assertReturn(PositionResponseCfdOnIndex, position)
+    }
+
+    case 'CfdOnStock': {
+      return assertReturn(PositionResponseCfdOnStock, position)
+    }
+
+    case 'ContractFutures': {
+      return assertReturn(PositionResponseContractFutures, position)
+    }
+
+    case 'Etc': {
+      return assertReturn(PositionResponseEtc, position)
+    }
+
+    case 'Etf': {
+      return assertReturn(PositionResponseEtf, position)
+    }
+
+    case 'Etn': {
+      return assertReturn(PositionResponseEtn, position)
+    }
+
+    case 'Fund': {
+      return assertReturn(PositionResponseFund, position)
+    }
+
+    case 'FxSpot': {
+      return assertReturn(PositionResponseFxSpot, position)
+    }
+
+    case 'Stock': {
+      return assertReturn(PositionResponseStock, position)
+    }
+
+    default: {
+      return assertReturn(PositionResponseUnknown, position)
+    }
   }
 }
