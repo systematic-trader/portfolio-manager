@@ -60,7 +60,7 @@ export function createOrderRequestId(infix?: undefined | string): string {
     return createId(`order-request-${infix}`)
   }
 
-  return createId('order')
+  return createId('order-request')
 }
 
 export function createOrderExternalReference(infix?: undefined | string): string {
@@ -68,5 +68,5 @@ export function createOrderExternalReference(infix?: undefined | string): string
     return createId(`order-reference-${infix}`)
   }
 
-  return createId('order')
+  return createId('order-reference')
 }
