@@ -206,8 +206,6 @@ export class SaxoBankStream extends EventSwitch<{
 
       reauthorizingURL.searchParams.set('contextId', this.#contextId)
 
-      console.log('Reauthorizing WebSocket')
-
       try {
         await this.#app.http.put(reauthorizingURL, {
           headers: {
@@ -297,8 +295,6 @@ export class SaxoBankStream extends EventSwitch<{
     this.#connecting = true
 
     this.#queueMain.call(async () => {
-      console.log('ensureWebSocket:', reconnect)
-
       let retries = 0
 
       try {
@@ -368,17 +364,13 @@ export class SaxoBankStream extends EventSwitch<{
     })
   }
 
-  #socketOpen = (event: Event): void => {
+  #socketOpen = (_event: Event): void => {
     this.#heartbeat()
-
-    console.log('WebSocket Opened:', event)
 
     this.#app.auth.addListener('accessToken', this.#updateAccessToken)
   }
 
-  #socketClose = (event: CloseEvent): void => {
-    console.log('WebSocket Closed:', event)
-
+  #socketClose = (_event: CloseEvent): void => {
     this.#app.auth.removeListener('accessToken', this.#updateAccessToken)
 
     this.#inactivityMonitor?.cancel()

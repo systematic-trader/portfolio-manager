@@ -1,8 +1,35 @@
-import { assertReturn, type Guard } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import {
+  AssertionError,
+  assertReturn,
+  type Guard,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { ensureError } from '../utils/error.ts'
 import { stringifyJSON } from '../utils/json.ts'
 import { mergeAbortSignals } from '../utils/signal.ts'
 import { Timeout } from '../utils/timeout.ts'
+
+function assertReturnBody<T>(
+  guard: Guard<T>,
+  body: unknown,
+  statusCode: HTTPServiceResponseInvalidError['statusCode'],
+  statusText: HTTPServiceResponseInvalidError['statusText'],
+): T {
+  try {
+    return assertReturn(guard, body)
+  } catch (error) {
+    if (error instanceof AssertionError) {
+      throw new HTTPServiceResponseInvalidError(
+        error.message,
+        statusCode,
+        statusText,
+        body,
+        error.invalidations,
+      )
+    }
+
+    throw error
+  }
+}
 
 export interface HTTPClientOnErrorHandler {
   (error: Error, retries: number): void | Promise<void>
@@ -87,6 +114,22 @@ export class HTTPServiceError extends HTTPError {
 
     super(message, statusCode, statusText)
     this.body = body
+  }
+}
+
+export class HTTPServiceResponseInvalidError extends HTTPServiceError {
+  readonly invalidations: readonly unknown[]
+
+  constructor(
+    message: string,
+    statusCode: HTTPServiceResponseInvalidError['statusCode'],
+    statusText: HTTPServiceResponseInvalidError['statusText'],
+    body: HTTPServiceResponseInvalidError['body'],
+    invalidations: HTTPServiceResponseInvalidError['invalidations'],
+  ) {
+    super(statusCode, statusText, body)
+    this.invalidations = invalidations
+    this.message = message
   }
 }
 
@@ -191,7 +234,7 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturn(guard, body)
+      return assertReturnBody(guard, body, response.status, response.statusText)
     }
 
     return body
@@ -247,7 +290,7 @@ export class HTTPClient {
     const text = await response.text()
 
     if (guard !== undefined) {
-      return assertReturn(guard, text)
+      return assertReturnBody(guard, text, response.status, response.statusText)
     }
 
     return text
@@ -325,8 +368,6 @@ export class HTTPClient {
       readonly onError?: undefined | HTTPClientOnErrorHandler
     } = {},
   ): Promise<T> {
-    console.log('postOkJSON', new URL(url).href)
-
     const response = await this.postOk(url, {
       headers: mergeHeaders(
         {
@@ -352,7 +393,7 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturn(guard, responseBody)
+      return assertReturnBody(guard, responseBody, response.status, response.statusText)
     }
 
     return responseBody
@@ -455,7 +496,7 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturn(guard, responseBody)
+      return assertReturnBody(guard, responseBody, response.status, response.statusText)
     }
 
     return responseBody
@@ -546,7 +587,7 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturn(guard, responseBody)
+      return assertReturnBody(guard, responseBody, response.status, response.statusText)
     }
 
     return responseBody
@@ -594,6 +635,17 @@ async function fetchResponse(client: HTTPClient, url: string | URL, options: {
     )
   ) {
     throw new TypeError(`Expected timeout to be a positive integer, got ${options.timeout}`)
+  }
+
+  console.log('HTTP', options.method, new URL(url).href)
+
+  if (options.body !== undefined) {
+    console.debug(Deno.inspect(options.body, {
+      colors: true,
+      depth: Number.POSITIVE_INFINITY,
+      sorted: true,
+      compact: false,
+    }))
   }
 
   using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)

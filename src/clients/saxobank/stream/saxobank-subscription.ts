@@ -1,3 +1,4 @@
+import { AssertionError } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { ensureError } from '../../../utils/error.ts'
 import { EventSwitch } from '../../../utils/event-switch.ts'
 import type { PromiseQueue } from '../../../utils/promise-queue.ts'
@@ -41,6 +42,21 @@ export interface SaxoBankSubscriptionUnsubscribe {
       readonly signal?: undefined | AbortSignal
     },
   ): Promise<void>
+}
+
+export class SaxoBankSubscriptionPayloadError extends Error {
+  readonly referenceId: string
+  readonly payload: unknown
+  readonly invalidations: readonly unknown[]
+
+  constructor(referenceId: string, payload: unknown, invalidations: readonly unknown[]) {
+    super(`Payload error for referenceId "${referenceId}"`)
+
+    this.referenceId = referenceId
+    this.payload = payload
+    this.invalidations = invalidations
+    this.name = this.constructor.name
+  }
 }
 
 export class SaxoBankSubscription<Message> extends EventSwitch<{
@@ -162,6 +178,7 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
 
     this.#controller.abort()
     this.#inactivityMonitor?.cancel()
+    this.#inactivityMonitor = undefined
 
     if (this.#referenceId !== undefined) {
       const referenceId = this.#referenceId
@@ -201,10 +218,10 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
 
       let response: undefined | Awaited<ReturnType<SaxoBankSubscriptionSubscribe<Message>>> = undefined
 
-      try {
-        const referenceId = this.#handle.createReferenceId()
-        const previousReferenceId = this.#referenceId
+      const referenceId = this.#handle.createReferenceId()
+      const previousReferenceId = this.#referenceId
 
+      try {
         if (previousReferenceId === undefined) {
           response = await this.#handle.subscribe({
             app: this.#stream.app,
@@ -240,6 +257,12 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
 
         this.emit('message', this.#message)
       } catch (error) {
+        if (error instanceof AssertionError) {
+          return this.dispose(
+            new SaxoBankSubscriptionPayloadError(referenceId, error.input, error.invalidations),
+          )
+        }
+
         return this.dispose(ensureError(error))
       }
     })
@@ -251,6 +274,7 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
     }
 
     this.#inactivityMonitor?.cancel()
+    this.#inactivityMonitor = undefined
 
     if (this.#inactivityTimeout > 0) {
       this.#inactivityMonitor = Timeout.defer(this.#inactivityTimeout, () => {
@@ -274,11 +298,19 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
       throw new Error('Subscribe before emitting payload')
     }
 
-    const messages = this.#handle.parse(this.#message, payload)
+    try {
+      const messages = this.#handle.parse(this.#message, payload)
 
-    for (const newMessage of messages) {
-      this.emit('message', newMessage)
-      this.#message = newMessage
+      for (const newMessage of messages) {
+        this.emit('message', newMessage)
+        this.#message = newMessage
+      }
+    } catch (error) {
+      if (error instanceof AssertionError) {
+        return this.dispose(new SaxoBankSubscriptionPayloadError(this.#referenceId!, payload, error.invalidations))
+      }
+
+      return this.dispose(ensureError(error))
     }
   }
 }

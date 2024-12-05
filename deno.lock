@@ -1,7 +1,6 @@
 {
   "version": "4",
   "specifiers": {
-    "jsr:@std/assert@*": "1.0.8",
     "jsr:@std/assert@^1.0.8": "1.0.8",
     "jsr:@std/dotenv@0.225.2": "0.225.2",
     "jsr:@std/encoding@0.224.0": "0.224.0",
@@ -30,7 +29,7 @@
     "@std/expect@1.0.8": {
       "integrity": "27e40d8f3aefb372fc6a703fb0b69e34560e72a2f78705178babdffa00119a5f",
       "dependencies": [
-        "jsr:@std/assert@^1.0.8",
+        "jsr:@std/assert",
         "jsr:@std/internal"
       ]
     },
@@ -43,7 +42,7 @@
     "@std/testing@1.0.5": {
       "integrity": "6e693cbec94c81a1ad3df668685c7ba8e20742bb10305bc7137faa5cf16d2ec4",
       "dependencies": [
-        "jsr:@std/assert@^1.0.8",
+        "jsr:@std/assert",
         "jsr:@std/internal"
       ]
     },
@@ -229,7 +228,7 @@
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/constructor.ts": "96e3c95ab1210467c6c63d3fcddcb3113e53afab886668200bbec292395e1257",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/defaulted.ts": "798eceee6b4485e3440513b08a18590317e283684d997133d56a2a68b1080a9b",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/enums.ts": "31b81d0bc654ed756a33fd72ebb6120a703a3812a17a775767bb5fa1a6254f13",
-    "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/errors.ts": "f953c40c48d29c20251ccbe233a47a379adc02cc0da8ee79be47e8a07bd233f8",
+    "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/errors.ts": "28d9a2d83f7e20f7336e1f33257fcfe0dc9ef7f3b76aaa8759fbd0111e2d2f81",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/guard.ts": "5a3d5054f07193d9b8d45576a70619abecb2aec9793b7eb0970fa7373655fbd2",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/index.ts": "6bbdd115935ecffe0dbbaf7d35437f6c4529d1eecf66841e19edab82d4896798",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/instance.ts": "99cf3cc6cc5052ade07b070ff56fe813646ed30ad58231abfde2c686caca8d9e",
@@ -252,8 +251,8 @@
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/type.ts": "297e07c0323ee0675cf1d2760b32de853c83e461fe5c3543f28feb8da4f28529",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/union.ts": "03e18599fd00dbd158ee526fd87d2a83de815990280cfc4e933ca75ef4278ef1",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/unknown.ts": "e4b15d585cd3494fb549007cd67e216e787324d9c4a9c1a7a21f2614eaf090bf",
-    "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/assert-function.ts": "c402cb3c99a2592cd133d1e4f16814f847f5f19a37d67ff2a769a4d3169aefd1",
-    "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/assert.ts": "de51318ceef20ee3b971b453d62092332ef11eb132028989d0ce20bb81892428",
+    "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/assert-function.ts": "66f02659941b9b83bfa9ef3b298a56705b55a4f748e044d1553345e0fcfa2cff",
+    "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/assert.ts": "b5574ca6ffb8b45f2cc6fbec5022da81230f0107d6c54a7119f30cb5186c9dd2",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/coerce.ts": "2ab1cd7229e5cf697be041e1222380b847aef5fbf10fa7c8ac4cc0c4fc85a227",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/convert.ts": "4de1168d90d878c7eeb5967aae80949792d78e3c38cc7ce4bba8132935f4399e",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/create.ts": "99d3c8ac4c25005e55f77ea8366110f5bb8bd8234a69f944dcd4f64c008b359f",
@@ -263,6 +262,6 @@
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/path-literal.ts": "dec5431bb84d81fa1fda93825eea2f175aa78fdae76c8662e9fdcc8a92cc51e4",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/scan.ts": "76fd743d7017c3105857a8dcc5c80aa1d60a4e0735f635e2b9d37fa371b8ca47",
     "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/substitute.ts": "6b6b6b3ffb9b966e0d1de0e904faf1186e7eb3d425e1d8d72a06f15c34174bc7",
-    "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/validate.ts": "e2a270788a356828699ea084ca95a02ac0a1161cc2ec57fb993178ebce0610b0"
+    "https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/utils/validate.ts": "776a949d33fa4ac5ced1b48c13d06dab062b74b066d431bc2cf135b0d6b9e8b6"
   }
 }

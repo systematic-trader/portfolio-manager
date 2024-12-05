@@ -23,30 +23,44 @@ export const Bond = {
   uic: 31372500,
 } as const
 
+export const EURUSD = {
+  assetType: 'FxSpot',
+  uic: 21,
+} as const
+
 test('SaxoBankStream', async () => {
   using app = new SaxoBankApplication({ type: 'Simulation' })
   await using stream = new SaxoBankStream({ app })
 
   let count = 0
 
-  const infoprice = stream.infoPrice(NOVO)
+  const infoprice = stream.infoPrice(EURUSD)
 
   infoprice.addListener('message', (message) => {
     count++
     console.log(`count=${count}:`, message)
 
-    if (count === 3) {
-      infoprice.dispose()
-    }
+    // if (count === 3) {
+    //   infoprice.dispose()
+    // }
   })
 
   infoprice.addListener('disposed', (_, referenceId) => {
     console.log('disposed:', referenceId)
   })
 
-  if (1 < Math.random()) {
-    console.log('created test:', infoprice.state.status)
-  }
+  while (true) {
+    if (infoprice.state.status === 'failed') {
+      console.log(`${infoprice.assetType}-${infoprice.uic}`, infoprice.state.status)
+      console.error(infoprice.state.error)
+      break
+    }
 
-  await Timeout.wait(2000000000)
+    if (infoprice.state.status === 'disposed') {
+      console.log(`${infoprice.assetType}-${infoprice.uic}`, infoprice.state.status)
+      break
+    }
+
+    await Timeout.wait(1000)
+  }
 })

@@ -6,7 +6,7 @@ import {
   integer,
   props,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { PromiseQueue } from '../../../../utils/promise-queue.ts'
+import type { PromiseQueue } from '../../../../utils/promise-queue.ts'
 import type { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { createStreamReferenceId } from '../../saxobank-random.ts'
 import { AssetType } from '../../types/derives/asset-type.ts'
@@ -49,10 +49,10 @@ export class SaxoBankSubscriptionInfoPrice extends SaxoBankSubscription<SaxoBank
   }: {
     readonly stream: SaxoBankStream
     readonly queue: PromiseQueue
-    readonly assetType: AssetType
-    readonly uic: number
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
+    readonly assetType: AssetType
+    readonly uic: number
   }) {
     super({
       stream,
@@ -72,13 +72,11 @@ export class SaxoBankSubscriptionInfoPrice extends SaxoBankSubscription<SaxoBank
 
 const parse: SaxoBankSubscriptionParse<SaxoBankSubscriptionInfoPriceMessage> = (previous, payload) => {
   if (Array.isArray(payload)) {
-    const rawMessages = payload.toSorted((left, right) => left.LastUpdated.localeCompare(right.LastUpdated))
-
     const messages: SaxoBankSubscriptionInfoPriceMessage[] = []
 
     let current = previous
 
-    for (const message of rawMessages) {
+    for (const message of payload) {
       if (message.LastUpdated > previous.lastUpdated) {
         current = {
           assetType: previous.assetType,

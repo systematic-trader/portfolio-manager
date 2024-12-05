@@ -100,8 +100,6 @@ export class SaxoBankOpenAuthentication extends EventSwitch<{ accessToken: [acce
         return
       }
 
-      console.log('refresh')
-
       const tokenURL = urlJoin(SaxoBankApplicationConfig[this.#settings.type].authenticationURL, 'token')
 
       tokenURL.searchParams.set('grant_type', 'refresh_token')
@@ -153,8 +151,6 @@ export class SaxoBankOpenAuthentication extends EventSwitch<{ accessToken: [acce
 
     this.#authorizing = authorizingPromise
 
-    const stack = new Error().stack as string
-
     let returnValue = false
     let authorizeError: undefined | Error = undefined
 
@@ -162,8 +158,6 @@ export class SaxoBankOpenAuthentication extends EventSwitch<{ accessToken: [acce
       if (signal?.aborted === true) {
         return
       }
-
-      console.log('authorize:', stack)
 
       const csrfToken = crypto.randomUUID()
 

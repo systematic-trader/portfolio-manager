@@ -24,48 +24,6 @@ export type InfoPricesSubscriptionsResponse = GuardType<
   typeof InfoPricesSubscriptionsResponse[keyof typeof InfoPricesSubscriptionsResponse]
 >
 
-// const InfoPricesSubscriptionsResponse = props({
-//   /**
-//    * The streaming context id that this response is associated with.
-//    */
-//   ContextId: string(),
-
-//   /**
-//    * The media type (RFC 2046), of the serialized data updates that are streamed to the client.
-//    */
-//   Format: enums(['application/json', 'application/x-protobuf']),
-
-//   /**
-//    * The time (in seconds) that the client should accept the subscription to be inactive before considering it invalid.
-//    */
-//   InactivityTimeout: integer(),
-
-//   /**
-//    * The reference id that (along with streaming context id and session id) identifies the subscription (within the context of a specific service/subscription type)
-//    */
-//   ReferenceId: string(),
-
-//   /**
-//    * Actual refresh rate assigned to the subscription according to the customers SLA.
-//    */
-//   RefreshRate: integer({ minimum: 1000 }),
-
-//   /**
-//    * Snapshot of the current data on hand, when subscription was created.
-//    */
-//   Snapshot: unknown(),
-
-//   /**
-//    * This property is kept for backwards compatibility.
-//    */
-//   State: string(),
-
-//   /**
-//    * Client specified tag assigned to the subscription, if specified in the request.
-//    */
-//   Tag: optional(string()),
-// })
-
 const InfoPricesSubscriptionsResponse = Object.fromEntries(
   Object.entries(InfoPriceResponse).map(([key, snapshotGuard]) => {
     return [
@@ -232,10 +190,23 @@ export class Subscriptions {
     },
     httpOptions: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
   ): Promise<InfoPricesSubscriptionsResponse> {
+    const FieldGroups: readonly InfoPriceGroupSpec[] = [
+      'Commissions',
+      'DisplayAndFormat',
+      'Greeks',
+      'HistoricalChanges',
+      'InstrumentPriceDetails',
+      'MarketDepth',
+      'PriceInfo',
+      'PriceInfoDetails',
+      'Quote',
+    ]
+
     return (await this.#client.post({
       body: {
         ...options,
         Arguments: {
+          FieldGroups,
           ...options.Arguments,
           Uics: options.Arguments.Uics.join(','),
         },
