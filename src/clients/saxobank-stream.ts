@@ -7,7 +7,7 @@ import { Timeout } from '../utils/timeout.ts'
 import { HTTPClientRequestAbortError } from './http-client.ts'
 import type { SaxoBankApplication } from './saxobank-application.ts'
 import { SaxoBankApplicationConfig } from './saxobank/config.ts'
-import { createStreamContextId } from './saxobank/saxobank-random.ts'
+import { SaxoBankRandom } from './saxobank/saxobank-random.ts'
 import { parseSaxoBankMessage } from './saxobank/stream/saxobank-message.ts'
 import type { SaxoBankSubscription } from './saxobank/stream/saxobank-subscription.ts'
 import { SaxoBankSubscriptionInfoPrice } from './saxobank/stream/subscriptions/saxobank-subscription-info-price.ts'
@@ -55,7 +55,7 @@ export class SaxoBankStream extends EventSwitch<{
   readonly #queueMain: PromiseQueue
   readonly #queueAccessToken: PromiseQueue
   readonly #queueServiceGroup: PromiseQueue
-  readonly #contextId = createStreamContextId()
+  readonly #contextId = SaxoBankRandom.stream.contextId()
   readonly #controller = new AbortController()
   readonly #signal: AbortSignal
 

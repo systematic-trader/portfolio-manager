@@ -8,7 +8,7 @@ import {
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { PromiseQueue } from '../../../../utils/promise-queue.ts'
 import type { SaxoBankStream } from '../../../saxobank-stream.ts'
-import { createStreamReferenceId } from '../../saxobank-random.ts'
+import { SaxoBankRandom } from '../../saxobank-random.ts'
 import { AssetType } from '../../types/derives/asset-type.ts'
 import { Quote } from '../../types/records/quote.ts'
 import {
@@ -101,7 +101,7 @@ const parse: SaxoBankSubscriptionParse<SaxoBankSubscriptionInfoPriceMessage> = (
 function createReferenceIdGenerator(
   { assetType, uic }: { readonly assetType: AssetType; readonly uic: number },
 ): SaxoBankSubscriptionCreateReferenceId {
-  return () => createStreamReferenceId(`info-price-${assetType}-${uic}`)
+  return () => SaxoBankRandom.stream.referenceId(`info-price-${assetType}-${uic}`)
 }
 
 function createSubscribe(
