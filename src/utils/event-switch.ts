@@ -221,7 +221,7 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
       const callbackQueue = this.#callbackQueueMap.get(type)?.get(callback)
 
       if (callbackQueue !== undefined) {
-        this.#queue.add(callbackQueue.drain())
+        this.#queue.unnest(callbackQueue)
         // Remove the custom queue if the sequential option is set.
         this.#callbackQueueMap.get(type)?.delete(callback)
       }
@@ -297,7 +297,8 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
       const callbackQueue = callbackQueueMap.get(callback)
 
       if (callbackQueue !== undefined) {
-        this.#queue.add(callbackQueue.drain())
+        this.#queue.unnest(callbackQueue)
+
         callbackQueueMap.delete(callback)
       }
     }
@@ -329,8 +330,16 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
           // Remove callbacks that are not marked as persistent.
           if (persistentSet === undefined || persistentSet.has(callback) === false) {
             continuousTypeSet.delete(callback)
-            // Remove any custom queue associated with the callback.
-            callbackQueueMap?.delete(callback)
+
+            if (callbackQueueMap !== undefined) {
+              // Remove any custom queue associated with the callback.
+              const callbackQueue = callbackQueueMap.get(callback)
+
+              if (callbackQueue !== undefined) {
+                this.#queue.unnest(callbackQueue)
+                callbackQueueMap.delete(callback)
+              }
+            }
           }
         }
 
@@ -348,8 +357,15 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
           // Remove callbacks that are not marked as persistent.
           if (persistentSet === undefined || persistentSet.has(callback) === false) {
             onceTypeSet.delete(callback)
-            // Remove any custom queue associated with the callback.
-            callbackQueueMap?.delete(callback)
+            if (callbackQueueMap !== undefined) {
+              // Remove any custom queue associated with the callback.
+              const callbackQueue = callbackQueueMap.get(callback)
+
+              if (callbackQueue !== undefined) {
+                this.#queue.unnest(callbackQueue)
+                callbackQueueMap.delete(callback)
+              }
+            }
           }
         }
 
@@ -368,8 +384,16 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
         for (const callback of continuousTypeSet) {
           if (persistentSet === undefined || persistentSet.has(callback) === false) {
             continuousTypeSet.delete(callback)
-            // Remove any custom queue associated with the callback.
-            callbackQueueMap?.delete(callback)
+
+            if (callbackQueueMap !== undefined) {
+              // Remove any custom queue associated with the callback.
+              const callbackQueue = callbackQueueMap.get(callback)
+
+              if (callbackQueue !== undefined) {
+                this.#queue.unnest(callbackQueue)
+                callbackQueueMap.delete(callback)
+              }
+            }
           }
         }
 
@@ -384,8 +408,16 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
         for (const callback of onceTypeSet) {
           if (persistentSet === undefined || persistentSet.has(callback) === false) {
             onceTypeSet.delete(callback)
-            // Remove any custom queue associated with the callback.
-            callbackQueueMap?.delete(callback)
+
+            if (callbackQueueMap !== undefined) {
+              // Remove any custom queue associated with the callback.
+              const callbackQueue = callbackQueueMap.get(callback)
+
+              if (callbackQueue !== undefined) {
+                this.#queue.unnest(callbackQueue)
+                callbackQueueMap.delete(callback)
+              }
+            }
           }
         }
 
