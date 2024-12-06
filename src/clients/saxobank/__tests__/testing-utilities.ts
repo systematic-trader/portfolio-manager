@@ -347,12 +347,6 @@ export class TestingUtilities {
         continue
       }
 
-      // todo this is not correct
-      // For testing purposes, we can only reliably trade instruments with some volume
-      // if (infoPrice.Quote.BidSize === 0 || infoPrice.Quote.AskSize === 0) {
-      //   continue
-      // }
-
       // Some instruments have short selling disabled
       // This information is available through the prices or info prices endpoint. It does not seem to be available directly on the instrument details.
       // When placing a sell-order on an instrument that does not support short selling, the API will return an error.
