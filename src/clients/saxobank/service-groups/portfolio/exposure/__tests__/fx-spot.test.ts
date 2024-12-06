@@ -2,7 +2,7 @@ import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../../__tests__/testing-utilities.ts'
-import { createOrderExternalReference, createOrderRequestId } from '../../../../saxobank-random.ts'
+import { SaxoBankRandom } from '../../../../saxobank-random.ts'
 
 describe('portfolio/exposure/fx-spot', () => {
   describe('live', () => {
@@ -64,8 +64,8 @@ describe('portfolio/exposure/fx-spot', () => {
         OrderDuration: { DurationType: 'DayOrder' },
         ManualOrder: false,
         Uic: 21, // EUR/USD
-        RequestId: createOrderRequestId(),
-        ExternalReference: createOrderExternalReference(),
+        RequestId: SaxoBankRandom.order.requestId(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
       })
 
       await waitForPortfolioState({

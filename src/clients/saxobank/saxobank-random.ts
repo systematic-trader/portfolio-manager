@@ -9,7 +9,7 @@ const TimestampSet = {
 
 const placeholder: string[] = new Array(4) // Pre-allocated reusable array for performance.
 
-function createId(prefix: string): string {
+function createPrefixedId(prefix: string): string {
   const now = Date.now()
 
   if (now !== TimestampSet.timestamp) {
@@ -38,35 +38,27 @@ function createId(prefix: string): string {
   return fixedPrefix + suffix
 }
 
-export function createStreamContextId(): string {
-  return createId('ctx')
-}
+function createdInfixedId(prefix: string, ...infixes: ReadonlyArray<number | string>): string {
+  let concatenation = prefix
 
-export function createStreamReferenceId(
-  identifier: number | string,
-  ...identifiers: ReadonlyArray<number | string>
-): string {
-  let ident = String(identifier)
+  for (let i = 0; i < infixes.length; i++) {
+    const infix = infixes[i]
 
-  for (let i = 0; i < identifiers.length; i++) {
-    ident += '-' + identifiers[i]
+    if (infix !== undefined) {
+      concatenation += '-' + infix
+    }
   }
 
-  return createId('ref-' + ident)
+  return createPrefixedId(concatenation)
 }
 
-export function createOrderRequestId(infix?: undefined | string): string {
-  if (infix !== undefined) {
-    return createId(`order-request-${infix}`)
-  }
-
-  return createId('order-request')
-}
-
-export function createOrderExternalReference(infix?: undefined | string): string {
-  if (infix !== undefined) {
-    return createId(`order-reference-${infix}`)
-  }
-
-  return createId('order-reference')
+export const SaxoBankRandom = {
+  stream: {
+    contextId: createPrefixedId.bind(undefined, 'stream-ctx'),
+    referenceId: createdInfixedId.bind(undefined, 'stream-ref'),
+  },
+  order: {
+    requestId: createdInfixedId.bind(undefined, 'order-req'),
+    referenceId: createdInfixedId.bind(undefined, 'order-ref'),
+  },
 }
