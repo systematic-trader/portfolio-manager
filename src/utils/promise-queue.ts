@@ -1,24 +1,5 @@
 import { ensureError } from './error.ts'
 
-const PROMISE_VOID = Promise.resolve()
-const PROMISE_THEN_VOID_CALLBACK = () => PROMISE_VOID
-const EMBEDDED_PROMISE_CALLBACK = (promise: Promise<void>) => promise
-const CUSTOM_ON_ERROR_CALLBACK = async (
-  customOnError: undefined | PromiseQueueErrorHandler,
-  defaultOnError: PromiseQueueErrorHandler,
-  error: unknown,
-): Promise<void> => {
-  if (customOnError === undefined) {
-    await defaultOnError(ensureError(error))
-  } else {
-    try {
-      await customOnError(ensureError(error))
-    } catch (callbackError) {
-      await defaultOnError(ensureError(callbackError))
-    }
-  }
-}
-
 /**
  * A function type that defines how errors in the `PromiseQueue` are handled.
  *
@@ -45,6 +26,25 @@ const CUSTOM_ON_ERROR_CALLBACK = async (
  */
 export interface PromiseQueueErrorHandler {
   (error: Error): void | Promise<void>
+}
+
+const PROMISE_VOID = Promise.resolve()
+const PROMISE_THEN_VOID_CALLBACK = () => PROMISE_VOID
+const EMBEDDED_PROMISE_CALLBACK = (promise: Promise<void>) => promise
+const CUSTOM_ON_ERROR_CALLBACK = async (
+  customOnError: undefined | PromiseQueueErrorHandler,
+  defaultOnError: PromiseQueueErrorHandler,
+  error: unknown,
+): Promise<void> => {
+  if (customOnError === undefined || customOnError === defaultOnError) {
+    await defaultOnError(ensureError(error))
+  } else {
+    try {
+      await customOnError(ensureError(error))
+    } catch (callbackError) {
+      await defaultOnError(ensureError(callbackError))
+    }
+  }
 }
 
 /**
@@ -198,7 +198,7 @@ export class PromiseQueue {
     try {
       const maybePromise = this.#onError(ensuredError)
 
-      if ((maybePromise as unknown) instanceof Promise) {
+      if (maybePromise && typeof (maybePromise as Promise<void>).then === 'function') {
         await maybePromise
       }
     } catch (callbackError) {
@@ -349,6 +349,16 @@ export class PromiseQueue {
    * @returns `true` if the nested queue was removed; otherwise, `false`.
    */
   unnest(nested: PromiseQueue): boolean {
-    return this.#nested.delete(nested)
+    if (this.#nested.delete(nested)) {
+      const drainPromise = nested.drain()
+
+      if (drainPromise !== PROMISE_VOID) {
+        this.add(drainPromise)
+      }
+
+      return true
+    }
+
+    return false
   }
 }
