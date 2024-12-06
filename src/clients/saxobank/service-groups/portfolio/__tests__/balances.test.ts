@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
-import { createOrderExternalReference, createOrderRequestId } from '../../../saxobank-random.ts'
+import { SaxoBankRandom } from '../../../saxobank-random.ts'
 
 describe('portfolio/balances', () => {
   describe('live', () => {
@@ -60,8 +60,8 @@ describe('portfolio/balances', () => {
         OrderDuration: { DurationType: 'DayOrder' },
         ManualOrder: false,
         Uic: 21, // EUR/USD
-        RequestId: createOrderRequestId(),
-        ExternalReference: createOrderExternalReference(),
+        RequestId: SaxoBankRandom.order.requestId(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
       })
 
       await waitForPortfolioState({

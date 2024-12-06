@@ -1,7 +1,7 @@
 import { toArray } from '../../../utils/async-iterable.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
-import { createOrderExternalReference, createOrderRequestId } from '../saxobank-random.ts'
+import { SaxoBankRandom } from '../saxobank-random.ts'
 import type {
   PlaceOrderResponseEntryWithNoRelatedOrders,
   SupportedPlacableOrderTypes,
@@ -701,8 +701,8 @@ export class TestingUtilities {
     const app = appOverride ?? this.#app
 
     const amount = this.calculateMinimumTradeSize(instrument)
-    const externalReference = createOrderExternalReference()
-    const requestId = createOrderRequestId()
+    const referenceId = SaxoBankRandom.order.referenceId()
+    const requestId = SaxoBankRandom.order.requestId()
 
     // Wait at least 1 second since the last order was placed.
     // Firstly, this is preventing rate limit errors (you can only place 1 order every second).
@@ -739,7 +739,7 @@ export class TestingUtilities {
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
-                ExternalReference: externalReference,
+                ExternalReference: referenceId,
                 ManualOrder: false,
                 OrderDuration: { DurationType: 'DayOrder' },
                 OrderType: orderType,
@@ -765,7 +765,7 @@ export class TestingUtilities {
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
-                ExternalReference: externalReference,
+                ExternalReference: referenceId,
                 ManualOrder: false,
                 OrderDuration: { DurationType: 'DayOrder' },
                 OrderPrice: orderPrice,
@@ -791,7 +791,7 @@ export class TestingUtilities {
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
-                ExternalReference: externalReference,
+                ExternalReference: referenceId,
                 ManualOrder: false,
                 OrderDuration: { DurationType: 'DayOrder' },
                 OrderPrice: orderPrice,
@@ -818,7 +818,7 @@ export class TestingUtilities {
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
-                ExternalReference: externalReference,
+                ExternalReference: referenceId,
                 ManualOrder: false,
                 OrderDuration: { DurationType: 'DayOrder' },
                 OrderPrice: orderPrice,
@@ -861,7 +861,7 @@ export class TestingUtilities {
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
-                ExternalReference: externalReference,
+                ExternalReference: referenceId,
                 ForwardDate: forwardDate,
                 ManualOrder: false,
                 OrderDuration: { DurationType: 'ImmediateOrCancel' },
@@ -888,7 +888,7 @@ export class TestingUtilities {
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
-                ExternalReference: externalReference,
+                ExternalReference: referenceId,
                 ForwardDate: forwardDate,
                 ManualOrder: false,
                 OrderDuration: { DurationType: 'ImmediateOrCancel' },
@@ -915,7 +915,7 @@ export class TestingUtilities {
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
-                ExternalReference: externalReference,
+                ExternalReference: referenceId,
                 ForwardDate: forwardDate,
                 ManualOrder: false,
                 OrderDuration: { DurationType: 'ImmediateOrCancel' },
@@ -943,7 +943,7 @@ export class TestingUtilities {
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
-                ExternalReference: externalReference,
+                ExternalReference: referenceId,
                 ForwardDate: forwardDate,
                 ManualOrder: false,
                 OrderDuration: { DurationType: 'ImmediateOrCancel' },

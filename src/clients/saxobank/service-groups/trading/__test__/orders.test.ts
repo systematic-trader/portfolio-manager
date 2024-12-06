@@ -2,7 +2,7 @@ import { toArray } from '../../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
-import { createOrderExternalReference, createOrderRequestId } from '../../../saxobank-random.ts'
+import { SaxoBankRandom } from '../../../saxobank-random.ts'
 
 describe('trade/orders', () => {
   using app = new SaxoBankApplication({
@@ -25,14 +25,14 @@ describe('trade/orders', () => {
   describe('placing orders using different methods', () => {
     test('Method 1: Placing a single order, with no related orders', async () => {
       const placeOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         AssetType: 'FxSpot',
         Uic: 21,
         BuySell: 'Buy',
         Amount: 50_000,
         ManualOrder: false,
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         OrderType: 'Market',
         OrderDuration: {
           DurationType: 'DayOrder',
@@ -64,14 +64,14 @@ describe('trade/orders', () => {
       const amount = calculateMinimumTradeSize(instrument)
 
       const placeOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         AssetType: 'FxSpot',
         Uic: instrument.Uic,
         BuySell: 'Buy',
         Amount: amount,
         ManualOrder: false,
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         OrderType: 'Market',
         OrderDuration: {
           DurationType: 'DayOrder',
@@ -83,7 +83,7 @@ describe('trade/orders', () => {
           BuySell: 'Sell',
           Amount: amount,
           ManualOrder: false,
-          ExternalReference: createOrderExternalReference(),
+          ExternalReference: SaxoBankRandom.order.referenceId(),
           OrderType: 'Limit',
           OrderPrice: limitOrderPrice,
           OrderDuration: {
@@ -124,14 +124,14 @@ describe('trade/orders', () => {
       const amount = calculateMinimumTradeSize(instrument)
 
       const placeOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         AssetType: 'FxSpot',
         Uic: instrument.Uic,
         BuySell: 'Buy',
         Amount: amount,
         ManualOrder: false,
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         OrderType: 'Market',
         OrderDuration: {
           DurationType: 'DayOrder',
@@ -143,7 +143,7 @@ describe('trade/orders', () => {
           BuySell: 'Sell',
           Amount: amount,
           ManualOrder: false,
-          ExternalReference: createOrderExternalReference(),
+          ExternalReference: SaxoBankRandom.order.referenceId(),
           OrderType: 'Limit',
           OrderPrice: sellLimitOrderPrice,
           OrderDuration: {
@@ -155,7 +155,7 @@ describe('trade/orders', () => {
           BuySell: 'Sell',
           Amount: amount,
           ManualOrder: false,
-          ExternalReference: createOrderExternalReference(),
+          ExternalReference: SaxoBankRandom.order.referenceId(),
           OrderType: 'Stop',
           OrderPrice: sellStopOrderPrice,
           OrderDuration: {
@@ -196,14 +196,14 @@ describe('trade/orders', () => {
 
       // First, place the initial entry order
       const entryOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         AssetType: 'FxSpot',
         Uic: 21,
         BuySell: 'Buy',
         Amount: amount,
         ManualOrder: false,
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         OrderType: 'Limit',
         OrderPrice: buyLimitOrderPrice,
         OrderDuration: {
@@ -215,7 +215,7 @@ describe('trade/orders', () => {
 
       // After this, add a related order to the newly created order
       const relatedOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         OrderId: entryOrderResponse.OrderId,
 
@@ -225,7 +225,7 @@ describe('trade/orders', () => {
           BuySell: 'Sell',
           Amount: amount,
           ManualOrder: false,
-          ExternalReference: createOrderExternalReference(),
+          ExternalReference: SaxoBankRandom.order.referenceId(),
           OrderType: 'Limit',
           OrderPrice: sellLimitOrderPrice,
           OrderDuration: {
@@ -274,14 +274,14 @@ describe('trade/orders', () => {
 
       // First, place the initial entry order
       const entryOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         AssetType: instrument.AssetType,
         Uic: instrument.Uic,
         BuySell: 'Buy',
         Amount: amount,
         ManualOrder: false,
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         OrderType: 'Limit',
         OrderPrice: buyLimitOrderPrice,
         OrderDuration: {
@@ -293,7 +293,7 @@ describe('trade/orders', () => {
 
       // After this, add a related order to the newly created order
       const relatedOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         OrderId: entryOrderResponse.OrderId,
 
@@ -303,7 +303,7 @@ describe('trade/orders', () => {
           BuySell: 'Sell',
           Amount: amount,
           ManualOrder: false,
-          ExternalReference: createOrderExternalReference(),
+          ExternalReference: SaxoBankRandom.order.referenceId(),
           OrderType: 'Limit',
           OrderPrice: sellLimitOrderPrice,
           OrderDuration: {
@@ -315,7 +315,7 @@ describe('trade/orders', () => {
           BuySell: 'Sell',
           Amount: amount,
           ManualOrder: false,
-          ExternalReference: createOrderExternalReference(),
+          ExternalReference: SaxoBankRandom.order.referenceId(),
           OrderType: 'Stop',
           OrderPrice: sellStopOrderPrice,
           OrderDuration: {
@@ -363,7 +363,7 @@ describe('trade/orders', () => {
       const amount = calculateMinimumTradeSize(instrument)
 
       const placeOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         Orders: [{
           AssetType: instrument.AssetType,
@@ -371,7 +371,7 @@ describe('trade/orders', () => {
           BuySell: 'Buy',
           Amount: amount,
           ManualOrder: false,
-          ExternalReference: createOrderExternalReference(),
+          ExternalReference: SaxoBankRandom.order.referenceId(),
           OrderType: 'Limit',
           OrderPrice: limitOrderPrice,
           OrderDuration: {
@@ -383,7 +383,7 @@ describe('trade/orders', () => {
           BuySell: 'Buy',
           Amount: amount,
           ManualOrder: false,
-          ExternalReference: createOrderExternalReference(),
+          ExternalReference: SaxoBankRandom.order.referenceId(),
           OrderType: 'Stop',
           OrderPrice: stopOrderPrice,
           OrderDuration: {
@@ -425,14 +425,14 @@ describe('trade/orders', () => {
       })
 
       const placeOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         AssetType: instrument.AssetType,
         Uic: instrument.Uic,
         BuySell: 'Buy',
         Amount: calculateMinimumTradeSize(instrument),
         ManualOrder: false,
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         OrderType: 'Limit',
         OrderPrice: limitOrderPrice,
         OrderDuration: {
@@ -456,14 +456,14 @@ describe('trade/orders', () => {
       const { instrument } = record
 
       const placeOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         AssetType: instrument.AssetType,
         Uic: instrument.Uic,
         BuySell: 'Buy',
         Amount: calculateMinimumTradeSize(instrument),
         ManualOrder: false,
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         OrderType: 'Market',
         OrderDuration: {
           DurationType: 'FillOrKill',
@@ -497,14 +497,14 @@ describe('trade/orders', () => {
       })
 
       const placeOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         AssetType: instrument.AssetType,
         Uic: instrument.Uic,
         BuySell: 'Buy',
         Amount: calculateMinimumTradeSize(instrument),
         ManualOrder: false,
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         OrderType: 'Limit',
         OrderPrice: limitOrderPrice,
         OrderDuration: {
@@ -560,14 +560,14 @@ describe('trade/orders', () => {
               : [expirationDate, testCase.ExpirationTime].join('T')
 
             const placeOrderResponse = await app.trading.orders.post({
-              RequestId: createOrderRequestId(),
+              RequestId: SaxoBankRandom.order.requestId(),
 
               AssetType: instrument.AssetType,
               Uic: instrument.Uic,
               BuySell: 'Buy',
               Amount: calculateMinimumTradeSize(instrument),
               ManualOrder: false,
-              ExternalReference: createOrderExternalReference(),
+              ExternalReference: SaxoBankRandom.order.referenceId(),
               OrderType: 'Limit',
               OrderPrice: limitOrderPrice,
               OrderDuration: {
@@ -588,14 +588,14 @@ describe('trade/orders', () => {
 
     test('ImmediateOrCancel', async () => {
       const placeOrderResponse = await app.trading.orders.post({
-        RequestId: createOrderRequestId(),
+        RequestId: SaxoBankRandom.order.requestId(),
 
         AssetType: 'FxSpot',
         Uic: 21,
         BuySell: 'Buy',
         Amount: 50_000,
         ManualOrder: false,
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         OrderType: 'Market',
         OrderDuration: {
           DurationType: 'ImmediateOrCancel',
@@ -682,7 +682,7 @@ describe('trade/orders', () => {
         OrderType: 'Limit',
         OrderPrice: limitOrderPrice,
         OrderDuration: { DurationType: 'DayOrder' },
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
       })
 
       expect(placeOrderResponse).toBeDefined()
@@ -746,7 +746,7 @@ describe('trade/orders', () => {
           DurationType: 'GoodTillCancel',
         },
 
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         IsForceOpen: undefined,
       })
 
@@ -763,7 +763,7 @@ describe('trade/orders', () => {
           DurationType: 'GoodTillCancel',
         },
 
-        ExternalReference: createOrderExternalReference(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
         IsForceOpen: undefined,
       })
 

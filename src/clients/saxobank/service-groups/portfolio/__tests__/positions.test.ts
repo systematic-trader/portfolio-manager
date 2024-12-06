@@ -3,7 +3,7 @@ import { extractEntries } from '../../../../../utils/object.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
-import { createOrderExternalReference, createOrderRequestId } from '../../../saxobank-random.ts'
+import { SaxoBankRandom } from '../../../saxobank-random.ts'
 
 // todo add tests with related orders (e.g. take profit and stop loss orders)
 
@@ -70,8 +70,8 @@ describe('portfolio/positions', () => {
         OrderDuration: { DurationType: 'DayOrder' },
         ManualOrder: false,
         Uic: 21, // EUR/USD
-        RequestId: createOrderRequestId(),
-        ExternalReference: createOrderExternalReference(),
+        RequestId: SaxoBankRandom.order.requestId(),
+        ExternalReference: SaxoBankRandom.order.referenceId(),
       })
 
       await waitForPortfolioState({
