@@ -9,7 +9,7 @@ import {
   record,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { CallbackTarget } from '../../utils/callback-target.ts'
+import { EventSwitch } from '../../utils/event-switch.ts'
 import { stringifyJSON } from '../../utils/json.ts'
 import { PromiseQueue } from '../../utils/promise-queue.ts'
 import { urlJoin } from '../../utils/url.ts'
@@ -39,11 +39,12 @@ export interface SaxoBankOpenAuthenticationSettings {
   }
 }
 
-export class SaxoBankOpenAuthentication extends CallbackTarget<{ accessToken: [accessToken: string] }> {
+export class SaxoBankOpenAuthentication extends EventSwitch<{ accessToken: [accessToken: string] }> {
   readonly #httpClient: HTTPClient
   readonly #settings: SaxoBankOpenAuthenticationSettings
+  readonly #queue: PromiseQueue
 
-  #promise: Promise<void>
+  #authorizing: undefined | Promise<boolean>
   #session: undefined | SaxoBankOAuthSession
 
   get type(): SaxoBankApplicationType {
@@ -55,15 +56,18 @@ export class SaxoBankOpenAuthentication extends CallbackTarget<{ accessToken: [a
   }
 
   constructor(client: HTTPClient, settings: SaxoBankOpenAuthenticationSettings) {
-    super(
-      new PromiseQueue((error) => {
-        this.#promise = this.#promise.then(() => Promise.reject(error))
-      }),
-    )
+    const queue = new PromiseQueue((error) => {
+      // deno-lint-ignore no-console
+      console.error(error)
+      Deno.exit(1) // errors are caugt inline and should not be thrown
+    })
+
+    super(queue.createNested())
 
     this.#httpClient = client
     this.#settings = settings
-    this.#promise = Promise.resolve()
+    this.#queue = queue
+    this.#authorizing = undefined
     this.#session = undefined
 
     if (this.#settings.storedSessionPath !== undefined) {
@@ -84,148 +88,190 @@ export class SaxoBankOpenAuthentication extends CallbackTarget<{ accessToken: [a
   }
 
   async refresh(signal?: undefined | AbortSignal): Promise<boolean> {
-    if (this.#session === undefined || signal?.aborted === true) {
-      return false
-    }
+    let returnValue = false
+    let refreshError: undefined | Error = undefined
 
-    if (Date.now() > this.#session.refreshTokenExpiresAt) {
-      return false
-    }
-
-    const tokenURL = urlJoin(SaxoBankApplicationConfig[this.#settings.type].authenticationURL, 'token')
-
-    tokenURL.searchParams.set('grant_type', 'refresh_token')
-    tokenURL.searchParams.set('refresh_token', this.#session.refreshToken)
-
-    const refreshedSession = await requestAuthenticationToken({
-      client: this.#httpClient,
-      tokenURL,
-      settings: this.#settings,
-      signal,
-    })
-
-    if (refreshedSession === undefined) {
-      return false
-    }
-
-    this.#session = refreshedSession
-
-    this.#promise = this.#promise.then(async () => {
-      if (this.#settings.storedSessionPath !== undefined) {
-        await writeToSessionsFile(this.#settings.storedSessionPath!, this.#settings.key, refreshedSession)
-      }
-    })
-
-    this.emit('accessToken', refreshedSession.accessToken)
-
-    await this.drain()
-    await this.#promise
-
-    return true
-  }
-
-  async authorize(signal?: undefined | AbortSignal): Promise<boolean> {
-    if (signal?.aborted === true) {
-      return false
-    }
-
-    const csrfToken = crypto.randomUUID()
-
-    const callback = Promise.withResolvers<undefined | CodeResponse>()
-
-    const service = Deno.serve({
-      hostname: this.#settings.listener.hostname,
-      port: this.#settings.listener.port,
-      signal,
-
-      onListen() {
-        // Do nothing (default behaviour is to log to console)
-      },
-    }, (request: Request) => {
-      const url = new URL(request.url)
-
-      const code = url.searchParams.get('code')
-      const state = url.searchParams.get('state')
-
-      callback.resolve(assertReturn(CodeResponse, { code, state }))
-
-      return new Response(HTML_SUCCESS, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html' },
-      })
-    })
-
-    callback.promise = callback.promise
-      .finally(() => {
-        return service.shutdown()
-      })
-      .catch((error) => {
-        if (error instanceof Error && error.name === 'AbortError') {
-          return undefined
-        }
-
-        throw error
-      })
-
-    const handshakePromise = callback.promise.then((response) => {
-      if (response === undefined || signal?.aborted === true) {
-        return undefined
+    this.#queue.call(async () => {
+      if (this.#session === undefined || signal?.aborted === true) {
+        return
       }
 
-      const { csrfToken: callbackToken } = assertReturn(CallbackState, JSON.parse(atob(response.state)))
-
-      if (callbackToken !== csrfToken) {
-        throw new Error('Cross-Site Request Forgery token mismatch detected!')
+      if (Date.now() > this.#session.refreshTokenExpiresAt) {
+        return
       }
 
       const tokenURL = urlJoin(SaxoBankApplicationConfig[this.#settings.type].authenticationURL, 'token')
 
-      tokenURL.searchParams.set('grant_type', 'authorization_code')
-      tokenURL.searchParams.set('code', response.code)
+      tokenURL.searchParams.set('grant_type', 'refresh_token')
+      tokenURL.searchParams.set('refresh_token', this.#session.refreshToken)
 
-      return requestAuthenticationToken({
+      const refreshedSession = await requestAuthenticationToken({
         client: this.#httpClient,
         tokenURL,
         settings: this.#settings,
         signal,
       })
-    })
 
-    const csrfTokenEncoded = btoa(stringifyJSON(assertReturn(CallbackState, { csrfToken })))
-
-    const authorizationURL = urlJoin(SaxoBankApplicationConfig[this.#settings.type].authenticationURL, 'authorize')
-
-    authorizationURL.searchParams.set('client_id', this.#settings.key)
-    authorizationURL.searchParams.set('response_type', 'code')
-    authorizationURL.searchParams.set('state', csrfTokenEncoded)
-    authorizationURL.searchParams.set('redirect_uri', this.#settings.redirectURL.href)
-
-    await this.#settings.authorize.handle(authorizationURL)
-
-    if ((signal?.aborted as undefined | boolean) === true) {
-      return false
-    }
-
-    const newSession = await handshakePromise
-
-    if (newSession === undefined || (signal?.aborted as undefined | boolean) === true) {
-      return false
-    }
-
-    this.#session = newSession
-
-    this.#promise = this.#promise.then(async () => {
-      if (this.#settings.storedSessionPath !== undefined) {
-        await writeToSessionsFile(this.#settings.storedSessionPath!, this.#settings.key, newSession)
+      if (refreshedSession === undefined) {
+        return
       }
+
+      this.#session = refreshedSession
+
+      if (this.#settings.storedSessionPath !== undefined) {
+        const { storedSessionPath } = this.#settings
+
+        await writeToSessionsFile(storedSessionPath, this.#settings.key, refreshedSession)
+      }
+
+      this.emit('accessToken', refreshedSession.accessToken)
+
+      returnValue = true
+    }, {
+      onError(error) {
+        refreshError = error
+      },
     })
 
-    this.emit('accessToken', newSession.accessToken)
+    await this.#queue.drain()
 
-    await this.drain()
-    await this.#promise
+    if (refreshError !== undefined) {
+      throw refreshError
+    }
 
-    return true
+    return returnValue
+  }
+
+  async authorize(signal?: undefined | AbortSignal): Promise<boolean> {
+    if (this.#authorizing !== undefined) {
+      return this.#authorizing
+    }
+
+    const { promise: authorizingPromise, resolve: authorizingResolve } = Promise.withResolvers<boolean>()
+
+    this.#authorizing = authorizingPromise
+
+    let returnValue = false
+    let authorizeError: undefined | Error = undefined
+
+    this.#queue.call(async () => {
+      if (signal?.aborted === true) {
+        return
+      }
+
+      const csrfToken = crypto.randomUUID()
+
+      const callback = Promise.withResolvers<undefined | CodeResponse>()
+
+      const service = Deno.serve({
+        hostname: this.#settings.listener.hostname,
+        port: this.#settings.listener.port,
+        signal,
+
+        onListen() {
+          // Do nothing (default behaviour is to log to console)
+        },
+      }, (request: Request) => {
+        const url = new URL(request.url)
+
+        const code = url.searchParams.get('code')
+        const state = url.searchParams.get('state')
+
+        callback.resolve(assertReturn(CodeResponse, { code, state }))
+
+        return new Response(HTML_SUCCESS, {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        })
+      })
+
+      callback.promise = callback.promise
+        .finally(() => {
+          return service.shutdown()
+        })
+        .catch((error) => {
+          if (error instanceof Error && error.name === 'AbortError') {
+            return undefined
+          }
+
+          throw error
+        })
+
+      const handshakePromise = callback.promise.then((response) => {
+        if (response === undefined || signal?.aborted === true) {
+          return undefined
+        }
+
+        const { csrfToken: callbackToken } = assertReturn(CallbackState, JSON.parse(atob(response.state)))
+
+        if (callbackToken !== csrfToken) {
+          throw new Error('Cross-Site Request Forgery token mismatch detected!')
+        }
+
+        const tokenURL = urlJoin(SaxoBankApplicationConfig[this.#settings.type].authenticationURL, 'token')
+
+        tokenURL.searchParams.set('grant_type', 'authorization_code')
+        tokenURL.searchParams.set('code', response.code)
+
+        return requestAuthenticationToken({
+          client: this.#httpClient,
+          tokenURL,
+          settings: this.#settings,
+          signal,
+        })
+      })
+
+      const csrfTokenEncoded = btoa(stringifyJSON(assertReturn(CallbackState, { csrfToken })))
+
+      const authorizationURL = urlJoin(SaxoBankApplicationConfig[this.#settings.type].authenticationURL, 'authorize')
+
+      authorizationURL.searchParams.set('client_id', this.#settings.key)
+      authorizationURL.searchParams.set('response_type', 'code')
+      authorizationURL.searchParams.set('state', csrfTokenEncoded)
+      authorizationURL.searchParams.set('redirect_uri', this.#settings.redirectURL.href)
+
+      await this.#settings.authorize.handle(authorizationURL)
+
+      if ((signal?.aborted as undefined | boolean) === true) {
+        return
+      }
+
+      const newSession = await handshakePromise
+
+      if (newSession === undefined || (signal?.aborted as undefined | boolean) === true) {
+        return
+      }
+
+      this.#session = newSession
+
+      if (this.#settings.storedSessionPath !== undefined) {
+        const { storedSessionPath } = this.#settings
+
+        await writeToSessionsFile(storedSessionPath, this.#settings.key, newSession)
+      }
+
+      this.emit('accessToken', newSession.accessToken)
+
+      returnValue = true
+    }, {
+      onError(error) {
+        authorizeError = error
+      },
+    })
+
+    await this.#queue.drain()
+
+    authorizingResolve(returnValue)
+
+    this.#authorizing = undefined
+
+    await authorizingPromise
+
+    if (authorizeError !== undefined) {
+      throw authorizeError
+    }
+
+    return authorizingPromise
   }
 }
 

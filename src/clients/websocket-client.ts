@@ -1,5 +1,5 @@
-import { CallbackTarget } from '../utils/callback-target.ts'
 import { ensureError } from '../utils/error.ts'
+import { EventSwitch } from '../utils/event-switch.ts'
 import { PromiseQueue } from '../utils/promise-queue.ts'
 import { mergeAbortSignals } from '../utils/signal.ts'
 import { Timeout } from '../utils/timeout.ts'
@@ -72,9 +72,8 @@ type CallbackTargetMap = {
  * WebSocketClient provides a high-level API to manage WebSocket connections,
  * including reconnection logic, event handling, and inactivity timeout support.
  */
-export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implements AsyncDisposable {
+export class WebSocketClient extends EventSwitch<CallbackTargetMap> implements AsyncDisposable {
   readonly #queue: PromiseQueue
-  readonly #eventQueue: PromiseQueue
   readonly #inactivity = new WebSocketClientInactivityMonitor()
 
   #websocket: undefined | WebSocket = undefined
@@ -187,12 +186,9 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
       await this.#close({ error })
     })
 
-    const eventQueue = new PromiseQueue(queue.addError)
-
-    super(eventQueue)
+    super(queue.createNested())
 
     this.#queue = queue
-    this.#eventQueue = eventQueue
     this.#url = typeof url === 'string' ? new URL(url) : url
     this.#binaryType = binaryType
 
@@ -476,10 +472,14 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
       readonly timeout?: undefined | number
     } = {},
   ): Promise<void> {
-    // Validate the timeout option if provided.
-    // A timeout less than or equal to 0 is considered invalid.
-    if (options.timeout !== undefined && options.timeout <= 0) {
-      throw new Error('Timeout must be greater than 0')
+    if (
+      options.timeout !== undefined &&
+      (
+        Number.isSafeInteger(options.timeout) === false ||
+        options.timeout < 1
+      )
+    ) {
+      throw new TypeError(`Expected timeout to be a positive integer, got ${options.timeout}`)
     }
 
     // Variable to capture any connection errors that occur during the process.
@@ -554,9 +554,6 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
     // Wait for the PromiseQueue to finish processing the close operation.
     await this.#queue.drain()
 
-    // After the queue has drained, await any events occurred during the close operation.
-    await this.#eventQueue.drain()
-
     // After the queue has drained, check if any error occurred during the close operation.
     if (closeError !== undefined) {
       // If an error was captured, throw it to notify the caller.
@@ -586,10 +583,14 @@ export class WebSocketClient extends CallbackTarget<CallbackTargetMap> implement
       }
     } = {},
   ): Promise<void> {
-    // Validate the `timeout` parameter for the connection options.
-    // A timeout of 0 or less is not allowed as it would be invalid.
-    if (options.connect?.timeout !== undefined && options.connect.timeout <= 0) {
-      throw new Error('Timeout must be greater than 0')
+    if (
+      options.connect?.timeout !== undefined &&
+      (
+        Number.isSafeInteger(options.connect.timeout) === false ||
+        options.connect.timeout < 1
+      )
+    ) {
+      throw new TypeError(`Expected timeout to be a positive integer, got ${options.connect.timeout}`)
     }
 
     // Variable to capture any errors that occur during the reconnection process.

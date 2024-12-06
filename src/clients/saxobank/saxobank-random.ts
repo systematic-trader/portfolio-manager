@@ -32,7 +32,7 @@ function createPrefixedId(prefix: string): string {
     }
   }
 
-  const suffix = '-' + uniqueSuffix + '-' + now
+  const suffix = '-' + uniqueSuffix + now
   const fixedPrefix = prefix.toLowerCase().substring(0, MAX_LENGTH - suffix.length)
 
   return fixedPrefix + suffix
