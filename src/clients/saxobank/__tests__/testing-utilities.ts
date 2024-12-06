@@ -336,7 +336,10 @@ export class TestingUtilities {
         }
       }
 
-      // todo use info prices list instead (collect a few uics, fetch the info prices and then yield them)
+      // In order for us to know, if an instrument is tradeable, we need to know if there is a known quote. Otherwise we would be trading blind.
+      // The quote is available through the info prices endpoint.
+      // This implementation fetches info prices for each instrument, which is not optimal, but it's fine for testing purposes.
+      // An alternative implementation would collect and group instruments by asset types, and call the list-endpoint when enough instruments have been accumulated for any given asset type.
       const infoPrice = await app.trading.infoPrices.get({
         AssetType: instrument.AssetType,
         Uic: instrument.Uic,
