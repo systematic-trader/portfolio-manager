@@ -201,6 +201,8 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
           }
         }
       })
+
+      this.#queue.unnest()
     }
   }
 

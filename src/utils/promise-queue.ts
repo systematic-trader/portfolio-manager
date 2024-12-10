@@ -47,6 +47,8 @@ const CUSTOM_ON_ERROR_CALLBACK = async (
   }
 }
 
+const NestedToParentMap = new WeakMap<PromiseQueue, PromiseQueue>()
+
 /**
  * A class that manages a queue of promises, ensuring sequential handling of their resolutions
  * or rejections, with configurable error handling.
@@ -319,6 +321,8 @@ export class PromiseQueue {
 
     this.#nested.add(nested)
 
+    NestedToParentMap.set(nested, this)
+
     return nested
   }
 
@@ -327,12 +331,15 @@ export class PromiseQueue {
    * Sets the error handler for the nested queue to the current queue's error handler.
    *
    * @param nested - The nested queue to add.
+   * @param setOnError - A flag indicating whether to set the error handler of the nested queue to the current queue's error handler.
    * @returns The current instance for method chaining.
    */
-  nest(nested: PromiseQueue): void {
+  nest(nested: PromiseQueue, setOnError: undefined | boolean = false): void {
     this.#nested.add(nested)
 
-    nested.setOnError(this.#onError)
+    if (setOnError === true) {
+      nested.setOnError(this.#onError)
+    }
   }
 
   /**
@@ -344,11 +351,23 @@ export class PromiseQueue {
   }
 
   /**
-   * Removes a nested `PromiseQueue` instance from the current queue and make it independent.
+   * Removes a nested `PromiseQueue` instance from the parent queue and make it independent.
    * @param nested - The nested queue to remove.
    * @returns `true` if the nested queue was removed; otherwise, `false`.
    */
-  unnest(nested: PromiseQueue): boolean {
+  unnest(nested?: undefined | PromiseQueue): boolean {
+    if (nested === undefined) {
+      const parent = NestedToParentMap.get(this)
+
+      if (parent === undefined) {
+        return false
+      }
+
+      NestedToParentMap.delete(this)
+
+      return parent.unnest(this)
+    }
+
     if (this.#nested.delete(nested)) {
       const drainPromise = nested.drain()
 
