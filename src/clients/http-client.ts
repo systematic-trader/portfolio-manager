@@ -637,16 +637,16 @@ async function fetchResponse(client: HTTPClient, url: string | URL, options: {
     throw new TypeError(`Expected timeout to be a positive integer, got ${options.timeout}`)
   }
 
-  console.log('HTTP', options.method, new URL(url).href)
+  // console.log('HTTP', options.method, new URL(url).href)
 
-  if (options.body !== undefined) {
-    console.debug(Deno.inspect(options.body, {
-      colors: true,
-      depth: Number.POSITIVE_INFINITY,
-      sorted: true,
-      compact: false,
-    }))
-  }
+  // if (options.body !== undefined) {
+  //   console.debug(Deno.inspect(options.body, {
+  //     colors: true,
+  //     depth: Number.POSITIVE_INFINITY,
+  //     sorted: true,
+  //     compact: false,
+  //   }))
+  // }
 
   using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
 

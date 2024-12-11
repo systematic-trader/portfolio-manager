@@ -5,10 +5,10 @@ import { HTTPClientError } from '../../../../http-client.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import type { ContractOption } from '../../../types/derives/contract-option.ts'
 import type { ContractOptionEntry } from '../../../types/records/contract-option-entry.ts'
-import type { InfoPricesParameters } from '../info-prices.ts'
+import type { InfoPriceRequest } from '../../../types/records/info-price-request.ts'
 
 // Set this to a reasonable number (e.g. 100) to quickly test the different asset types
-const ASSET_TYPE_INSTRUMENTS_LIMIT = 50000
+const ASSET_TYPE_INSTRUMENTS_LIMIT = 10
 const ASSET_TYPE_INSTRUMENTS_OFFSET = 0
 
 function progress(current: number, total: number): string {
@@ -33,7 +33,7 @@ describe('trade/info-prices', () => {
   test('Getting info prices for asset type', async ({ step }) => {
     using app = new SaxoBankApplication()
 
-    const assetTypeCandidates: InfoPricesParameters[keyof InfoPricesParameters]['AssetType'][] = [
+    const assetTypeCandidates: InfoPriceRequest[keyof InfoPriceRequest]['AssetType'][] = [
       'Bond',
       'CfdOnIndex',
       'CompanyWarrant',

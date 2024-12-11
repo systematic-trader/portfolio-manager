@@ -1,4 +1,5 @@
 import {
+  enums,
   type GuardType,
   integer,
   literal,
@@ -12,6 +13,20 @@ import { ErrorCode } from '../derives/error-code.ts'
 import { MarketState } from '../derives/market-state.ts'
 import { PriceQuality } from '../derives/price-quality.ts'
 import { PriceSourceType } from '../derives/price-source-type.ts'
+
+const RFQState = enums([
+  // Client application can request to enter RFQ
+  'CanEnterRfq',
+
+  // This is a dealer quote.
+  'DealerQuote',
+
+  // There was an error in the RFQ flow, please see the ErrorCode
+  'Error',
+
+  // Not in RFQ state
+  'None',
+])
 
 const Base = props({
   /** The amount for which the quote is calculated */
@@ -40,6 +55,9 @@ const Base = props({
 
   /** Not documented */
   PriceValueType: optional(literal('AuctionPrice')),
+
+  /** Not documented */
+  RFQState: optional(RFQState),
 })
 
 // Both ask and bid are given
