@@ -73,31 +73,31 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
     type: Type,
     ...args: T[Type]
   ): void {
-    const logArgs = args.map((arg) => {
-      switch (typeof arg) {
-        case 'undefined': {
-          return 'undefined'
-        }
+    // const logArgs = args.map((arg) => {
+    //   switch (typeof arg) {
+    //     case 'undefined': {
+    //       return 'undefined'
+    //     }
 
-        case 'object': {
-          if (arg === null) {
-            return 'null'
-          }
+    //     case 'object': {
+    //       if (arg === null) {
+    //         return 'null'
+    //       }
 
-          if (arg.constructor.name === 'Object') {
-            return arg
-          }
+    //       if (arg.constructor.name === 'Object') {
+    //         return arg
+    //       }
 
-          return arg.constructor.name
-        }
+    //       return arg.constructor.name
+    //     }
 
-        default: {
-          return arg
-        }
-      }
-    })
+    //     default: {
+    //       return arg
+    //     }
+    //   }
+    // })
 
-    console.log('emit', type, 'args =', logArgs)
+    // console.log('emit', type, 'args =', logArgs)
 
     const continuousTypeSet = this.#continuousMap.get(type)
 
