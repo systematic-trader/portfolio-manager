@@ -6,37 +6,6 @@ import { SaxoBankRandom } from '../../../../saxobank-random.ts'
 import type { PriceRequest } from '../../../../types/records/price-request.ts'
 
 describe('trading/prices/subscriptions', () => {
-  // test('post', async () => {
-  //   using app = new SaxoBankApplication({
-  //     type: 'Simulation',
-  //   })
-
-  //   const createSubscriptionResponse = await app.trading.prices.subscriptions.post({
-  //     Arguments: {
-  //       AssetType: 'Stock',
-  //       Uic: 211,
-
-  //       // todo why do we need to specify these?
-  //       AccountKey: undefined,
-  //       Amount: undefined,
-  //       ToOpenClose: undefined,
-  //     },
-  //     ContextId: SaxoBankRandom.stream.contextId(),
-  //     ReferenceId: SaxoBankRandom.stream.referenceId(),
-  //     Format: 'application/json',
-  //     RefreshRate: 1000,
-  //   })
-
-  //   expect(createSubscriptionResponse).toBeDefined()
-
-  //   const deleteSubscriptionResponse = await app.trading.prices.subscriptions.delete({
-  //     ContextId: createSubscriptionResponse.ContextId,
-  //     ReferenceId: createSubscriptionResponse.ReferenceId,
-  //   })
-
-  //   expect(deleteSubscriptionResponse).toBeDefined()
-  // })
-
   test('Creating price-subscriptions for different asset type', async ({ step }) => {
     using app = new SaxoBankApplication({
       type: 'Live',
