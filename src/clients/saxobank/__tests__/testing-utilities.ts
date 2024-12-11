@@ -27,16 +27,17 @@ const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
   timeout: 80_000,
 }
 
-class TestSubscriptionContext extends String implements AsyncDisposable {
+class TestSubscriptionContext implements AsyncDisposable {
+  readonly #id: string
   readonly #app: SaxoBankApplication
 
   constructor(app: SaxoBankApplication) {
-    super(SaxoBankRandom.stream.contextId())
+    this.#id = SaxoBankRandom.stream.contextId()
     this.#app = app
   }
 
   get id(): string {
-    return this.valueOf()
+    return this.#id
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
