@@ -27,6 +27,25 @@ const PORTFOLIO_RATE_LIMIT_ESTIMATES = {
   timeout: 80_000,
 }
 
+class TestSubscriptionContext extends String implements AsyncDisposable {
+  readonly #app: SaxoBankApplication
+
+  constructor(app: SaxoBankApplication) {
+    super(SaxoBankRandom.stream.contextId())
+    this.#app = app
+  }
+
+  get id(): string {
+    return this.valueOf()
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.#app.rootServices.subscriptions.delete({
+      ContextId: this.id,
+    })
+  }
+}
+
 type NumericCondition = readonly ['>' | '≥' | '=' | '≤' | '<', number]
 
 type ClientKeyArgument = undefined | string | (() => Promise<string>)
@@ -50,6 +69,7 @@ export class TestingUtilities {
     this.calculateMinimumTradeSize = this.calculateMinimumTradeSize.bind(this)
     this.calculateFavourableOrderPrice = this.calculateFavourableOrderPrice.bind(this)
     this.placeFavourableOrder = this.placeFavourableOrder.bind(this)
+    this.createTestSubscriptionContext = this.createTestSubscriptionContext.bind(this)
   }
 
   #clientCached: Promise<ClientResponse> | undefined
@@ -971,5 +991,13 @@ export class TestingUtilities {
     this.#orderPlacementTimestamp = Date.now()
 
     return orderResponse
+  }
+
+  createTestSubscriptionContext({ app: appOverride }: undefined | {
+    readonly app?: undefined | SaxoBankApplication
+  } = {}): TestSubscriptionContext {
+    const app = appOverride ?? this.#app
+
+    return new TestSubscriptionContext(app)
   }
 }

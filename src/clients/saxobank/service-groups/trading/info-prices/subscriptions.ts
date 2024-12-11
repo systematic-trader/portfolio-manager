@@ -158,23 +158,31 @@ export class Subscriptions {
        * Arguments for the subscription request.
        */
       readonly Arguments: InfoPriceListRequest
+
       /**
-       * The streaming context id that this request is associated with. This parameter must only contain letters (a-z) and numbers (0-9) as well as - (dash) and _ (underscore). It is case insensitive. Max length is 50 characters.
+       * The streaming context id that this request is associated with.
+       * This parameter must only contain letters (a-z) and numbers (0-9) as well as - (dash) and _ (underscore).
+       * It is case insensitive. Max length is 50 characters.
        */
       readonly ContextId: string
 
       /**
-       * Optional Media type (RFC 2046) of the serialized data updates that are streamed to the client. Currently only application/json and application/x-protobuf is supported. If an unrecognized format is specified, the subscription end point will return HTTP status code 400 - Bad format.
+       * Optional Media type (RFC 2046) of the serialized data updates that are streamed to the client.
+       * Currently only application/json and application/x-protobuf is supported.
+       * If an unrecognized format is specified, the subscription end point will return HTTP status code 400 - Bad format.
        */
       readonly Format?: undefined | 'application/json' | 'application/x-protobuf'
 
       /**
-       * Mandatory client specified reference id for the subscription. This parameter must only contain alphanumberic characters as well as - (dash) and _ (underscore). Cannot start with _. It is case insensitive. Max length is 50 characters.
+       * Mandatory client specified reference id for the subscription.
+       * This parameter must only contain alphanumberic characters as well as - (dash) and _ (underscore). Cannot start with _.
+       * It is case insensitive. Max length is 50 characters.
        */
       readonly ReferenceId: string
 
       /**
-       * Optional custom refresh rate, measured in milliseconds, between each data update. Note that it is not possible to get a refresh rate lower than the rate specified in the customer service level agreement (SLA).
+       * Optional custom refresh rate, measured in milliseconds, between each data update.
+       * Note that it is not possible to get a refresh rate lower than the rate specified in the customer service level agreement (SLA).
        */
       readonly RefreshRate?: undefined | number
 
