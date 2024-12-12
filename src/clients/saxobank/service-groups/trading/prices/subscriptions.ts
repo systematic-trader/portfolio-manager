@@ -15,12 +15,12 @@ export class Subscriptions {
     this.#client = client.appendPath('subscriptions')
   }
 
-  async post(
+  async post<AssetType extends keyof PriceRequest>(
     options: {
       /**
        * Arguments for the subscription request.
        */
-      readonly Arguments: ArgumentType<PriceRequest[keyof PriceRequest]>
+      readonly Arguments: Extract<ArgumentType<PriceRequest[keyof PriceRequest]>, { readonly AssetType: AssetType }>
 
       /**
        * The streaming context id that this request is associated with.
@@ -57,6 +57,24 @@ export class Subscriptions {
       /**
        * Optional client specified tag used for grouping subscriptions.
        */
+      readonly Tag?: undefined | string
+    },
+    httpOptions?: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal },
+  ): Promise<
+    Extract<
+      PriceSubscriptionResponse[keyof PriceSubscriptionResponse],
+      { readonly Snapshot: { readonly AssetType: AssetType } }
+    >
+  >
+
+  async post(
+    options: {
+      readonly Arguments: ArgumentType<PriceRequest[keyof PriceRequest]>
+      readonly ContextId: string
+      readonly Format?: undefined | 'application/json' | 'application/x-protobuf'
+      readonly ReferenceId: string
+      readonly RefreshRate?: undefined | number
+      readonly ReplaceReferenceId?: undefined | string
       readonly Tag?: undefined | string
     },
     httpOptions: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
@@ -151,6 +169,10 @@ export class Subscriptions {
 
       case 'Stock': {
         return assertReturn(PriceSubscriptionResponse['Stock'], response)
+      }
+
+      default: {
+        throw new Error('Unsupported asset type')
       }
     }
   }
