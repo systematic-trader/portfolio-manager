@@ -1,6 +1,7 @@
 import {
   array,
   boolean,
+  type GuardType,
   integer,
   literal,
   number,
@@ -24,9 +25,6 @@ import { OptionsData } from './options-data.ts'
 import { PositionCost } from './position-cost.ts'
 import { RelatedOrderInfo } from './related-order-info.ts'
 import { SettlementInstructions } from './settlement-instructions.ts'
-
-export type GuardType<T> = T extends unknown ? (T extends { accept(input: unknown): input is infer U } ? U : never)
-  : never
 
 export const PositionStatic = props({
   /** The id of the account to which the position belongs */
