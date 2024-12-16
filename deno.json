@@ -3,6 +3,7 @@
   "test": {
     "include": ["src/**/*.test.ts"]
   },
+  "unstable": ["temporal"],
   "lint": {
     "include": ["src/", "mod.ts"],
     "exclude": [],
@@ -12,15 +13,21 @@
         "camelcase",
         "default-param-last",
         "eqeqeq",
+        "explicit-function-return-type",
         "explicit-module-boundary-types",
         "no-console",
         "no-const-assign",
+        "no-eval",
+        "no-implicit-declare-namespace-export",
         "no-inferrable-types",
         "no-non-null-asserted-optional-chain",
+        "no-non-null-assertion",
         "no-self-compare",
         "no-sparse-arrays",
+        "no-sync-fn-in-async-fn",
         "no-throw-literal",
         "triple-slash-reference",
+        "use-isnan",
         "verbatim-module-syntax"
       ]
     }
@@ -51,6 +58,7 @@
     "noErrorTruncation": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,
+    "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "noUnusedLocals": true,
