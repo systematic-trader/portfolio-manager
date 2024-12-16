@@ -62,6 +62,7 @@ export class InstrumentsDetails {
   get(
     parameters?: undefined | {
       readonly AssetTypes?: undefined | readonly []
+      readonly Uics: readonly [number | string, ...ReadonlyArray<number | string>]
       readonly AccountKey?: undefined | string
       readonly Tags?: undefined | ReadonlyArray<string>
       readonly limit?: undefined | number
@@ -84,8 +85,8 @@ export class InstrumentsDetails {
   ): AsyncIterable<InstrumentDetailsUnion, void, undefined> {
     const { AssetTypes, Uics, AccountKey, Tags, limit } = parameters ?? {}
 
-    if (Uics !== undefined && Uics.length > 0 && (AssetTypes === undefined || AssetTypes.length === 0)) {
-      throw new Error('AssetTypes must be specified if Uics are specified')
+    if ((Uics === undefined || Uics.length === 0) && (AssetTypes === undefined || AssetTypes.length === 0)) {
+      throw new Error('Either AssetTypes or Uics must be specified')
     }
 
     const assetTypesSet = AssetTypes === undefined || AssetTypes.length === 0 ? undefined : new Set<string>(AssetTypes)
