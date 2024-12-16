@@ -6,6 +6,7 @@ import {
   optional,
   props,
   string,
+  union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { AssetType } from '../derives/asset-type.ts'
 import { Commissions } from './commissions.ts'
@@ -1040,3 +1041,24 @@ export const PriceResponse = {
   FxSpot: PriceResponseFxSpot,
   Stock: PriceResponseStock,
 } as const
+
+export const PriceResponseUnion = union([
+  PriceResponseBond,
+  PriceResponseCfdOnEtc,
+  PriceResponseCfdOnEtf,
+  PriceResponseCfdOnEtn,
+  PriceResponseCfdOnFund,
+  PriceResponseCfdOnFutures,
+  PriceResponseCfdOnIndex,
+  PriceResponseCfdOnStock,
+  PriceResponseContractFutures,
+  PriceResponseEtc,
+  PriceResponseEtf,
+  PriceResponseEtn,
+  PriceResponseFund,
+  PriceResponseFxForwards,
+  PriceResponseFxSpot,
+  PriceResponseStock,
+])
+
+export type PriceResponseUnion = GuardType<typeof PriceResponseUnion>

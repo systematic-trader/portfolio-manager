@@ -1,4 +1,5 @@
 import {
+  type GuardType,
   integer,
   literal,
   number,
@@ -8,7 +9,6 @@ import {
   union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { ToOpenClose } from '../derives/to-open-close.ts'
-import type { GuardType } from './position-response.ts'
 
 const BaseRequest = props({
   AccountKey: optional(string()),

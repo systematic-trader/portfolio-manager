@@ -20,7 +20,7 @@ export class Subscriptions {
       /**
        * Arguments for the subscription request.
        */
-      readonly Arguments: Extract<ArgumentType<PriceRequest[keyof PriceRequest]>, { readonly AssetType: AssetType }>
+      readonly Arguments: ArgumentType<Extract<PriceRequest[keyof PriceRequest], { readonly AssetType: AssetType }>>
 
       /**
        * The streaming context id that this request is associated with.
