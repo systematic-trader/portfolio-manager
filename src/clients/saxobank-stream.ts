@@ -381,7 +381,7 @@ export class SaxoBankStream extends EventSwitch<{
   }
 
   #socketError = (event: Event): void => {
-    console.log('WebSocket Error:', event)
+    // console.log('WebSocket Error:', event)
 
     if (
       'message' in event &&
@@ -406,7 +406,7 @@ export class SaxoBankStream extends EventSwitch<{
 
       switch (message.referenceId) {
         case '_heartbeat': {
-          console.log('_heartbeat:', message)
+          // console.log('_heartbeat:', message)
 
           const [{ Heartbeats }] = message.payload as [
             {
@@ -451,7 +451,7 @@ export class SaxoBankStream extends EventSwitch<{
         }
 
         case '_disconnect': {
-          console.log('_disconnect:', message)
+          // console.log('_disconnect:', message)
 
           this.#reconnectSubscriptions()
 
@@ -459,7 +459,7 @@ export class SaxoBankStream extends EventSwitch<{
         }
 
         case '_resetsubscriptions': {
-          console.log('_resetsubscriptions:', message)
+          // console.log('_resetsubscriptions:', message)
 
           const [{ TargetReferenceIds }] = message.payload as [
             { ReferenceId: '_resetsubscriptions'; TargetReferenceIds: readonly string[] },
