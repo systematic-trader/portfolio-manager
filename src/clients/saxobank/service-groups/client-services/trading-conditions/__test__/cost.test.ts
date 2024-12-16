@@ -2,6 +2,7 @@ import { toArray } from '../../../../../../utils/async-iterable.ts'
 import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { SaxoBankApplication } from '../../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../../__tests__/testing-utilities.ts'
+import type { ContractOption } from '../../../../types/derives/contract-option.ts'
 import type { ContractOptionEntry } from '../../../../types/records/contract-option-entry.ts'
 import type { CostParameters } from '../cost.ts'
 
@@ -9,11 +10,11 @@ const MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE = 100
 
 const HOLDING_PERIOD_CASES = [0, 1, 365]
 
-function progress(current: number, total: number) {
+function progress(current: number, total: number): string {
   return `${String(current).padStart(String(total).length, '0')}/${total}`
 }
 
-function findSuitableOptionInstrument(optionSpaces: readonly ContractOptionEntry[]) {
+function findSuitableOptionInstrument(optionSpaces: readonly ContractOptionEntry[]): undefined | ContractOption {
   for (const optionSpace of optionSpaces) {
     for (const option of optionSpace.SpecificOptions ?? []) {
       if (option.TradingStatus === 'Tradable' || option.TradingStatus === 'ReduceOnly') {
