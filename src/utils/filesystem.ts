@@ -15,7 +15,7 @@ export type FilesystemType =
   | 'Socket'
   | 'SymbolicLink'
 
-export const Filesystem = {
+export const FS = {
   dirname(filePath: string | URL): string {
     return dirname(filePath instanceof URL ? filePath.pathname : filePath)
   },
@@ -36,7 +36,7 @@ export const Filesystem = {
     await Deno.mkdir(filePath, { recursive: options?.recursive ?? false })
   },
 
-  async unlink(
+  async remove(
     filePath: string | URL,
     options?: undefined | { readonly recursive?: undefined | boolean },
   ): Promise<boolean> {
@@ -61,11 +61,11 @@ export const Filesystem = {
     const { mkdir, ...writeOptions } = options
 
     if (mkdir === true) {
-      const directory = Filesystem.dirname(filePath)
-      const directoryStatus = await Filesystem.typeOf(directory)
+      const directory = FS.dirname(filePath)
+      const directoryStatus = await FS.typeOf(directory)
 
       if (directoryStatus === undefined) {
-        await Filesystem.mkdir(directory, { recursive: true })
+        await FS.mkdir(directory, { recursive: true })
       } else if (directoryStatus !== 'Directory') {
         throw new Error(`Path is ${directoryStatus}: ${directory}`)
       }
