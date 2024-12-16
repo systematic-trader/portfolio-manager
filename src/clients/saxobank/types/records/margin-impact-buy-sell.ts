@@ -1,6 +1,7 @@
 import {
   type GuardType,
   number,
+  optional,
   props,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { Currency3 } from '../derives/currency.ts'
@@ -25,7 +26,7 @@ export const MarginImpactBuySell = props({
   InitialMarginSell: number(),
 
   /** The initial spending power available */
-  InitialSpendingPower: number(),
+  InitialSpendingPower: optional(number()),
 
   /** The maintenance margin to pay if instrument is bought */
   MaintenanceMarginBuy: number(),

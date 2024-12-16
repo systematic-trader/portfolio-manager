@@ -1,31 +1,32 @@
+// deno-lint-ignore-file no-console
 import { test } from '../../utils/testing.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { SaxoBankApplication } from '../saxobank-application.ts'
 import { SaxoBankStream } from '../saxobank-stream.ts'
 
 export const APPLE = {
-  assetType: 'Stock',
-  uic: 211,
+  AssetType: 'Stock',
+  Uic: 211,
 } as const
 
 export const NOVO = {
-  assetType: 'Stock',
-  uic: 15629,
+  AssetType: 'Stock',
+  Uic: 15629,
 } as const
 
 export const MAERSK = {
-  assetType: 'Stock',
-  uic: 6041,
+  AssetType: 'Stock',
+  Uic: 6041,
 } as const
 
 export const Bond = {
-  assetType: 'Bond',
-  uic: 31372500,
+  AssetType: 'Bond',
+  Uic: 31372500,
 } as const
 
 export const EURUSD = {
-  assetType: 'FxSpot',
-  uic: 21,
+  AssetType: 'FxSpot',
+  Uic: 21,
 } as const
 
 test('SaxoBankStream', async () => {
@@ -51,13 +52,13 @@ test('SaxoBankStream', async () => {
 
   while (true) {
     if (infoprice.state.status === 'failed') {
-      console.log(`${infoprice.assetType}-${infoprice.uic}`, infoprice.state.status)
+      console.log(`${infoprice.options.AssetType}-${infoprice.options.Uic}`, infoprice.state.status)
       console.error(infoprice.state.error)
       break
     }
 
     if (infoprice.state.status === 'disposed') {
-      console.log(`${infoprice.assetType}-${infoprice.uic}`, infoprice.state.status)
+      console.log(`${infoprice.options.AssetType}-${infoprice.options.Uic}`, infoprice.state.status)
       break
     }
 

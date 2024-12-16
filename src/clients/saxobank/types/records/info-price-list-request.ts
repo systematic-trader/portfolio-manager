@@ -1,6 +1,7 @@
 import {
   array,
   enums,
+  type GuardType,
   integer,
   literal,
   number,
@@ -12,7 +13,6 @@ import { extractKeys } from '../../../../utils/object.ts'
 import { PutCall } from '../derives/put-call.ts'
 import { ToOpenClose } from '../derives/to-open-close.ts'
 import { InfoPriceResponse } from './info-price-response.ts'
-import type { GuardType } from './position-response.ts'
 
 const BaseRequest = props({
   AssetType: enums(extractKeys(InfoPriceResponse)),

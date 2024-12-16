@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+import type { ArgumentType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { ensureError } from '../utils/error.ts'
 import { EventSwitch } from '../utils/event-switch.ts'
 import { PromiseQueue } from '../utils/promise-queue.ts'
@@ -11,7 +12,9 @@ import { SaxoBankRandom } from './saxobank/saxobank-random.ts'
 import { parseSaxoBankMessage } from './saxobank/stream/saxobank-message.ts'
 import type { SaxoBankSubscription } from './saxobank/stream/saxobank-subscription.ts'
 import { SaxoBankSubscriptionInfoPrice } from './saxobank/stream/subscriptions/saxobank-subscription-info-price.ts'
-import type { AssetType } from './saxobank/types/derives/asset-type.ts'
+import { SaxoBankSubscriptionPrice } from './saxobank/stream/subscriptions/saxobank-subscription-price.ts'
+import type { InfoPriceRequest } from './saxobank/types/records/info-price-request.ts'
+import type { PriceRequest } from './saxobank/types/records/price-request.ts'
 import { WebSocketClient, WebSocketClientEventError } from './websocket-client.ts'
 
 export class SaxoBankStreamError extends Error {
@@ -578,21 +581,27 @@ export class SaxoBankStream extends EventSwitch<{
     return subscription
   }
 
-  infoPrice(
-    {
-      assetType,
-      uic,
-    }: {
-      readonly assetType: AssetType
-      readonly uic: number | string
-    },
-  ): SaxoBankSubscriptionInfoPrice {
+  infoPrice<AssetType extends keyof InfoPriceRequest>(
+    options: ArgumentType<InfoPriceRequest[AssetType]>,
+  ): SaxoBankSubscriptionInfoPrice<AssetType> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionInfoPrice({
         stream: this,
         queue: this.#queueMain,
-        assetType,
-        uic: Number(uic),
+        options,
+        signal: this.#signal,
+      }),
+    )
+  }
+
+  price<AssetType extends keyof PriceRequest>(
+    options: ArgumentType<PriceRequest[AssetType]>,
+  ): SaxoBankSubscriptionPrice<AssetType> {
+    return this.#decorateSubscription(
+      new SaxoBankSubscriptionPrice<AssetType>({
+        stream: this,
+        queue: this.#queueMain,
+        options,
         signal: this.#signal,
       }),
     )

@@ -1,4 +1,5 @@
 import {
+  type ArgumentType,
   array,
   assertReturn,
   coerce,
@@ -10,6 +11,7 @@ import type { PromiseQueue } from '../../../../utils/promise-queue.ts'
 import type { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { SaxoBankRandom } from '../../saxobank-random.ts'
 import { AssetType } from '../../types/derives/asset-type.ts'
+import type { InfoPriceRequest } from '../../types/records/info-price-request.ts'
 import { Quote } from '../../types/records/quote.ts'
 import {
   SaxoBankSubscription,
@@ -35,38 +37,35 @@ const MessageGuard = props({
 
 const MessagesGuard = array(MessageGuard)
 
-export class SaxoBankSubscriptionInfoPrice extends SaxoBankSubscription<SaxoBankSubscriptionInfoPriceMessage> {
-  readonly assetType: AssetType
-  readonly uic: number
+export class SaxoBankSubscriptionInfoPrice<AssetType extends keyof InfoPriceRequest>
+  extends SaxoBankSubscription<SaxoBankSubscriptionInfoPriceMessage> {
+  readonly options: ArgumentType<InfoPriceRequest[AssetType]>
 
   constructor({
-    stream,
+    options,
     queue,
-    assetType,
-    uic,
     signal,
+    stream,
     timeout,
   }: {
     readonly stream: SaxoBankStream
     readonly queue: PromiseQueue
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
-    readonly assetType: AssetType
-    readonly uic: number
+    readonly options: ArgumentType<InfoPriceRequest[AssetType]>
   }) {
     super({
       stream,
       queue,
       parse,
-      createReferenceId: createReferenceIdGenerator({ assetType, uic }),
-      subscribe: createSubscribe({ assetType, uic }),
+      createReferenceId: createReferenceIdGenerator({ assetType: options.AssetType, uic: options.Uic }),
+      subscribe: createSubscribe({ assetType: options.AssetType, uic: options.Uic }),
       unsubscribe,
       signal,
       timeout,
     })
 
-    this.assetType = assetType
-    this.uic = uic
+    this.options = options
   }
 }
 
@@ -77,19 +76,17 @@ const parse: SaxoBankSubscriptionParse<SaxoBankSubscriptionInfoPriceMessage> = (
     let current = previous
 
     for (const message of payload) {
-      if (message.LastUpdated > previous.lastUpdated) {
-        current = {
-          assetType: previous.assetType,
-          uic: previous.uic,
-          lastUpdated: message.LastUpdated,
-          quote: {
-            ...current.quote,
-            ...message.Quote,
-          },
-        }
-
-        messages.push(current)
+      current = {
+        assetType: previous.assetType,
+        uic: previous.uic,
+        lastUpdated: message.LastUpdated,
+        quote: {
+          ...current.quote,
+          ...message.Quote,
+        },
       }
+
+      messages.push(current)
     }
 
     return assertReturn(MessagesGuard, coerce(MessagesGuard)(messages))
