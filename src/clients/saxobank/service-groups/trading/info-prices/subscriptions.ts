@@ -1,149 +1,12 @@
 import {
   type ArgumentType,
-  array,
-  boolean,
-  enums,
-  format,
-  type Guard,
-  type GuardType,
-  integer,
-  number,
-  type ObjectGuard,
-  optional,
-  props,
-  string,
-  union,
+  assertReturn,
+  unknown,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
-import { InfoPriceGroupSpec } from '../../../types/derives/info-price-group-spec.ts'
-import { OrderAmountType } from '../../../types/derives/order-amount-type.ts'
-import { ToOpenClose } from '../../../types/derives/to-open-close.ts'
-import { InfoPriceResponse } from '../../../types/records/info-price-response.ts'
-
-export type InfoPricesSubscriptionsResponse = GuardType<
-  typeof InfoPricesSubscriptionsResponse[keyof typeof InfoPricesSubscriptionsResponse]
->
-
-const InfoPricesSubscriptionsResponse = Object.fromEntries(
-  Object.entries(InfoPriceResponse).map(([key, snapshotGuard]) => {
-    return [
-      key,
-      props({
-        /**
-         * The streaming context id that this response is associated with.
-         */
-        ContextId: string(),
-
-        /**
-         * The media type (RFC 2046), of the serialized data updates that are streamed to the client.
-         */
-        Format: enums(['application/json', 'application/x-protobuf']),
-
-        /**
-         * The time (in seconds) that the client should accept the subscription to be inactive before considering it invalid.
-         */
-        InactivityTimeout: integer(),
-
-        /**
-         * The reference id that (along with streaming context id and session id) identifies the subscription (within the context of a specific service/subscription type)
-         */
-        ReferenceId: string(),
-
-        /**
-         * Actual refresh rate assigned to the subscription according to the customers SLA.
-         */
-        RefreshRate: integer({ minimum: 1000 }),
-
-        /**
-         * Snapshot of the current data on hand, when subscription was created.
-         */
-        Snapshot: props({
-          Data: array(snapshotGuard),
-        }),
-
-        /**
-         * This property is kept for backwards compatibility.
-         */
-        State: string(),
-
-        /**
-         * Client specified tag assigned to the subscription, if specified in the request.
-         */
-        Tag: optional(string()),
-      }),
-    ]
-  }),
-) as unknown as {
-  [K in keyof typeof InfoPriceResponse]: ObjectGuard<{
-    ContextId: Guard<string>
-    Format: Guard<'application/json' | 'application/x-protobuf'>
-    InactivityTimeout: Guard<number>
-    ReferenceId: Guard<string>
-    RefreshRate: Guard<number>
-    Snapshot: ObjectGuard<{ Data: Guard<ReadonlyArray<InfoPriceResponse[K]>> }>
-    State: Guard<string>
-    Tag: Guard<string>
-  }>
-}
-
-export interface InfoPriceListRequest extends ArgumentType<GuardType<typeof InfoPriceListRequest>> {}
-
-export const InfoPriceListRequest = props({
-  /**
-   * Unique key identifying the account used in retrieving the infoprice. Only required when calling context represents an authenticated user. If not supplied a default account is assumed.
-   */
-  AccountKey: optional(string()),
-
-  /**
-   * Order size, defaults to minimal order size for given instrument.
-   */
-  Amount: optional(number()),
-
-  AmountType: optional(OrderAmountType),
-
-  /**
-   * The instrument's asset type
-   */
-  AssetType: enums(
-    Object.keys(InfoPricesSubscriptionsResponse) as ReadonlyArray<keyof typeof InfoPricesSubscriptionsResponse>,
-  ),
-
-  /**
-   * Specification of field groups to return in results. Default is "Quote"
-   */
-  FieldGroups: optional(array(InfoPriceGroupSpec)),
-
-  ForwardDate: optional(format('date-iso8601')),
-
-  /**
-   * Forward date for far leg
-   */
-  ForwardDateFarLeg: optional(format('date-iso8601')),
-
-  /**
-   * Forward date for near leg
-   */
-  ForwardDateNearLeg: optional(format('date-iso8601')),
-
-  /**
-   * Order ask price. When specified, a corresponding cost of buying will be calculated for that price; otherwise the current market ask price will be used.
-   */
-  OrderAskPrice: optional(number()),
-
-  /**
-   * Order bid price. When specified, a corresponding cost of selling will be calculated for that price; otherwise the current market bid price will be used.
-   */
-  OrderBidPrice: optional(number()),
-
-  QuoteCurrency: optional(boolean()),
-
-  ToOpenClose: optional(ToOpenClose),
-
-  /**
-   * A list of Uics.
-   */
-  Uics: array(union([format('positive-integer'), integer()]), { length: { minimum: 1 } }),
-})
+import type { InfoPriceGroupSpec } from '../../../types/derives/info-price-group-spec.ts'
+import type { InfoPriceListRequest } from '../../../types/records/info-price-list-request.ts'
+import { InfoPriceSubscriptionResponse } from '../../../types/records/info-price-subscription-response.ts'
 
 export class Subscriptions {
   readonly #client: ServiceGroupClient
@@ -152,12 +15,14 @@ export class Subscriptions {
     this.#client = client.appendPath('subscriptions')
   }
 
-  async post(
+  async post<AssetType extends keyof InfoPriceListRequest>(
     options: {
       /**
        * Arguments for the subscription request.
        */
-      readonly Arguments: InfoPriceListRequest
+      readonly Arguments: ArgumentType<
+        Extract<InfoPriceListRequest[keyof InfoPriceListRequest], { readonly AssetType: AssetType }>
+      >
 
       /**
        * The streaming context id that this request is associated with.
@@ -196,8 +61,26 @@ export class Subscriptions {
        */
       readonly Tag?: undefined | string
     },
+    httpOptions?: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal },
+  ): Promise<
+    Extract<
+      InfoPriceSubscriptionResponse[keyof InfoPriceSubscriptionResponse],
+      { readonly Snapshot: { readonly Data: readonly { readonly AssetType: AssetType }[] } }
+    >
+  >
+
+  async post(
+    options: {
+      readonly Arguments: ArgumentType<InfoPriceListRequest[keyof InfoPriceListRequest]>
+      readonly ContextId: string
+      readonly Format?: undefined | 'application/json' | 'application/x-protobuf'
+      readonly ReferenceId: string
+      readonly RefreshRate?: undefined | number
+      readonly ReplaceReferenceId?: undefined | string
+      readonly Tag?: undefined | string
+    },
     httpOptions: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
-  ): Promise<InfoPricesSubscriptionsResponse> {
+  ): Promise<InfoPriceSubscriptionResponse[keyof InfoPriceSubscriptionResponse]> {
     const FieldGroups: readonly InfoPriceGroupSpec[] = [
       'Commissions',
       'DisplayAndFormat',
@@ -210,7 +93,7 @@ export class Subscriptions {
       'Quote',
     ]
 
-    return (await this.#client.post({
+    const response = await this.#client.post({
       body: {
         ...options,
         Arguments: {
@@ -219,10 +102,80 @@ export class Subscriptions {
           Uics: options.Arguments.Uics.join(','),
         },
       },
-      guard: InfoPricesSubscriptionsResponse[options.Arguments.AssetType] as Guard<unknown>,
+      guard: unknown(),
       timeout: httpOptions.timeout,
       signal: httpOptions.signal,
-    }).execute()) as InfoPricesSubscriptionsResponse
+    }).execute()
+
+    switch (options.Arguments.AssetType) {
+      case 'Bond': {
+        return assertReturn(InfoPriceSubscriptionResponse['Bond'], response)
+      }
+
+      case 'CfdOnEtc': {
+        return assertReturn(InfoPriceSubscriptionResponse['CfdOnEtc'], response)
+      }
+
+      case 'CfdOnEtf': {
+        return assertReturn(InfoPriceSubscriptionResponse['CfdOnEtf'], response)
+      }
+
+      case 'CfdOnEtn': {
+        return assertReturn(InfoPriceSubscriptionResponse['CfdOnEtn'], response)
+      }
+
+      case 'CfdOnFund': {
+        return assertReturn(InfoPriceSubscriptionResponse['CfdOnFund'], response)
+      }
+
+      case 'CfdOnFutures': {
+        return assertReturn(InfoPriceSubscriptionResponse['CfdOnFutures'], response)
+      }
+
+      case 'CfdOnIndex': {
+        return assertReturn(InfoPriceSubscriptionResponse['CfdOnIndex'], response)
+      }
+
+      case 'CfdOnStock': {
+        return assertReturn(InfoPriceSubscriptionResponse['CfdOnStock'], response)
+      }
+
+      case 'ContractFutures': {
+        return assertReturn(InfoPriceSubscriptionResponse['ContractFutures'], response)
+      }
+
+      case 'Etc': {
+        return assertReturn(InfoPriceSubscriptionResponse['Etc'], response)
+      }
+
+      case 'Etf': {
+        return assertReturn(InfoPriceSubscriptionResponse['Etf'], response)
+      }
+
+      case 'Etn': {
+        return assertReturn(InfoPriceSubscriptionResponse['Etn'], response)
+      }
+
+      case 'Fund': {
+        return assertReturn(InfoPriceSubscriptionResponse['Fund'], response)
+      }
+
+      case 'FxForwards': {
+        return assertReturn(InfoPriceSubscriptionResponse['FxForwards'], response)
+      }
+
+      case 'FxSpot': {
+        return assertReturn(InfoPriceSubscriptionResponse['FxSpot'], response)
+      }
+
+      case 'Stock': {
+        return assertReturn(InfoPriceSubscriptionResponse['Stock'], response)
+      }
+
+      default: {
+        throw new Error('Unsupported asset type')
+      }
+    }
   }
 
   async delete(
