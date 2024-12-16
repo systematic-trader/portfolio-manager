@@ -23,7 +23,7 @@ function debugCategory(
 
 export function initializeDebug(
   pattern: undefined | string = Environment['DEBUG'],
-  write: undefined | WriteDebugLine = console.log,
+  write: undefined | WriteDebugLine = console.debug,
 ): Debug {
   if (pattern === undefined || pattern.length === 0) {
     return function debugNothing(): WriteDebugLine {
