@@ -1,5 +1,11 @@
-import { format, props } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import {
+  format,
+  type GuardType,
+  props,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { ExchangeSessionState } from '../derives/exchange-session-state.ts'
+
+export interface ExchangeSession extends GuardType<typeof ExchangeSession> {}
 
 export const ExchangeSession = props({
   /** UTC date and time of when the state ends */

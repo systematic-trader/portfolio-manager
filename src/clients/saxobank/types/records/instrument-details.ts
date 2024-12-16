@@ -1074,7 +1074,7 @@ export const InstrumentDetailsEtc = props({
   IsPEASMEEligible: boolean(),
   IsRedemptionByAmounts: boolean(),
   IsSwitchBySameCurrency: boolean(),
-  IsSystematicInternaliser: boolean(),
+  IsSystematicInternaliser: optional(boolean()),
   IsTradable: boolean(),
   LotSizeType: LotSizeType.extract(['NotUsed', 'OddLotsNotAllowed']),
   MinimumLotSize: optional(number()),
@@ -1178,7 +1178,7 @@ export const InstrumentDetailsEtf = props({
   IsPEASMEEligible: boolean(),
   IsRedemptionByAmounts: boolean(),
   IsSwitchBySameCurrency: boolean(),
-  IsSystematicInternaliser: boolean(),
+  IsSystematicInternaliser: optional(boolean()),
   IsTradable: boolean(),
   LotSize: optional(number()),
   LotSizeType: LotSizeType.extract(['BuyOnly', 'NotUsed', 'OddLotsNotAllowed']),
@@ -1290,7 +1290,7 @@ export const InstrumentDetailsEtn = props({
   IsPEASMEEligible: boolean(),
   IsRedemptionByAmounts: boolean(),
   IsSwitchBySameCurrency: boolean(),
-  IsSystematicInternaliser: boolean(),
+  IsSystematicInternaliser: optional(boolean()),
   IsTradable: boolean(),
   LotSizeType: LotSizeType.extract(['NotUsed', 'OddLotsNotAllowed']),
   MinimumLotSize: optional(number()),
@@ -1401,7 +1401,7 @@ export const InstrumentDetailsFund = props({
   IsPEASMEEligible: boolean(),
   IsRedemptionByAmounts: boolean(),
   IsSwitchBySameCurrency: boolean(),
-  IsSystematicInternaliser: boolean(),
+  IsSystematicInternaliser: optional(boolean()),
   IsTradable: boolean(),
   LotSize: optional(number()),
   LotSizeType: LotSizeType,
@@ -2039,7 +2039,7 @@ export const InstrumentDetailsStock = props({
   IsPEASMEEligible: boolean(),
   IsRedemptionByAmounts: boolean(),
   IsSwitchBySameCurrency: boolean(),
-  IsSystematicInternaliser: boolean(),
+  IsSystematicInternaliser: optional(boolean()),
   IsTradable: boolean(),
   LotSize: optional(number()),
   LotSizeType: LotSizeType.extract(['BuyOnly', 'NotUsed', 'OddLotsNotAllowed']),
@@ -2181,12 +2181,12 @@ export const InstrumentDetailsStockIndex = props({
 })
 
 export type InstrumentDetails = {
-  Bond: InstrumentDetailsBond
-  CfdOnCompanyWarrant: InstrumentDetailsCfdOnCompanyWarrant
-  CfdOnEtc: InstrumentDetailsCfdOnEtc
-  CfdOnEtf: InstrumentDetailsCfdOnEtf
-  CfdOnEtn: InstrumentDetailsCfdOnEtn
-  CfdOnFund: InstrumentDetailsCfdOnFund
+  Bond: InstrumentDetailsBond //
+  CfdOnCompanyWarrant: InstrumentDetailsCfdOnCompanyWarrant //
+  CfdOnEtc: InstrumentDetailsCfdOnEtc //
+  CfdOnEtf: InstrumentDetailsCfdOnEtf //
+  CfdOnEtn: InstrumentDetailsCfdOnEtn //
+  CfdOnFund: InstrumentDetailsCfdOnFund //
   CfdOnFutures: InstrumentDetailsCfdOnFutures
   CfdOnIndex: InstrumentDetailsCfdOnIndex
   CfdOnRights: InstrumentDetailsCfdOnRights
