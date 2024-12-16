@@ -11,9 +11,11 @@ import { SaxoBankApplicationConfig } from './saxobank/config.ts'
 import { SaxoBankRandom } from './saxobank/saxobank-random.ts'
 import { parseSaxoBankMessage } from './saxobank/stream/saxobank-message.ts'
 import type { SaxoBankSubscription } from './saxobank/stream/saxobank-subscription.ts'
-import { SaxoBankSubscriptionInfoPrice } from './saxobank/stream/subscriptions/saxobank-subscription-info-price.ts'
+import {
+  type InfoPriceSibscriptionOptions,
+  SaxoBankSubscriptionInfoPrice,
+} from './saxobank/stream/subscriptions/saxobank-subscription-info-price.ts'
 import { SaxoBankSubscriptionPrice } from './saxobank/stream/subscriptions/saxobank-subscription-price.ts'
-import type { InfoPriceRequest } from './saxobank/types/records/info-price-request.ts'
 import type { PriceRequest } from './saxobank/types/records/price-request.ts'
 import { WebSocketClient, WebSocketClientEventError } from './websocket-client.ts'
 
@@ -581,8 +583,8 @@ export class SaxoBankStream extends EventSwitch<{
     return subscription
   }
 
-  infoPrice<AssetType extends keyof InfoPriceRequest>(
-    options: ArgumentType<InfoPriceRequest[AssetType]>,
+  infoPrice<AssetType extends keyof InfoPriceSibscriptionOptions>(
+    options: InfoPriceSibscriptionOptions[AssetType],
   ): SaxoBankSubscriptionInfoPrice<AssetType> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionInfoPrice({

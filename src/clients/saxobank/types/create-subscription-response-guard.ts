@@ -1,4 +1,5 @@
 import {
+  enums,
   type Guard,
   integer,
   type ObjectGuard,
@@ -7,9 +8,9 @@ import {
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
-export function subscriptionResponseGuard<T>(snapshotGuard: Guard<T>): ObjectGuard<{
+export function createSubscriptionResponseGuard<T>(snapshotGuard: Guard<T>): ObjectGuard<{
   ContextId: Guard<string>
-  Format: Guard<string>
+  Format: Guard<'application/json' | 'application/x-protobuf'>
   InactivityTimeout: Guard<number>
   ReferenceId: Guard<string>
   RefreshRate: Guard<number>
@@ -19,10 +20,10 @@ export function subscriptionResponseGuard<T>(snapshotGuard: Guard<T>): ObjectGua
 }> {
   return props({
     ContextId: string(),
-    Format: string(),
+    Format: enums(['application/json', 'application/x-protobuf']),
     InactivityTimeout: integer(),
     ReferenceId: string(),
-    RefreshRate: integer(),
+    RefreshRate: integer({ minimum: 1000 }),
     Snapshot: snapshotGuard,
     State: string(),
     Tag: optional(string()),

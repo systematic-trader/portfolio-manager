@@ -85,7 +85,7 @@ describe('portfolio/positions', () => {
       expect(updatedPositions).toHaveLength(1)
     })
 
-    test.only('response passes guard for different order types', async ({ step }) => {
+    test('response passes guard for different order types', async ({ step }) => {
       const { ClientKey } = await getFirstAccount()
       const limit = 50
 

@@ -48,7 +48,7 @@ export class SaxoBankSubscriptionPrice<AssetType extends keyof PriceRequest>
       queue,
       parse,
       createReferenceId: createReferenceIdGenerator({ assetType: options.AssetType, uic: options.Uic }),
-      subscribe: createSubscribe({ assetType: options.AssetType, uic: options.Uic }),
+      subscribe: createSubscribe(options),
       unsubscribe,
       signal,
       timeout,
@@ -75,16 +75,12 @@ function createReferenceIdGenerator({ assetType, uic }: {
   return () => SaxoBankRandom.stream.referenceId(`price-${assetType}-${uic}`)
 }
 
-function createSubscribe({ assetType, uic }: {
-  readonly assetType: keyof PriceRequest
-  readonly uic: number
-}): SaxoBankSubscriptionSubscribe<SaxoBankSubscriptionPriceMessage> {
+function createSubscribe<AssetType extends keyof PriceRequest>(
+  options: ArgumentType<PriceRequest[AssetType]>,
+): SaxoBankSubscriptionSubscribe<SaxoBankSubscriptionPriceMessage> {
   return async function subscribe({ app, contextId, referenceId, previousReferenceId, timeout, signal }) {
     const response = await app.trading.prices.subscriptions.post({
-      Arguments: {
-        AssetType: assetType,
-        Uic: uic,
-      },
+      Arguments: options,
       ContextId: contextId,
       ReferenceId: referenceId,
       ReplaceReferenceId: previousReferenceId,

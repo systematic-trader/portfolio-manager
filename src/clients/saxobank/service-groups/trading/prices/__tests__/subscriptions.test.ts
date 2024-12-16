@@ -129,7 +129,9 @@ describe('trading/prices/subscriptions', () => {
   })
 
   test('Streaming messages', async ({ step }) => {
-    using app = new SaxoBankApplication({ type: 'Simulation' })
+    using app = new SaxoBankApplication({
+      type: 'Live',
+    })
     await using stream = new SaxoBankStream({ app })
 
     const { findTradableInstruments } = new TestingUtilities({ app })
@@ -170,7 +172,7 @@ describe('trading/prices/subscriptions', () => {
 
                 if (stepCount >= messageLimit) {
                   lastMessage = message
-                  priceSubscription.dispose()
+                  stream.dispose()
                 }
               })
             })
@@ -202,8 +204,10 @@ describe('trading/prices/subscriptions', () => {
     }
   })
 
-  test.only('Streaming messages for FxForwards', async ({ step }) => {
-    using app = new SaxoBankApplication({ type: 'Simulation' })
+  test('Streaming messages for FxForwards', async ({ step }) => {
+    using app = new SaxoBankApplication({
+      type: 'Live',
+    })
     await using stream = new SaxoBankStream({ app })
 
     const { findTradableInstruments } = new TestingUtilities({ app })
@@ -251,7 +255,7 @@ describe('trading/prices/subscriptions', () => {
 
             if (stepCount >= messageLimit) {
               lastMessage = message
-              priceSubscription.dispose()
+              stream.dispose()
             }
           })
         })
