@@ -14,6 +14,10 @@ const RESET = '\x1b[0m'
 
 const writeNothing = ((): void => {}) as WriteDebugLine
 
+function debugNothing(): WriteDebugLine {
+  return writeNothing
+}
+
 function debugCategory(
   category: string,
   write: WriteDebugLine,
@@ -26,9 +30,7 @@ export function initializeDebug(
   write: undefined | WriteDebugLine = console.debug,
 ): Debug {
   if (pattern === undefined || pattern.length === 0) {
-    return function debugNothing(): WriteDebugLine {
-      return writeNothing
-    }
+    return debugNothing
   }
 
   const multiPatterns = pattern
