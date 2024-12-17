@@ -20,10 +20,16 @@ import { SaxoBankSubscriptionPrice } from './saxobank/stream/subscriptions/saxob
 import type { PriceRequest } from './saxobank/types/records/price-request.ts'
 import { WebSocketClient, WebSocketClientEventError } from './websocket-client.ts'
 
-const debugStreamSocketError = Debug('stream:socket-error')
-const debugStreamHeartbeat = Debug('stream:heartbeat')
-const debugStreamDisconnect = Debug('stream:disconnect')
-const debugStreamResetSubscriptions = Debug('stream:reset-subscriptions')
+const debug = {
+  subscribed: Debug('stream:subscribed'),
+  unsubscribed: Debug('stream:unsubscribed'),
+  heartbeat: Debug('stream:heartbeat'),
+  socketError: Debug('stream:socket-error'),
+  disconnect: Debug('stream:disconnect'),
+  reconnect: Debug('stream:reconnect'),
+  disposed: Debug('stream:disposed'),
+  resetSubscriptions: Debug('stream:reset-subscriptions'),
+}
 
 export class SaxoBankStreamError extends Error {
   constructor(message: string) {
@@ -291,6 +297,8 @@ export class SaxoBankStream extends EventSwitch<{
       this.emit('disposed', this.#error)
     } catch (uncaughtError) {
       this.#error = ensureError(uncaughtError)
+    } finally {
+      debug.disposed(this.#contextId)
     }
   }
 
@@ -389,7 +397,7 @@ export class SaxoBankStream extends EventSwitch<{
   }
 
   #socketError = (event: Event): void => {
-    debugStreamSocketError(event)
+    debug.socketError(this.#contextId, event)
 
     if (
       'message' in event &&
@@ -414,7 +422,7 @@ export class SaxoBankStream extends EventSwitch<{
 
       switch (message.referenceId) {
         case '_heartbeat': {
-          debugStreamHeartbeat(message)
+          debug.heartbeat(this.#contextId, message.referenceId, message)
 
           const [{ Heartbeats }] = message.payload as [
             {
@@ -459,19 +467,17 @@ export class SaxoBankStream extends EventSwitch<{
         }
 
         case '_disconnect': {
-          debugStreamDisconnect(message)
-
           this.#reconnectSubscriptions()
 
           continue
         }
 
         case '_resetsubscriptions': {
-          debugStreamResetSubscriptions(message)
-
           const [{ TargetReferenceIds }] = message.payload as [
             { ReferenceId: '_resetsubscriptions'; TargetReferenceIds: readonly string[] },
           ]
+
+          debug.resetSubscriptions(this.#contextId, TargetReferenceIds.length === 0 ? 'all' : TargetReferenceIds)
 
           if (TargetReferenceIds.length === 0) {
             if (this.#subscriptions.size === 0) {
@@ -556,11 +562,30 @@ export class SaxoBankStream extends EventSwitch<{
     if (this.#subscriptions.size === 1 && this.#socket.state.status === 'closed') {
       this.#ensureWebSocket()
     }
+
+    if (
+      debug.subscribed.enabled &&
+      'options' in subscription &&
+      typeof subscription.options === 'object' &&
+      subscription.options !== null
+    ) {
+      debug.subscribed.apply(
+        undefined,
+        [
+          this.#contextId,
+          referenceId,
+          ...Object.entries(subscription.options).map(([key, value]) => `${key}=${JSON.stringify(value)}`),
+        ],
+      )
+    }
   }
 
   #reconnectSubscriptions = () => {
     if (this.#state.status === 'active' && this.#subscriptions.size > 0) {
       this.#ensureWebSocket(true)
+      debug.reconnect(this.#contextId)
+    } else {
+      debug.disconnect(this.#contextId)
     }
   }
 
@@ -578,6 +603,22 @@ export class SaxoBankStream extends EventSwitch<{
 
     if (this.#subscriptions.size === 0) {
       this.#queueMain.call(() => this.#socket.close())
+    }
+
+    if (
+      debug.unsubscribed.enabled &&
+      'options' in subscription &&
+      typeof subscription.options === 'object' &&
+      subscription.options !== null
+    ) {
+      debug.unsubscribed.apply(
+        undefined,
+        [
+          this.#contextId,
+          referenceId,
+          ...Object.entries(subscription.options).map(([key, value]) => `${key}=${JSON.stringify(value)}`),
+        ],
+      )
     }
   }
 
