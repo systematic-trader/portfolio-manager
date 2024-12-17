@@ -1,5 +1,5 @@
 import { createDebug, type DebugOptions } from '../debug.ts'
-import { assertSpyCall, assertSpyCalls, spy, test } from '../testing.ts'
+import { assertSpyCall, assertSpyCalls, expect, spy, test } from '../testing.ts'
 
 const writeLog = (..._messages: unknown[]): void => {}
 
@@ -103,4 +103,20 @@ test('a*c:xy*', () => {
   assertSpyCall(writeLogSpy, 0, { args: ['abc:xyz', 'msg2'] })
   assertSpyCall(writeLogSpy, 1, { args: ['abbc:xyzz', 'msg3'] })
   assertSpyCalls(writeLogSpy, 2)
+})
+
+test('timestamp', () => {
+  const writeLogSpy = spy(writeLog)
+
+  const debug = createDebug({ ...debugOptions('*', writeLogSpy), timestamp: true })
+
+  debug('abc')('msg1')
+
+  expect(writeLogSpy.calls[0]?.args).toStrictEqual([
+    expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+    'abc',
+    'msg1',
+  ])
+
+  assertSpyCalls(writeLogSpy, 1)
 })
