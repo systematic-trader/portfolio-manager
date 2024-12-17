@@ -1,4 +1,4 @@
-import { createDebug, DebugOptions } from '../debug.ts'
+import { createDebug, type DebugOptions } from '../debug.ts'
 import { assertSpyCall, assertSpyCalls, spy, test } from '../testing.ts'
 
 const writeLog = (..._messages: unknown[]): void => {}
