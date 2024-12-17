@@ -79,7 +79,7 @@ export class Cost {
       path,
       searchParams,
       timeout: options.timeout,
-    })
+    }).execute()
 
     switch (parameters.AssetType) {
       case 'Bond': {
