@@ -103,7 +103,7 @@ export function parseSaxoBankMessage(data: ArrayBuffer): readonly SaxoBankMessag
  * @param unsigned Whether unsigned or not, defaults to signed
  * @returns The corresponding Long value
  */
-function fromBytesLe(bytes: Uint8Array, unsigned: undefined | boolean = false) {
+function fromBytesLe(bytes: Uint8Array, unsigned: undefined | boolean = false): number {
   const [byte0, byte1, byte2, byte3, byte4, byte5, byte6, byte7] = bytes as unknown as [
     number,
     number,

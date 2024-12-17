@@ -45,8 +45,7 @@ export function ensureAsyncIterable<T>(iterable: AsyncIterable<T> | Iterable<T>)
   }
 
   return {
-    // eslint-disable-next-line @typescript-eslint/require-await -- required
-    async *[Symbol.asyncIterator]() {
+    async *[Symbol.asyncIterator](): AsyncIterableIterator<T> {
       for (const item of iterable) {
         yield item
       }

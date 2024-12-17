@@ -19,17 +19,15 @@ test('reference-data/standard-dates/forward-tenor', async ({ step }) => {
   let count = 0
 
   for (const instrument of sortedByUic) {
-    await step({
-      name:
-        `${++count} / ${instruments.length}: Uic=${instrument.Identifier} Symbol=${instrument.Symbol}, ${instrument.Description}`,
-      async fn() {
+    await step(
+      `${++count} / ${instruments.length}: Uic=${instrument.Identifier} Symbol=${instrument.Symbol}, ${instrument.Description}`,
+      async () => {
         const dates = await toArray(app.referenceData.standarddates.forwardTenor.get({
           AccountKey,
           Uic: instrument.Identifier,
         }))
-
         expect(dates.length).not.toBe(0)
       },
-    })
+    )
   }
 })

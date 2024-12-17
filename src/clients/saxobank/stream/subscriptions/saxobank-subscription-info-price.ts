@@ -105,9 +105,11 @@ function createReferenceIdGenerator<AssetType extends keyof InfoPriceSibscriptio
 function createSubscribe<AssetType extends keyof InfoPriceSibscriptionOptions>(
   options: InfoPriceSibscriptionOptions[AssetType],
 ): SaxoBankSubscriptionSubscribe<SaxoBankSubscriptionInfoPriceMessage> {
-  return async function subscribe(
-    { app, contextId, referenceId, previousReferenceId, timeout, signal },
-  ) {
+  return async function subscribe({ app, contextId, referenceId, previousReferenceId, timeout, signal }): Promise<{
+    referenceId: string
+    inactivityTimeout: number
+    message: SaxoBankSubscriptionInfoPriceMessage
+  }> {
     const response = await app.trading.infoPrices.subscriptions.post({
       Arguments: {
         ...options,

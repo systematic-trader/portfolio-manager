@@ -10,13 +10,9 @@ test('reference-data/instruments/futuresspaces', async ({ step }) => {
   let count = 0
 
   for (const instrument of instruments) {
-    await step({
-      name: `Uic=${instrument.Identifier} (${++count} / ${instruments.length})`,
-      async fn() {
-        const spaces = await app.referenceData.instruments.futuresspaces.get({ Uic: instrument.Identifier })
-
-        expect(spaces.length).not.toBe(0)
-      },
+    await step(`Uic=${instrument.Identifier} (${++count} / ${instruments.length})`, async () => {
+      const spaces = await app.referenceData.instruments.futuresspaces.get({ Uic: instrument.Identifier })
+      expect(spaces.length).not.toBe(0)
     })
   }
 })

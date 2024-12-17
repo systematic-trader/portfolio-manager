@@ -78,7 +78,11 @@ function createReferenceIdGenerator({ assetType, uic }: {
 function createSubscribe<AssetType extends keyof PriceRequest>(
   options: ArgumentType<PriceRequest[AssetType]>,
 ): SaxoBankSubscriptionSubscribe<SaxoBankSubscriptionPriceMessage> {
-  return async function subscribe({ app, contextId, referenceId, previousReferenceId, timeout, signal }) {
+  return async function subscribe({ app, contextId, referenceId, previousReferenceId, timeout, signal }): Promise<{
+    referenceId: string
+    inactivityTimeout: number
+    message: SaxoBankSubscriptionPriceMessage
+  }> {
     const response = await app.trading.prices.subscriptions.post({
       Arguments: options,
       ContextId: contextId,

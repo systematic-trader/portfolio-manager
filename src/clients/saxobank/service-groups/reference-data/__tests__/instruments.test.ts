@@ -8,16 +8,13 @@ test('reference-data/instruments', async ({ step }) => {
 
   for (const assetType of AssetTypeValues.toSorted()) {
     // for (const assetType of ['ContractFutures'] as const) {
-    await step({
-      name: assetType,
-      async fn() {
-        const instruments = await toArray(app.referenceData.instruments.get({
-          AssetTypes: [assetType],
-          IncludeNonTradable: true,
-        }))
+    await step(assetType, async () => {
+      const instruments = await toArray(app.referenceData.instruments.get({
+        AssetTypes: [assetType],
+        IncludeNonTradable: true,
+      }))
 
-        expect(instruments.length).not.toBe(0)
-      },
+      expect(instruments.length).not.toBe(0)
     })
   }
 })
