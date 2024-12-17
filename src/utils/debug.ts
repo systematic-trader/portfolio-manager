@@ -16,6 +16,8 @@ export interface WriteDebug {
    * @returns A function bound to the extended namespace.
    */
   extend(name: string): WriteDebug
+
+  enabled: boolean
 }
 
 /**
@@ -59,6 +61,7 @@ interface NormalizedDebugOptions extends Required<Omit<DebugOptions, 'pattern'>>
 
 const writeNothing = ((): void => {}) as WriteDebug
 writeNothing.extend = (): WriteDebug => writeNothing
+writeNothing.enabled = false
 
 /**
  * Returns a no-op debug write function. Useful when no namespaces are enabled or debug is not desired.
@@ -153,6 +156,8 @@ function namespace(
   writeDebug.extend = (subName: string): WriteDebug => {
     return namespace(name + ':' + subName, options)
   }
+
+  writeDebug.enabled = true
 
   return writeDebug
 }
