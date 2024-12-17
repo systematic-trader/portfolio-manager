@@ -122,10 +122,8 @@ function namespace(
   name: string,
   options: NormalizedDebugOptions,
 ): WriteDebug {
-  // color of category where colon is grey and not bold
-
   const selectedColor = selectColor(name)
-  const coloredName = options.colors === false
+  const outputName = options.colors === false
     ? name
     : name.split(':').map((part) => colorize(part, selectedColor)).join(':')
 
@@ -133,33 +131,85 @@ function namespace(
   const unshift = Array.prototype.unshift
   const write = options.write
 
-  const writeDebug: WriteDebug = (...messages: unknown[]): void => {
-    try {
-      if (options.timestamp) {
-        if (options.colors) {
-          prependMessages.push(`${GREY}${new Date().toISOString()}${RESET}`)
-        } else {
-          prependMessages.push(new Date().toISOString())
-        }
-      }
-
-      prependMessages.push(coloredName)
-
-      unshift.apply(messages, prependMessages)
-
-      write.apply(undefined, messages)
-    } finally {
-      prependMessages.length = 0
-    }
-  }
-
-  writeDebug.extend = (subName: string): WriteDebug => {
+  function extend(subName: string): WriteDebug {
     return namespace(name + ':' + subName, options)
   }
 
-  writeDebug.enabled = true
+  if (options.timestamp) {
+    if (options.colors) {
+      const writeDebug: WriteDebug = (...messages: unknown[]): void => {
+        try {
+          prependMessages[0] = `${GREY}${new Date().toISOString()}${RESET}`
+          prependMessages[1] = outputName
 
-  return writeDebug
+          unshift.apply(messages, prependMessages)
+
+          write.apply(undefined, messages)
+        } finally {
+          prependMessages.length = 0
+        }
+      }
+
+      writeDebug.extend = extend
+      writeDebug.enabled = true
+
+      return writeDebug
+    } else {
+      const writeDebug: WriteDebug = (...messages: unknown[]): void => {
+        try {
+          prependMessages[0] = new Date().toISOString()
+          prependMessages[1] = outputName
+
+          unshift.apply(messages, prependMessages)
+
+          write.apply(undefined, messages)
+        } finally {
+          prependMessages.length = 0
+        }
+      }
+
+      writeDebug.extend = extend
+      writeDebug.enabled = true
+
+      return writeDebug
+    }
+  } else {
+    if (options.colors) {
+      const writeDebug: WriteDebug = (...messages: unknown[]): void => {
+        try {
+          prependMessages[0] = outputName
+
+          unshift.apply(messages, prependMessages)
+
+          write.apply(undefined, messages)
+        } finally {
+          prependMessages.length = 0
+        }
+      }
+
+      writeDebug.extend = extend
+      writeDebug.enabled = true
+
+      return writeDebug
+    } else {
+      const writeDebug: WriteDebug = (...messages: unknown[]): void => {
+        try {
+          prependMessages[0] = outputName
+
+          unshift.apply(messages, prependMessages)
+
+          write.apply(undefined, messages)
+        } finally {
+          prependMessages.length = 0
+        }
+      }
+
+      writeDebug.extend = extend
+      writeDebug.enabled = true
+
+      return writeDebug
+    }
+  }
 }
 
 /**
