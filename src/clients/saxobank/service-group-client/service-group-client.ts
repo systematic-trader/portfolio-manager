@@ -1,4 +1,5 @@
 import type { Guard } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { Debug } from '../../../utils/debug.ts'
 import { ensureError } from '../../../utils/error.ts'
 import type { JSONReadonlyRecord } from '../../../utils/json.ts'
 import { Timeout } from '../../../utils/timeout.ts'
@@ -222,6 +223,8 @@ async function onRateLimitError(client: HTTPClient, error: Error, _retries: numb
 
       timeouts.set(rateLimit.name, timeout)
     }
+
+    Debug(`service-group-client:rate-limit:${rateLimit.name}`)(`Waiting ${timeout}ms`)
 
     return await timeout
   }
