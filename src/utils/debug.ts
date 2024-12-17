@@ -163,46 +163,77 @@ function namespace(
 }
 
 /**
- * Converts a combined pattern string (e.g. "api:*,db") into a single RegExp
- * that matches any of the given patterns.
+ * Converts a combined pattern string (e.g. "api:*,db" or "websocket:*,-websocket:open*")
+ * into a single RegExp that matches if:
+ * - The input matches at least one inclusion pattern (or `*` for all), AND
+ * - The input does NOT match any exclusion pattern.
  *
  * Steps:
  * - Split the input pattern by `,` to handle multiple patterns.
- * - For each pattern, escape regex special characters and replace '*' with '.*'.
- * - Join all transformed patterns with the `|` operator (OR),
- *   wrapping them in a non-capturing group for safety.
- * - Anchor the entire result with `^` and `$` to ensure full-string matching.
+ * - For each pattern:
+ *   - If it starts with `-`, treat as exclusion pattern (remove the `-`).
+ *   - Otherwise, treat as inclusion pattern.
+ * - If `'*'` is included in the inclusions, that means "match everything except excludes".
+ * - Construct a combined regex using a negative look-ahead for excludes and then
+ *   either `.*` (if `'*'`) or an alternation of the inclusion patterns.
  *
  * @param pattern - A string of debug patterns separated by `,`.
- * @returns A RegExp object that matches if the input string matches any of the sub-patterns.
+ * @returns A RegExp object that matches if the input string matches the include rules and not the exclude rules.
  */
 function patternToRegex(pattern: string): RegExp {
-  // Trim and split pattern by ',' to get individual patterns
   const parts = pattern
     .split(',')
     .map((p) => p.trim())
     .filter((p) => p.length > 0)
 
   if (parts.length === 0) {
-    // If no valid patterns, return a regex that never matches
+    // No patterns provided: never match
     return /^$/
   }
 
-  if (parts.includes('*')) {
-    // If any pattern is '*', return a regex that always matches
-    return /.*/
+  const includes: string[] = []
+  const excludes: string[] = []
+
+  for (const p of parts) {
+    if (p.startsWith('-')) {
+      excludes.push(p.slice(1))
+    } else {
+      includes.push(p)
+    }
   }
 
-  const combined = parts
-    .map((p) => {
-      // Escape all regex chars except '*'
-      const escaped = p.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
-      // Replace '*' with '.*'
-      return `(?:${escaped.replace(/\*/g, '.*')})`
-    })
-    .join('|')
+  // If includes contain '*', it means match everything unless excluded
+  const hasStar = includes.includes('*')
 
-  return new RegExp(`^(?:${combined})$`)
+  // Convert patterns to regex fragments
+  const escapeAndConvert = (p: string) => {
+    const escaped = p.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
+    return escaped.replace(/\*/g, '.*')
+  }
+
+  const excludeRegexPart = excludes.length > 0 ? excludes.map(escapeAndConvert).map((r) => `(?:${r})`).join('|') : ''
+
+  let excludeLookahead = ''
+  if (excludeRegexPart) {
+    // Negative look-ahead to ensure not matching any exclude pattern
+    excludeLookahead = `(?!${excludeRegexPart})`
+  }
+
+  if (hasStar) {
+    // If we have '*', match everything except what is excluded
+    return new RegExp(`^${excludeLookahead}.*$`)
+  } else {
+    if (includes.length === 0) {
+      // No includes and no '*', never match
+      return /^$/
+    }
+    const includeRegexPart = includes
+      .map(escapeAndConvert)
+      .map((r) => `(?:${r})`)
+      .join('|')
+
+    return new RegExp(`^${excludeLookahead}(?:${includeRegexPart})$`)
+  }
 }
 
 function isEnvironmentTrue(value: undefined | string, fallback = false): boolean {
