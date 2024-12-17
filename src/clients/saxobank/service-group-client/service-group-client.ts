@@ -224,7 +224,7 @@ async function onRateLimitError(client: HTTPClient, error: Error, _retries: numb
       timeouts.set(rateLimit.name, timeout)
     }
 
-    Debug(`service-group-client:rate-limit:${rateLimit.name}`)(`Waiting ${timeout}ms`)
+    Debug(`service-group-client:rate-limit:${rateLimit.name}`)(`Waiting ${rateLimit.timeout} ms`)
 
     return await timeout
   }
