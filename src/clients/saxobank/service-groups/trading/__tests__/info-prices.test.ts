@@ -1,5 +1,6 @@
 import { AssertionError } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { toArray } from '../../../../../utils/async-iterable.ts'
+import { Debug } from '../../../../../utils/debug.ts'
 import { describe, expect, test } from '../../../../../utils/testing.ts'
 import { HTTPClientError } from '../../../../http-client.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
@@ -114,8 +115,7 @@ describe('trade/info-prices', () => {
                   expect(infoPrices).toBeDefined()
                 } catch (error) {
                   if (error instanceof AssertionError) {
-                    // deno-lint-ignore no-console
-                    console.log(error.invalidations)
+                    Debug('test:assertion-error')(error.invalidations)
 
                     throw error
                   }
@@ -151,16 +151,12 @@ describe('trade/info-prices', () => {
                   expect(infoPrices).toBeDefined()
                 } catch (error) {
                   if (error instanceof AssertionError) {
-                    // deno-lint-ignore no-console
-                    console.log(error.invalidations)
-
+                    Debug('test:assertion-error')(error.invalidations)
                     throw error
                   }
 
                   if (error instanceof HTTPClientError && error.statusCode === 404) {
-                    // deno-lint-ignore no-console
-                    console.log(`Could not get info prices for option UIC=${optionInstrument.Uic}`)
-
+                    Debug('test:http-error')(`Could not get info prices for option UIC=${optionInstrument.Uic}`)
                     break
                   }
 
@@ -186,9 +182,7 @@ describe('trade/info-prices', () => {
                   expect(infoPrices).toBeDefined()
                 } catch (error) {
                   if (error instanceof AssertionError) {
-                    // deno-lint-ignore no-console
-                    console.log(error.invalidations)
-
+                    Debug('test:assertion-error')(error.invalidations)
                     throw error
                   }
                 }
@@ -218,9 +212,7 @@ describe('trade/info-prices', () => {
                       expect(infoPrices).toBeDefined()
                     } catch (error) {
                       if (error instanceof AssertionError) {
-                        // deno-lint-ignore no-console
-                        console.log(error.invalidations)
-
+                        Debug('test:assertion-error')(error.invalidations)
                         throw error
                       }
                     }
@@ -265,9 +257,7 @@ describe('trade/info-prices', () => {
                         expect(infoPrices).toBeDefined()
                       } catch (error) {
                         if (error instanceof AssertionError) {
-                          // deno-lint-ignore no-console
-                          console.log(error.invalidations)
-
+                          Debug('test:assertion-error')(error.invalidations)
                           throw error
                         }
                       }
@@ -302,9 +292,7 @@ describe('trade/info-prices', () => {
                         expect(infoPrices).toBeDefined()
                       } catch (error) {
                         if (error instanceof AssertionError) {
-                          // deno-lint-ignore no-console
-                          console.log(error.invalidations)
-
+                          Debug('test:assertion-error')(error.invalidations)
                           throw error
                         }
                       }

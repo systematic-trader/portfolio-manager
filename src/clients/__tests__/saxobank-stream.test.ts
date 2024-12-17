@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-console
+import { Debug } from '../../utils/debug.ts'
 import { test } from '../../utils/testing.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { SaxoBankApplication } from '../saxobank-application.ts'
@@ -39,7 +39,7 @@ test('SaxoBankStream', async () => {
 
   infoprice.addListener('message', (message) => {
     count++
-    console.log(`count=${count}:`, message)
+    Debug('test')(`count=${count}:`, message)
 
     // if (count === 3) {
     //   infoprice.dispose()
@@ -47,21 +47,23 @@ test('SaxoBankStream', async () => {
   })
 
   infoprice.addListener('disposed', (_, referenceId) => {
-    console.log('disposed:', referenceId)
+    Debug('test')('disposed:', referenceId)
   })
 
   while (true) {
     if (infoprice.state.status === 'failed') {
-      console.log(`${infoprice.options.AssetType}-${infoprice.options.Uic}`, infoprice.state.status)
-      console.error(infoprice.state.error)
-      break
+      Debug('test:failed')(`${infoprice.options.AssetType}-${infoprice.options.Uic}`)
+      Debug('test:error')(infoprice.state.error)
+      throw infoprice.state.error
     }
 
     if (infoprice.state.status === 'disposed') {
-      console.log(`${infoprice.options.AssetType}-${infoprice.options.Uic}`, infoprice.state.status)
+      Debug('test:disposed')(`${infoprice.options.AssetType}-${infoprice.options.Uic}`)
       break
     }
 
     await Timeout.wait(1000)
   }
+
+  stream.dispose()
 })
