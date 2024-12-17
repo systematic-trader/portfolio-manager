@@ -28,7 +28,7 @@ export type SaxoBankSubscriptionPriceMessage = GuardType<typeof PriceResponseUni
 
 export class SaxoBankSubscriptionPrice<AssetType extends keyof PriceRequest>
   extends SaxoBankSubscription<SaxoBankSubscriptionPriceMessage> {
-  readonly options: ArgumentType<PriceRequest[AssetType]>
+  readonly options: PriceRequest[AssetType]
 
   constructor({
     stream,
@@ -54,7 +54,7 @@ export class SaxoBankSubscriptionPrice<AssetType extends keyof PriceRequest>
       timeout,
     })
 
-    this.options = options
+    this.options = options as PriceRequest[AssetType]
   }
 }
 
