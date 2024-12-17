@@ -128,7 +128,7 @@ export class SaxoBankOpenAuthentication extends EventSwitch<{ accessToken: [acce
 
       returnValue = true
     }, {
-      onError(error) {
+      onError(error): void {
         refreshError = error
       },
     })
@@ -168,7 +168,7 @@ export class SaxoBankOpenAuthentication extends EventSwitch<{ accessToken: [acce
         port: this.#settings.listener.port,
         signal,
 
-        onListen() {
+        onListen(): void {
           // Do nothing (default behaviour is to log to console)
         },
       }, (request: Request) => {
@@ -254,7 +254,7 @@ export class SaxoBankOpenAuthentication extends EventSwitch<{ accessToken: [acce
 
       returnValue = true
     }, {
-      onError(error) {
+      onError(error): void {
         authorizeError = error
       },
     })

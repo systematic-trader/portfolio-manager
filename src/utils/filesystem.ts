@@ -194,18 +194,18 @@ export const FS = {
     const decoder = new TextDecoderStream()
     const lineStream = file.readable.pipeThrough(decoder).pipeThrough(
       new TransformStream<string, string>({
-        transform(chunk, controller) {
+        transform(chunk, controller): void {
           const lines = chunk.split('\n')
           lines[0] = lastLine + lines[0]
           lastLine = lines.pop()!
           lines.forEach((line) => controller.enqueue(line))
         },
-        flush(controller) {
+        flush(controller): void {
           if (lastLine.length > 0) {
             controller.enqueue(lastLine)
           }
         },
-        start() {
+        start(): void {
           lastLine = ''
         },
       }),

@@ -13,14 +13,13 @@ test('reference-data/instruments/contractoptionspaces', async ({ step }) => {
   let count = 0
 
   for (const optionInstrument of sortedByUic) {
-    await step({
-      name:
-        `${++count} / ${optionsInstruments.length}: Uic=${optionInstrument.Identifier} Symbol=${optionInstrument.Symbol}, ${optionInstrument.Description}`,
-      async fn() {
+    await step(
+      `${++count} / ${optionsInstruments.length}: Uic=${optionInstrument.Identifier} Symbol=${optionInstrument.Symbol}, ${optionInstrument.Description}`,
+      async () => {
         await app.referenceData.instruments.contractoptionspaces.get({
           OptionRootId: optionInstrument.Identifier,
         })
       },
-    })
+    )
   }
 })
