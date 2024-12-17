@@ -74,6 +74,7 @@ export class ServiceGroupClient {
       client: this.#client,
       guard: options.guard,
       headers: options.headers,
+      onError: this.#onError,
       searchParams: new ServiceGroupSearchParams({
         values: options.searchParams,
         maxLength: this.#searchParamsMaxLength,
