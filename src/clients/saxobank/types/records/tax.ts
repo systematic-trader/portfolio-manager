@@ -71,7 +71,7 @@ export const Tax = props({
   /** Fee Rule */
   Rule: props({
     /** To identify if tax is buy or sell */
-    BuySell: BuySell,
+    BuySell: optional(BuySell),
 
     /** Calculation type of applied tax */
     CalculationType: TaxCalculationType,
