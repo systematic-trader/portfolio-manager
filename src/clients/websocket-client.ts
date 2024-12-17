@@ -1,3 +1,4 @@
+import { Debug } from '../utils/debug.ts'
 import { ensureError } from '../utils/error.ts'
 import { EventSwitch } from '../utils/event-switch.ts'
 import { PromiseQueue } from '../utils/promise-queue.ts'
@@ -5,6 +6,14 @@ import { mergeAbortSignals } from '../utils/signal.ts'
 import { Timeout } from '../utils/timeout.ts'
 import { WebSocketClientInactivityMonitor } from './websocket-client-inactivity-monitor.ts'
 
+const debug = {
+  open: Debug('websocket-client:open'),
+  closed: Debug('websocket-client:closed'),
+  failed: Debug('websocket-client:failed'),
+  send: Debug('websocket-client:send'),
+  error: Debug('websocket-client:error'),
+  message: Debug('websocket-client:message'),
+}
 /**
  * WebSocketClient error.
  */
@@ -332,23 +341,28 @@ export class WebSocketClient extends EventSwitch<CallbackTargetMap> implements A
       websocket.addEventListener('message', (event) => {
         this.#messageAt = Date.now()
         this.emit('message', event)
+        debug.message(this.#url.href, event)
       })
 
       websocket.addEventListener('error', (event) => {
         this.#errorAt = Date.now()
         this.emit('error', event)
+        debug.error(this.#url.href, event)
       })
 
       websocket.addEventListener('close', (event) => {
         this.#closedAt = Date.now()
         this.#websocket = undefined
         this.emit('close', event)
+        debug.closed(this.#url.href, event)
       }, { once: true })
 
       // Activate the inactivity monitor for this WebSocket.
       WebSocketClientInactivityMonitor.open(this.#inactivity, websocket)
 
       this.emit('open', event)
+
+      debug.open(this.#url.href)
 
       // Resolve the promise to indicate successful connection.
       resolve()
@@ -405,6 +419,8 @@ export class WebSocketClient extends EventSwitch<CallbackTargetMap> implements A
       const { error } = options
 
       this.#error = error
+
+      debug.error(this.#url.href, error)
 
       this.emit('error', new ErrorEvent('error', { error, message: error.message }))
     }
@@ -661,6 +677,8 @@ export class WebSocketClient extends EventSwitch<CallbackTargetMap> implements A
     }
 
     this.#websocket!.send(...args)
+
+    debug.send(this.#url.href, args)
 
     return this
   }
