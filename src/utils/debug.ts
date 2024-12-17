@@ -1,93 +1,236 @@
-// deno-lint-ignore-file no-console
 import { Environment } from './environment.ts'
 
 /**
  * A function that writes one or more messages for debugging purposes.
  * @param messages - The messages to write as part of the debug output.
  */
-export interface WriteDebugLine {
+export interface WriteDebug {
   /**
    * Write one or more messages for debugging purposes.
    */
   (...messages: unknown[]): void
+
+  /**
+   * Extends the current namespace by appending an additional segment, creating a new debug function for the extended namespace.
+   * @param name - The name of the sub-namespace to append.
+   * @returns A function bound to the extended namespace.
+   */
+  extend(name: string): WriteDebug
 }
 
 /**
- * Represents a function that, given a category string, returns a `WriteDebugLine` function.
- * If the category matches a configured debug pattern, `WriteDebugLine` will output messages.
+ * Represents a function that, given a category string, returns a `WriteDebug` function.
+ * If the category matches a configured debug pattern, `WriteDebug` will output messages.
  * Otherwise, it will do nothing.
  */
 export interface Debug {
   /**
    * Given a category string, returns a `WriteDebugLine` function.
    */
-  (category: string): WriteDebugLine
+  (category: string): WriteDebug
 }
 
-const BOLD = '\x1b[1m'
-const RESET = '\x1b[0m'
+export interface DebugOptions {
+  /**
+   * The debug pattern to use for filtering categories (e.g. "api:*,db").
+   */
+  readonly pattern?: undefined | string
 
-const writeNothing = ((): void => {}) as WriteDebugLine
+  /**
+   * The function to write debug lines. Defaults to `console.debug`.
+   */
+  readonly write?: undefined | ((...messages: unknown[]) => void)
+
+  /**
+   * Whether to include a timestamp in the debug output. Defaults to `true`.
+   */
+  readonly timestamp?: undefined | boolean
+
+  /**
+   * Whether to include colors in the debug output. Defaults to `true`.
+   */
+  readonly colors?: undefined | boolean
+}
 
 /**
- * Returns a no-op debug logging function. Useful when no categories are enabled or debug is not desired.
- * @returns A `WriteDebugLine` function that does nothing.
+ * Internal normalized debug options with all defaults resolved.
  */
-function debugNothing(): WriteDebugLine {
+interface NormalizedDebugOptions extends Required<Omit<DebugOptions, 'pattern'>> {}
+
+const writeNothing = ((): void => {}) as WriteDebug
+writeNothing.extend = (): WriteDebug => writeNothing
+
+/**
+ * Returns a no-op debug write function. Useful when no namespaces are enabled or debug is not desired.
+ */
+function debugNothing(): WriteDebug {
   return writeNothing
 }
 
+const GREY = '\x1b[90m'
+const RESET = '\x1b[0m'
+
 /**
- * Binds the provided write function to the specified category. When invoked, it will prepend
- * the category in bold and reset formatting afterwards.
+ * Returns a colored string using a 256-color escape code.
  *
- * @param category - The debug category name.
- * @param write - The underlying function that writes debug lines.
- * @returns A `WriteDebugLine` function bound to the given category.
+ * @param content - The string content to colorize.
+ * @param color - The 256-color code to use.
+ * @returns The colorized string.
  */
-function debugCategory(
-  category: string,
-  write: WriteDebugLine,
-): WriteDebugLine {
-  return write.bind(undefined, BOLD + category + RESET)
+function colorize(content: string, color: number): string {
+  return `\x1b[38;5;${color}m${content}${RESET}`
 }
 
 /**
- * Converts a given pattern (potentially containing '*' wildcards) into a RegExp object that matches
- * the entire string. The pattern can be something like "abc:*", which would match any category
- * starting with "abc:" followed by any characters.
+ * Selects a color index based on a hash of the namespace string.
  *
- * **Algorithm:**
- * - Escape all regex special characters except '*'.
- * - Replace '*' with '.*' to allow arbitrary sequences of characters.
- * - Add `^` and `$` anchors to ensure full-string matching.
+ * @param name - The namespace name to hash.
+ * @returns A 256-color index to use for coloring.
+ */
+function selectColor(name: string): number {
+  const FNV_OFFSET = 0x811c9dc5
+  const FNV_PRIME = 0x01000193
+  let hash = FNV_OFFSET
+
+  let length = name.indexOf(':')
+
+  if (length === -1) {
+    length = name.length
+  }
+
+  for (let i = 0; i < length; i++) {
+    hash ^= name.charCodeAt(i)
+    hash = Math.imul(hash, FNV_PRIME)
+  }
+
+  // Convert to a positive 32-bit integer and modulo by Colors.length for indexing
+  const index = Math.abs(hash >>> 0) % Colors.length
+  return Colors[index] as number
+}
+
+/**
+ * Creates a function for a given namespace and options.
  *
- * @param pattern - The original string pattern, which may contain `*` wildcards.
- * @returns A RegExp object constructed to fully match any string conforming to the pattern.
+ * @param name - The debug namespace.
+ * @param options - The normalized debug options.
+ * @returns A function bound to the given namespace.
+ */
+function namespace(
+  name: string,
+  options: NormalizedDebugOptions,
+): WriteDebug {
+  // color of category where colon is grey and not bold
+
+  const selectedColor = selectColor(name)
+  const coloredName = options.colors === false
+    ? name
+    : name.split(':').map((part) => colorize(part, selectedColor)).join(':')
+
+  const prependMessages: unknown[] = []
+  const unshift = Array.prototype.unshift
+  const write = options.write
+
+  const writeDebug: WriteDebug = (...messages: unknown[]): void => {
+    try {
+      if (options.timestamp) {
+        if (options.colors) {
+          prependMessages.push(`${GREY}${new Date().toISOString()}${RESET}`)
+        } else {
+          prependMessages.push(new Date().toISOString())
+        }
+      }
+
+      prependMessages.push(coloredName)
+
+      unshift.apply(messages, prependMessages)
+
+      write.apply(undefined, messages)
+    } finally {
+      prependMessages.length = 0
+    }
+  }
+
+  writeDebug.extend = (subName: string): WriteDebug => {
+    return namespace(name + ':' + subName, options)
+  }
+
+  return writeDebug
+}
+
+/**
+ * Converts a combined pattern string (e.g. "api:*,db") into a single RegExp
+ * that matches any of the given patterns.
+ *
+ * Steps:
+ * - Split the input pattern by `,` to handle multiple patterns.
+ * - For each pattern, escape regex special characters and replace '*' with '.*'.
+ * - Join all transformed patterns with the `|` operator (OR),
+ *   wrapping them in a non-capturing group for safety.
+ * - Anchor the entire result with `^` and `$` to ensure full-string matching.
+ *
+ * @param pattern - A string of debug patterns separated by `,`.
+ * @returns A RegExp object that matches if the input string matches any of the sub-patterns.
  */
 function patternToRegex(pattern: string): RegExp {
-  // Escape regex chars, but leave * as is for now
-  const escaped = pattern.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
-  // Now replace * with .*
-  const regexString = '^' + escaped.replace(/\*/g, '.*') + '$'
-  return new RegExp(regexString)
+  // Trim and split pattern by ',' to get individual patterns
+  const parts = pattern
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+
+  if (parts.length === 0) {
+    // If no valid patterns, return a regex that never matches
+    return /^$/
+  }
+
+  if (parts.includes('*')) {
+    // If any pattern is '*', return a regex that always matches
+    return /.*/
+  }
+
+  const combined = parts
+    .map((p) => {
+      // Escape all regex chars except '*'
+      const escaped = p.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&')
+      // Replace '*' with '.*'
+      return `(?:${escaped.replace(/\*/g, '.*')})`
+    })
+    .join('|')
+
+  return new RegExp(`^(?:${combined})$`)
+}
+
+function isEnvironmentTrue(value: undefined | string, fallback = false): boolean {
+  if (value === undefined) {
+    return fallback
+  }
+
+  switch (value.toLowerCase().trim()) {
+    case '1':
+    case 'on':
+    case 'true':
+    case 'yes': {
+      return true
+    }
+
+    default: {
+      return false
+    }
+  }
 }
 
 /**
- * Initializes a debug function configured with a given set of category patterns.
- * If the `DEBUG` environment variable or the `pattern` argument is set to something like
- * "abc:*;xyz", then any category starting with `abc:` or exactly `xyz` will produce output.
+ * Initializes a debug function configured with given patterns and options.
  *
- * Multiple patterns can be separated by `;`. Each pattern can contain zero or more `*` wildcards.
+ * For example, if `pattern` = "api:*,db", any category starting with "api:" or exactly "db"
+ * will produce output. Others will not.
  *
- * @param pattern - A string of debug patterns separated by `;`. Defaults to `Environment.DEBUG`.
- * @param write - A function to write debug lines. Defaults to `console.debug`.
- * @returns A `Debug` function that, when given a category, returns a `WriteDebugLine` function
- *          that either logs with the given category or does nothing, depending on the match.
+ * @param options - Configuration for debug pattern, output, colors, and timestamp.
+ * @returns A `Debug` function that, given a category, returns a `WriteDebug` function.
  *
  * @example
  * ```typescript
- * const debug = createDebug('api:*;db', console.debug)
+ * const debug = createDebug({ pattern: 'api:*,db', write: console.debug })
  *
  * // Matches 'api:users', will output messages
  * debug('api:users')('request started', { userId: 123 })
@@ -100,29 +243,33 @@ function patternToRegex(pattern: string): RegExp {
  * ```
  */
 export function createDebug(
-  pattern: undefined | string = Environment['DEBUG'],
-  write: undefined | WriteDebugLine = console.debug,
+  // pattern: undefined | string = Environment['DEBUG'],
+  // write: undefined | WriteDebugLine = console.debug.bind(console),
+  {
+    pattern = Environment['DEBUG'],
+    write = console.debug.bind(console),
+    colors = isEnvironmentTrue(Environment['DEBUG_COLORS'], true),
+    timestamp = isEnvironmentTrue(Environment['DEBUG_TIMESTAMP'], true),
+  }: DebugOptions = {},
 ): Debug {
   if (pattern === undefined || pattern.length === 0) {
     return debugNothing
   }
 
-  // Split by ';' to allow multiple pattern segments
-  const multiPatterns = pattern.split(';').filter((part) => part.length > 0)
+  // Only enable colors if stdout is a terminal and colors is true
+  const colorEnabled = Deno.stdout.isTerminal() && colors
 
   // Convert each pattern into a regex
-  const regexes = multiPatterns.map((p) => patternToRegex(p))
+  const regex = patternToRegex(pattern)
 
-  return function debug(category: string): WriteDebugLine {
+  return function debug(category: string): WriteDebug {
     if (category.length === 0) {
       throw new Error('Debug category must not be empty')
     }
 
     // Check if the category matches any of the patterns
-    for (const regex of regexes) {
-      if (regex.test(category)) {
-        return debugCategory(category, write)
-      }
+    if (regex.test(category)) {
+      return namespace(category, { colors: colorEnabled, timestamp, write })
     }
 
     return writeNothing
@@ -142,3 +289,82 @@ export function createDebug(
  * ```
  */
 export const Debug: Debug = createDebug()
+
+const Colors = [
+  20,
+  21,
+  26,
+  27,
+  32,
+  33,
+  38,
+  39,
+  40,
+  41,
+  42,
+  43,
+  44,
+  45,
+  56,
+  57,
+  62,
+  63,
+  68,
+  69,
+  74,
+  75,
+  76,
+  77,
+  78,
+  79,
+  80,
+  81,
+  92,
+  93,
+  98,
+  99,
+  112,
+  113,
+  128,
+  129,
+  134,
+  135,
+  148,
+  149,
+  160,
+  161,
+  162,
+  163,
+  164,
+  165,
+  166,
+  167,
+  168,
+  169,
+  170,
+  171,
+  172,
+  173,
+  178,
+  179,
+  184,
+  185,
+  196,
+  197,
+  198,
+  199,
+  200,
+  201,
+  202,
+  203,
+  204,
+  205,
+  206,
+  207,
+  208,
+  209,
+  214,
+  215,
+  220,
+  221,
+]
