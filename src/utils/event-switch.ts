@@ -1,3 +1,4 @@
+import { Debug } from './debug.ts'
 import type { PromiseQueue } from './promise-queue.ts'
 
 const EmitImmediately = { immediately: true } as const
@@ -73,7 +74,7 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
     type: Type,
     ...args: T[Type]
   ): void {
-    const logArgs = args.map((arg) => {
+    Debug(`event-switch:emit:${String(type)}`)(args.map((arg) => {
       switch (typeof arg) {
         case 'undefined': {
           return 'undefined'
@@ -95,9 +96,7 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
           return arg
         }
       }
-    })
-
-    console.log('emit', type, 'args =', logArgs)
+    }))
 
     const continuousTypeSet = this.#continuousMap.get(type)
 

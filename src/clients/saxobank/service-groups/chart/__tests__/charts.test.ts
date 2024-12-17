@@ -1,4 +1,5 @@
 import { toArray } from '../../../../../utils/async-iterable.ts'
+import { Debug } from '../../../../../utils/debug.ts'
 import { describe, expect, test } from '../../../../../utils/testing.ts'
 import { HTTPClientError } from '../../../../http-client.ts'
 import { SaxoBankApplication } from '../../../../saxobank-application.ts'
@@ -6,7 +7,7 @@ import type { ChartsParameters } from '../charts.ts'
 
 const MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE = 250
 
-function progress(current: number, total: number) {
+function progress(current: number, total: number): string {
   return `${String(current).padStart(String(total).length, '0')}/${total}`
 }
 
@@ -62,8 +63,7 @@ describe('chart/charts', () => {
               expect(chart).toBeDefined()
             } catch (error) {
               if (error instanceof HTTPClientError && error.statusCode === 403) {
-                // deno-lint-ignore no-console
-                console.log(`No access to charts for UIC=${instrument.Identifier} (skipping)`)
+                Debug('test')(`No access to charts for UIC=${instrument.Identifier} (skipping)`)
                 return
               }
 

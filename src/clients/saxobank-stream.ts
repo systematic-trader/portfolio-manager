@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import type { ArgumentType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { Debug } from '../utils/debug.ts'
 import { ensureError } from '../utils/error.ts'
 import { EventSwitch } from '../utils/event-switch.ts'
 import { PromiseQueue } from '../utils/promise-queue.ts'
@@ -183,7 +184,7 @@ export class SaxoBankStream extends EventSwitch<{
     app.auth.addListener('accessToken', this.#updateAccessToken, { persistent: true, sequential: true })
   }
 
-  #heartbeat() {
+  #heartbeat(): void {
     if (this.#state.status !== 'active') {
       return
     }
@@ -383,7 +384,7 @@ export class SaxoBankStream extends EventSwitch<{
   }
 
   #socketError = (event: Event): void => {
-    console.log('WebSocket Error:', event)
+    Debug('stream:socket-error')(event)
 
     if (
       'message' in event &&
@@ -408,7 +409,7 @@ export class SaxoBankStream extends EventSwitch<{
 
       switch (message.referenceId) {
         case '_heartbeat': {
-          console.log('_heartbeat:', message)
+          Debug('stream:heartbeat')(message)
 
           const [{ Heartbeats }] = message.payload as [
             {
@@ -453,7 +454,7 @@ export class SaxoBankStream extends EventSwitch<{
         }
 
         case '_disconnect': {
-          console.log('_disconnect:', message)
+          Debug('stream:disconnect')(message)
 
           this.#reconnectSubscriptions()
 
@@ -461,7 +462,7 @@ export class SaxoBankStream extends EventSwitch<{
         }
 
         case '_resetsubscriptions': {
-          console.log('_resetsubscriptions:', message)
+          Debug('stream:reset-subscriptions')(message)
 
           const [{ TargetReferenceIds }] = message.payload as [
             { ReferenceId: '_resetsubscriptions'; TargetReferenceIds: readonly string[] },
