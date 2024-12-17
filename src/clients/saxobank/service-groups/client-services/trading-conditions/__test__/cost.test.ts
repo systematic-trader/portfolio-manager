@@ -6,9 +6,13 @@ import type { ContractOption } from '../../../../types/derives/contract-option.t
 import type { ContractOptionEntry } from '../../../../types/records/contract-option-entry.ts'
 import type { CostParameters } from '../cost.ts'
 
-const MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE = 100
+const MAXIMUM_INSTRUMENTS_PER_ASSET_TYPE = 200
 
-const HOLDING_PERIOD_CASES = [0, 1, 365]
+const HOLDING_PERIOD_CASES = [
+  0,
+  1,
+  365,
+]
 
 function progress(current: number, total: number): string {
   return `${String(current).padStart(String(total).length, '0')}/${total}`

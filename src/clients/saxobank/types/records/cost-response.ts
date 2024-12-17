@@ -70,7 +70,7 @@ export const CostResponseCfdOnCompanyWarrant = CostResponseBase.merge({
   Cost: props({
     Long: LongShortCost,
   }),
-  InstrumentMarginRequirements,
+  MarginTierRequirement,
 })
 
 export interface CostResponseCfdOnCompanyWarrant extends GuardType<typeof CostResponseCfdOnCompanyWarrant> {}
@@ -81,7 +81,7 @@ export const CostResponseCfdOnEtc = CostResponseBase.merge({
     Long: LongShortCost,
     Short: optional(LongShortCost),
   }),
-  InstrumentMarginRequirements,
+  MarginTierRequirement,
 })
 
 export interface CostResponseCfdOnEtc extends GuardType<typeof CostResponseCfdOnEtc> {}
@@ -92,7 +92,7 @@ export const CostResponseCfdOnEtf = CostResponseBase.merge({
     Long: LongShortCost,
     Short: optional(LongShortCost),
   }),
-  InstrumentMarginRequirements,
+  MarginTierRequirement,
 })
 
 export interface CostResponseCfdOnEtf extends GuardType<typeof CostResponseCfdOnEtf> {}
@@ -102,7 +102,7 @@ export const CostResponseCfdOnEtn = CostResponseBase.merge({
   Cost: props({
     Long: LongShortCost,
   }),
-  InstrumentMarginRequirements,
+  MarginTierRequirement,
 })
 
 export interface CostResponseCfdOnEtn extends GuardType<typeof CostResponseCfdOnEtn> {}
@@ -113,7 +113,7 @@ export const CostResponseCfdOnFund = CostResponseBase.merge({
     Long: LongShortCost,
     Short: optional(LongShortCost),
   }),
-  InstrumentMarginRequirements,
+  MarginTierRequirement,
 })
 
 export interface CostResponseCfdOnFund extends GuardType<typeof CostResponseCfdOnFund> {}
@@ -124,7 +124,7 @@ export const CostResponseCfdOnFutures = CostResponseBase.merge({
     Long: LongShortCost,
     Short: LongShortCost,
   }),
-  InstrumentMarginRequirements,
+  InstrumentMarginRequirements: optional(InstrumentMarginRequirements),
 })
 
 export interface CostResponseCfdOnFutures extends GuardType<typeof CostResponseCfdOnFutures> {}
@@ -135,7 +135,7 @@ export const CostResponseCfdOnIndex = CostResponseBase.merge({
     Long: LongShortCost,
     Short: LongShortCost,
   }),
-  InstrumentMarginRequirements,
+  MarginTierRequirement,
 })
 
 export interface CostResponseCfdOnIndex extends GuardType<typeof CostResponseCfdOnIndex> {}
@@ -155,7 +155,7 @@ export const CostResponseCfdOnStock = CostResponseBase.merge({
     Long: LongShortCost,
     Short: optional(LongShortCost),
   }),
-  InstrumentMarginRequirements,
+  MarginTierRequirement,
 })
 
 export interface CostResponseCfdOnStock extends GuardType<typeof CostResponseCfdOnStock> {}
