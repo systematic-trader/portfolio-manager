@@ -14,6 +14,8 @@ import {
 } from '../service-group-client/service-group-request.ts'
 import { type SearchParamRecord, ServiceGroupSearchParams } from './service-group-search-params.ts'
 
+const debugServiceGroupClientRateLimit = Debug('service-group-client:rate-limit')
+
 export class ServiceGroupClient {
   readonly #client: HTTPClient
   readonly #serviceURL: URL
@@ -224,7 +226,7 @@ async function onRateLimitError(client: HTTPClient, error: Error, _retries: numb
       timeouts.set(rateLimit.name, timeout)
     }
 
-    Debug(`service-group-client:rate-limit:${rateLimit.name}`)(`Waiting ${rateLimit.timeout} ms`)
+    debugServiceGroupClientRateLimit(rateLimit.name, `- waiting ${rateLimit.timeout}ms`)
 
     return await timeout
   }

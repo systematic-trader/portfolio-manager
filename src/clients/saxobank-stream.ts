@@ -20,6 +20,11 @@ import { SaxoBankSubscriptionPrice } from './saxobank/stream/subscriptions/saxob
 import type { PriceRequest } from './saxobank/types/records/price-request.ts'
 import { WebSocketClient, WebSocketClientEventError } from './websocket-client.ts'
 
+const debugStreamSocketError = Debug('stream:socket-error')
+const debugStreamHeartbeat = Debug('stream:heartbeat')
+const debugStreamDisconnect = Debug('stream:disconnect')
+const debugStreamResetSubscriptions = Debug('stream:reset-subscriptions')
+
 export class SaxoBankStreamError extends Error {
   constructor(message: string) {
     super(message)
@@ -384,7 +389,7 @@ export class SaxoBankStream extends EventSwitch<{
   }
 
   #socketError = (event: Event): void => {
-    Debug('stream:socket-error')(event)
+    debugStreamSocketError(event)
 
     if (
       'message' in event &&
@@ -409,7 +414,7 @@ export class SaxoBankStream extends EventSwitch<{
 
       switch (message.referenceId) {
         case '_heartbeat': {
-          Debug('stream:heartbeat')(message)
+          debugStreamHeartbeat(message)
 
           const [{ Heartbeats }] = message.payload as [
             {
@@ -454,7 +459,7 @@ export class SaxoBankStream extends EventSwitch<{
         }
 
         case '_disconnect': {
-          Debug('stream:disconnect')(message)
+          debugStreamDisconnect(message)
 
           this.#reconnectSubscriptions()
 
@@ -462,7 +467,7 @@ export class SaxoBankStream extends EventSwitch<{
         }
 
         case '_resetsubscriptions': {
-          Debug('stream:reset-subscriptions')(message)
+          debugStreamResetSubscriptions(message)
 
           const [{ TargetReferenceIds }] = message.payload as [
             { ReferenceId: '_resetsubscriptions'; TargetReferenceIds: readonly string[] },

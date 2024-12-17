@@ -1,6 +1,8 @@
 import { Debug } from './debug.ts'
 import type { PromiseQueue } from './promise-queue.ts'
 
+const debugEventSwitchEmit = Debug('event-switch:emit')
+
 const EmitImmediately = { immediately: true } as const
 
 interface AnyCallback {
@@ -74,29 +76,32 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
     type: Type,
     ...args: T[Type]
   ): void {
-    Debug(`event-switch:emit:${String(type)}`)(args.map((arg) => {
-      switch (typeof arg) {
-        case 'undefined': {
-          return 'undefined'
-        }
-
-        case 'object': {
-          if (arg === null) {
-            return 'null'
+    debugEventSwitchEmit(
+      type,
+      args.map((arg) => {
+        switch (typeof arg) {
+          case 'undefined': {
+            return 'undefined'
           }
 
-          if (arg.constructor.name === 'Object') {
+          case 'object': {
+            if (arg === null) {
+              return 'null'
+            }
+
+            if (arg.constructor.name === 'Object') {
+              return arg
+            }
+
+            return arg.constructor.name
+          }
+
+          default: {
             return arg
           }
-
-          return arg.constructor.name
         }
-
-        default: {
-          return arg
-        }
-      }
-    }))
+      }),
+    )
 
     const continuousTypeSet = this.#continuousMap.get(type)
 
