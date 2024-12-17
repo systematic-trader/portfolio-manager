@@ -9,7 +9,12 @@ import { stringifyJSON } from '../utils/json.ts'
 import { mergeAbortSignals } from '../utils/signal.ts'
 import { Timeout } from '../utils/timeout.ts'
 
-const debug = Debug('http-client')
+const debug = {
+  GET: Debug('http-client:get'),
+  POST: Debug('http-client:post'),
+  PUT: Debug('http-client:put'),
+  DELETE: Debug('http-client:delete'),
+}
 
 function assertReturnBody<T>(
   guard: Guard<T>,
@@ -640,8 +645,8 @@ async function fetchResponse(client: HTTPClient, url: string | URL, options: {
     throw new TypeError(`Expected timeout to be a positive integer, got ${options.timeout}`)
   }
 
-  debug(
-    `HTTP:${options.method}:${new URL(url).href}`,
+  debug[options.method](
+    new URL(url).href,
     Deno.inspect(options.body, {
       colors: true,
       depth: Number.POSITIVE_INFINITY,
