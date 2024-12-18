@@ -69,7 +69,7 @@ export class HTTPClientError extends HTTPError {
     body: HTTPClientError['body'],
     headers: HTTPClientError['headers'],
   ) {
-    let message = `${statusCode} ${statusText} - ${method} ${href}`
+    let message = `${statusCode} ${statusText} - ${method} ${href}\n${stringifyJSON(headers, undefined, 2)}`
 
     if (typeof body === 'string') {
       message = `${message}\n${body}`
