@@ -41,4 +41,10 @@ export const InstrumentCollateralDetail = props({
 
   /** Not documented */
   ContributingAssetTypes: optional(array(AssetType)),
+
+  /** Not documented */
+  InitialConcentrationDeduction: number(),
+
+  /** Not documented */
+  MaintenanceConcentrationDeduction: number(),
 })
