@@ -14,7 +14,10 @@ import {
 } from '../service-group-client/service-group-request.ts'
 import { type SearchParamRecord, ServiceGroupSearchParams } from './service-group-search-params.ts'
 
-const debugServiceGroupClientRateLimit = Debug('service-group-client:rate-limit')
+const debug = {
+  error: Debug('service-group-client:http-client-error'),
+  rateLimit: Debug('service-group-client:rate-limit'),
+}
 
 export class ServiceGroupClient {
   readonly #client: HTTPClient
@@ -37,13 +40,13 @@ export class ServiceGroupClient {
     this.#serviceURL = serviceURL
 
     if (onError === undefined) {
-      this.#onError = onRateLimitError.bind(undefined, this.#client)
+      this.#onError = onHTTPClientError.bind(undefined, this.#client)
     } else {
       this.#onError = async (error, retries) => {
         try {
           await onError(error, retries)
         } catch (error) {
-          await onRateLimitError(this.#client, ensureError(error), retries)
+          await onHTTPClientError(this.#client, ensureError(error), retries)
         }
       }
     }
@@ -202,35 +205,43 @@ const TimeoutsWeakMap = new WeakMap<
   Map<string, undefined | Promise<void>>
 >()
 
-async function onRateLimitError(client: HTTPClient, error: Error, _retries: number): Promise<void> {
-  if (error instanceof HTTPClientError && error.statusCode === 429) {
-    const rateLimit = getRateLimitExceeded(error.headers)
-
-    if (rateLimit === undefined) {
-      throw error
-    }
-
-    let timeouts = TimeoutsWeakMap.get(client)
-
-    if (timeouts === undefined) {
-      timeouts = new Map()
-      TimeoutsWeakMap.set(client, timeouts)
-    }
-
-    let timeout = timeouts.get(rateLimit.name)
-
-    if (timeout === undefined) {
-      timeout = Timeout.defer(rateLimit.timeout, () => {
-        timeouts.delete(rateLimit.name)
-      })
-
-      timeouts.set(rateLimit.name, timeout)
-    }
-
-    debugServiceGroupClientRateLimit(rateLimit.name, `- waiting ${rateLimit.timeout}ms`)
-
-    return await timeout
+async function onHTTPClientError(client: HTTPClient, error: Error, _retries: number): Promise<void> {
+  if (error instanceof HTTPClientError === false) {
+    throw error
   }
+
+  switch (error.statusCode) {
+    case 429: {
+      const rateLimit = getRateLimitExceeded(error.headers)
+
+      if (rateLimit === undefined) {
+        throw error
+      }
+
+      let timeouts = TimeoutsWeakMap.get(client)
+
+      if (timeouts === undefined) {
+        timeouts = new Map()
+        TimeoutsWeakMap.set(client, timeouts)
+      }
+
+      let timeout = timeouts.get(rateLimit.name)
+
+      if (timeout === undefined) {
+        timeout = Timeout.defer(rateLimit.timeout, () => {
+          timeouts.delete(rateLimit.name)
+        })
+
+        timeouts.set(rateLimit.name, timeout)
+      }
+
+      debug.rateLimit(rateLimit.name, `- waiting ${rateLimit.timeout}ms`)
+
+      return await timeout
+    }
+  }
+
+  debug.error(error.message)
 
   throw error
 }
