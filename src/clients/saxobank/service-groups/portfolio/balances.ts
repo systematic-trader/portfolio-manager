@@ -1,44 +1,41 @@
+import type { ArgumentType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import type { BalanceFieldGroup } from '../../types/derives/balance-field-group.ts'
+import type { BalanceRequest } from '../../types/records/balance-request.ts'
 import { BalanceResponse } from '../../types/records/balance-response.ts'
-
-const FieldGroups: readonly BalanceFieldGroup[] = [
-  'CalculateCashForTrading',
-  'MarginOverview',
-]
+import { Subscriptions } from './balances/subscriptions.ts'
 
 export class Balances {
   readonly #client: ServiceGroupClient
 
+  readonly subscriptions: Subscriptions
+
   constructor({ client }: { readonly client: ServiceGroupClient }) {
     this.#client = client.appendPath('v1/balances')
+
+    this.subscriptions = new Subscriptions({ client: this.#client })
   }
 
   /**
    * Get balance data for a client, account group or an account
    */
   async get(
-    { AccountGroupKey, AccountKey, ClientKey }: {
-      /** The key of the account group for which the balance data is returned */
-      readonly AccountGroupKey?: undefined | string
-
-      /** The key of the account for which the balance data is returned */
-      readonly AccountKey?: undefined | string
-
-      /** The key of the client for which the balance data is returned */
-      readonly ClientKey: string
-    },
-    options: { readonly timeout?: undefined | number } = {},
+    options: ArgumentType<BalanceRequest>,
+    httpOptions: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
   ): Promise<BalanceResponse> {
+    const FieldGroups: readonly BalanceFieldGroup[] = [
+      'CalculateCashForTrading',
+      'MarginOverview',
+    ]
+
     return await this.#client.get({
       searchParams: {
-        AccountGroupKey,
-        AccountKey,
-        ClientKey,
         FieldGroups,
+        ...options,
       },
       guard: BalanceResponse,
-      timeout: options.timeout,
+      timeout: httpOptions.timeout,
+      signal: httpOptions.signal,
     }).execute()
   }
 }
