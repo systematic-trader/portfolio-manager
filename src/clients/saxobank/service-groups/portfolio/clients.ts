@@ -28,4 +28,11 @@ export class Clients {
       timeout: options.timeout,
     }).execute()
   }
+
+  async me(): Promise<ClientResponse> {
+    return await this.#client.get({
+      path: 'me',
+      guard: ClientResponse,
+    }).execute()
+  }
 }
