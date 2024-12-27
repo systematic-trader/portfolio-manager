@@ -21,7 +21,7 @@ function createPrefixedId(prefix: string): string {
 
   while (true) {
     for (let i = 0; i < placeholder.length; i++) {
-      placeholder[i] = LETTERS[Math.floor(Math.random() * LETTERS.length)]!
+      placeholder[i] = LETTERS[Math.floor(Math.random() * LETTERS.length)] as string
     }
 
     uniqueSuffix = placeholder.join('')
