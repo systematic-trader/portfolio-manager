@@ -1,6 +1,6 @@
 import type { ArgumentType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
-import type { BalanceFieldGroup } from '../../types/derives/balance-field-group.ts'
+import { BalanceFieldGroupValues } from '../../types/derives/balance-field-group.ts'
 import type { BalanceRequest } from '../../types/records/balance-request.ts'
 import { BalanceResponse } from '../../types/records/balance-response.ts'
 import { Subscriptions } from './balances/subscriptions.ts'
@@ -23,15 +23,10 @@ export class Balances {
     options: ArgumentType<BalanceRequest>,
     httpOptions: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
   ): Promise<BalanceResponse> {
-    const FieldGroups: readonly BalanceFieldGroup[] = [
-      'CalculateCashForTrading',
-      'MarginOverview',
-    ]
-
     return await this.#client.get({
       searchParams: {
-        FieldGroups,
         ...options,
+        FieldGroups: BalanceFieldGroupValues,
       },
       guard: BalanceResponse,
       timeout: httpOptions.timeout,
