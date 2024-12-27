@@ -3,14 +3,11 @@ import {
   assert,
   assertReturn,
   coerce,
-  type GuardType,
-  props,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { mergeDeltaCompressedValue } from '../../../../utils/merge-delta-compressed-value.ts'
+import { mergeDeltaContent } from '../../../../utils/merge-delta-content.ts'
 import type { PromiseQueue } from '../../../../utils/promise-queue.ts'
 import type { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { SaxoBankRandom } from '../../saxobank-random.ts'
-
 import type { BalanceRequest } from '../../types/records/balance-request.ts'
 import { BalanceResponse } from '../../types/records/balance-response.ts'
 import {
@@ -21,18 +18,14 @@ import {
   type SaxoBankSubscriptionUnsubscribe,
 } from '../saxobank-subscription.ts'
 
-const Payload = props({}, { extendable: true })
-
-interface Payload extends GuardType<typeof Payload> {}
-
 export class SaxoBankSubscriptionBalance extends SaxoBankSubscription<BalanceResponse> {
-  readonly options: ArgumentType<BalanceRequest>
+  readonly options: BalanceRequest
 
   constructor({
-    stream,
-    queue,
     options,
+    queue,
     signal,
+    stream,
     timeout,
   }: {
     readonly stream: SaxoBankStream
@@ -52,14 +45,12 @@ export class SaxoBankSubscriptionBalance extends SaxoBankSubscription<BalanceRes
       timeout,
     })
 
-    this.options = options
+    this.options = options as BalanceRequest
   }
 }
 
 const parse: SaxoBankSubscriptionParse<BalanceResponse> = (previous, payload) => {
-  assert(Payload, payload)
-
-  const merged = mergeDeltaCompressedValue(previous, payload)
+  const merged = mergeDeltaContent(previous, payload)
 
   assert(BalanceResponse, merged)
 
@@ -97,10 +88,7 @@ function createSubscribe(
       Tag: referenceId, // Used to identify the subscription in the WebSocket messages, if the subscription is somehow lost in registration or re-registration
     }, { timeout, signal })
 
-    const message = assertReturn(
-      BalanceResponse,
-      coerce(BalanceResponse)(response.Snapshot),
-    )
+    const message = assertReturn(BalanceResponse, coerce(BalanceResponse)(response.Snapshot))
 
     return {
       referenceId: response.ReferenceId,

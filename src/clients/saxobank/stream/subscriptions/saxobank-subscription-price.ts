@@ -4,9 +4,8 @@ import {
   assertReturn,
   coerce,
   type GuardType,
-  props,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { mergeDeltaCompressedValue } from '../../../../utils/merge-delta-compressed-value.ts'
+import { mergeDeltaContent } from '../../../../utils/merge-delta-content.ts'
 import type { PromiseQueue } from '../../../../utils/promise-queue.ts'
 import type { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { SaxoBankRandom } from '../../saxobank-random.ts'
@@ -19,10 +18,6 @@ import {
   type SaxoBankSubscriptionSubscribe,
   type SaxoBankSubscriptionUnsubscribe,
 } from '../saxobank-subscription.ts'
-
-const Payload = props({}, { extendable: true })
-
-interface Payload extends GuardType<typeof Payload> {}
 
 export type SaxoBankSubscriptionPriceMessage = GuardType<typeof PriceResponseUnion>
 
@@ -59,9 +54,7 @@ export class SaxoBankSubscriptionPrice<AssetType extends keyof PriceRequest>
 }
 
 const parse: SaxoBankSubscriptionParse<SaxoBankSubscriptionPriceMessage> = (previous, payload) => {
-  assert(Payload, payload)
-
-  const merged = mergeDeltaCompressedValue(previous, payload)
+  const merged = mergeDeltaContent(previous, payload)
 
   assert(PriceResponseUnion, merged)
 

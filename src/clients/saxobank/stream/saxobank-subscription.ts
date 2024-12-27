@@ -72,7 +72,7 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
     previousReferenceId?: undefined | string,
   ]
   // payload: [payload: unknown] - should be a method on the class
-}> implements AsyncDisposable {
+}> implements AsyncDisposable, AsyncIterable<Message, undefined, undefined> {
   readonly #stream: SaxoBankStream
   readonly #controller = new AbortController()
   readonly #queue: PromiseQueue
@@ -92,11 +92,21 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
   #state: this['state']
 
   get state(): {
-    readonly status: 'active' | 'disposed'
+    readonly status: 'initializing'
     readonly error: undefined
+    readonly message: undefined
+  } | {
+    readonly status: 'active'
+    readonly error: undefined
+    readonly message: Message
+  } | {
+    readonly status: 'disposed'
+    readonly error: undefined
+    readonly message: undefined | Message
   } | {
     readonly status: 'failed'
     readonly error: Error
+    readonly message: undefined | Message
   } {
     return this.#state
   }
@@ -146,10 +156,13 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
           return 'disposed'
         }
 
-        return 'active'
+        return self.#message === undefined ? 'initializing' : 'active'
       },
       get error() {
         return self.#error
+      },
+      get message() {
+        return self.#message
       },
     } as this['state']
 
@@ -159,6 +172,118 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
     }
 
     this.subscribe({ signal: options.signal, timeout: options.timeout })
+  }
+
+  [Symbol.asyncIterator](): AsyncIterator<Message, undefined, undefined> {
+    // We'll keep a simple FIFO queue of messages
+    const messageQueue: Message[] = []
+    // Resolvers awaiting the next message
+    const pendingResolvers: Array<(value: IteratorResult<Message, undefined>) => void> = []
+
+    // Handle the arrival of a new message:
+    const onMessage = (newMessage: Message) => {
+      const nextResolver = pendingResolvers.shift()
+
+      if (nextResolver === undefined) {
+        // Push onto the queue
+        messageQueue.push(newMessage)
+      } else {
+        // If we have a resolver waiting for the next message, resolve immediately
+        return nextResolver({ value: newMessage, done: false })
+      }
+    }
+
+    // Handle disposal or failure:
+    const onDisposed = () => {
+      // If we failed, we want subsequent iteration calls to reject.
+      // If simply disposed, we want them to complete with `done: true`.
+
+      while (pendingResolvers.length > 0) {
+        const nextResolver = pendingResolvers.shift()!
+        if (this.state.status === 'failed') {
+          // Reject by throwing the error inside the async iterator
+          // (i.e., next() => Promise.reject(...))
+          // There's no direct standard way to "throw" an error from here
+          // but we can resolve with a done: true and store a symbol error
+          // or adopt the recommended approach: "return a special done object"
+          // that the consumer can interpret. Another approach is to do:
+          nextResolver(Promise.reject(this.state.error) as never)
+        } else {
+          // Gracefully end iteration
+          nextResolver({ value: undefined, done: true })
+        }
+      }
+    }
+
+    // Begin listening for 'message' and 'disposed' events:
+    this.addListener('message', onMessage, { persistent: true })
+    this.addListener('disposed', onDisposed, { persistent: true, once: true })
+
+    return {
+      next: async (): Promise<IteratorResult<Message, undefined>> => {
+        const nextMessage = messageQueue.shift()
+
+        // If there's something in the queue, return it immediately
+        if (nextMessage !== undefined) {
+          return { value: nextMessage, done: false }
+        }
+
+        // If the subscription is failed, reject immediately
+        if (this.state.status === 'failed') {
+          return Promise.reject(this.state.error)
+        }
+
+        // If the subscription is disposed, end immediately
+        if (this.state.status === 'disposed') {
+          return { value: undefined, done: true }
+        }
+
+        const { promise, resolve } = Promise.withResolvers<IteratorResult<Message, undefined>>()
+
+        pendingResolvers.push(resolve)
+
+        return await promise
+      },
+
+      // deno-lint-ignore require-await
+      return: async (): Promise<IteratorResult<Message, undefined>> => {
+        // Called if the consumer breaks out of the for-await-of loop
+        // or otherwise ends iteration early
+        this.removeListener('message', onMessage)
+        this.removeListener('disposed', onDisposed)
+
+        // Clear out pending resolvers so we don't leak them
+        for (let i = 0; i < pendingResolvers.length; i++) {
+          const resolver = pendingResolvers[i]!
+
+          resolver({ value: undefined, done: true })
+        }
+
+        pendingResolvers.length = 0
+
+        return { value: undefined, done: true }
+      },
+      // `throw` is optional for async iterators, but we can implement if we want:
+      throw: (error?: unknown): Promise<IteratorResult<Message, undefined>> => {
+        this.removeListener('message', onMessage)
+        this.removeListener('disposed', onDisposed)
+
+        const rejection = Promise.reject(error) as never
+
+        if (pendingResolvers.length > 0) {
+          // Clear out pending resolvers so we don't leak them
+          for (let i = 0; i < pendingResolvers.length; i++) {
+            const resolver = pendingResolvers[i]!
+
+            resolver(rejection)
+          }
+
+          pendingResolvers.length = 0
+        }
+
+        return rejection
+      },
+    }
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
@@ -203,6 +328,49 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
       })
 
       this.#queue.unnest()
+    }
+  }
+
+  async initialize(): Promise<this> {
+    switch (this.#state.status) {
+      case 'initializing': {
+        const { promise, resolve, reject } = Promise.withResolvers<void>()
+
+        const onMessage: () => void = (): void => {
+          this.removeListener('disposed', onDisposed)
+
+          resolve()
+        }
+
+        const onDisposed = () => {
+          this.removeListener('message', onMessage)
+
+          if (this.#state.status === 'failed') {
+            reject(this.#state.error)
+          } else {
+            reject(new Error('Subscription disposed before message was received'))
+          }
+        }
+
+        this.addListener('message', onMessage, { persistent: true, once: true })
+        this.addListener('disposed', onDisposed, { persistent: true, once: true })
+
+        await promise
+
+        return this
+      }
+
+      case 'failed': {
+        throw this.#state.error
+      }
+
+      case 'disposed': {
+        throw new Error('Subscription disposed')
+      }
+
+      default: {
+        return this
+      }
     }
   }
 
@@ -284,7 +452,7 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
           return
         }
 
-        this.emit('inactivity', this, this.#referenceId!)
+        this.emit('inactivity', this, this.#referenceId as string)
       })
     }
   }
@@ -309,7 +477,9 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
       }
     } catch (error) {
       if (error instanceof AssertionError) {
-        return this.dispose(new SaxoBankSubscriptionPayloadError(this.#referenceId!, payload, error.invalidations))
+        return this.dispose(
+          new SaxoBankSubscriptionPayloadError(this.#referenceId as string, payload, error.invalidations),
+        )
       }
 
       return this.dispose(ensureError(error))

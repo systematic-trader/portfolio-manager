@@ -21,7 +21,7 @@ import {
   type SaxoBankSubscriptionUnsubscribe,
 } from '../saxobank-subscription.ts'
 
-export type InfoPriceSibscriptionOptions = {
+export type InfoPriceSubscriptionOptions = {
   [K in keyof InfoPriceListRequest]: Omit<ArgumentType<InfoPriceListRequest[K]>, 'Uics'> & { readonly Uic: number }
 }
 
@@ -39,9 +39,9 @@ const MessageGuard = props({
 
 const MessagesGuard = array(MessageGuard)
 
-export class SaxoBankSubscriptionInfoPrice<AssetType extends keyof InfoPriceSibscriptionOptions>
+export class SaxoBankSubscriptionInfoPrice<AssetType extends keyof InfoPriceSubscriptionOptions>
   extends SaxoBankSubscription<SaxoBankSubscriptionInfoPriceMessage> {
-  readonly options: InfoPriceSibscriptionOptions[AssetType]
+  readonly options: InfoPriceSubscriptionOptions[AssetType]
 
   constructor({
     options,
@@ -54,7 +54,7 @@ export class SaxoBankSubscriptionInfoPrice<AssetType extends keyof InfoPriceSibs
     readonly queue: PromiseQueue
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
-    readonly options: InfoPriceSibscriptionOptions[AssetType]
+    readonly options: InfoPriceSubscriptionOptions[AssetType]
   }) {
     super({
       stream,
@@ -96,14 +96,14 @@ const parse: SaxoBankSubscriptionParse<SaxoBankSubscriptionInfoPriceMessage> = (
   return []
 }
 
-function createReferenceIdGenerator<AssetType extends keyof InfoPriceSibscriptionOptions>(
+function createReferenceIdGenerator<AssetType extends keyof InfoPriceSubscriptionOptions>(
   { assetType, uic }: { readonly assetType: AssetType; readonly uic: number },
 ): SaxoBankSubscriptionCreateReferenceId {
   return () => SaxoBankRandom.stream.referenceId(`info-price-${assetType}-${uic}`)
 }
 
-function createSubscribe<AssetType extends keyof InfoPriceSibscriptionOptions>(
-  options: InfoPriceSibscriptionOptions[AssetType],
+function createSubscribe<AssetType extends keyof InfoPriceSubscriptionOptions>(
+  options: InfoPriceSubscriptionOptions[AssetType],
 ): SaxoBankSubscriptionSubscribe<SaxoBankSubscriptionInfoPriceMessage> {
   return async function subscribe({ app, contextId, referenceId, previousReferenceId, timeout, signal }): Promise<{
     referenceId: string
