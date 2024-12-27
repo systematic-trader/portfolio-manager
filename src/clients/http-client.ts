@@ -645,15 +645,11 @@ async function fetchResponse(client: HTTPClient, url: string | URL, options: {
     throw new TypeError(`Expected timeout to be a positive integer, got ${options.timeout}`)
   }
 
-  debug[options.method](
-    new URL(url).href,
-    Deno.inspect(options.body, {
-      colors: true,
-      depth: Number.POSITIVE_INFINITY,
-      sorted: true,
-      compact: false,
-    }),
-  )
+  if (options.body === undefined) {
+    debug[options.method](new URL(url).href)
+  } else {
+    debug[options.method](new URL(url).href, options.body)
+  }
 
   using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
 
