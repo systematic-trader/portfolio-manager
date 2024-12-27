@@ -39,9 +39,9 @@ export interface DebugOptions {
   readonly pattern?: undefined | string
 
   /**
-   * The function to write debug lines. Defaults to `console.debug`.
+   * The function to write debug lines.
    */
-  readonly write?: undefined | ((...messages: unknown[]) => void)
+  readonly write: (...messages: unknown[]) => void
 
   /**
    * Whether to include a timestamp in the debug output. Defaults to `true`.
@@ -59,7 +59,7 @@ export interface DebugOptions {
  */
 interface NormalizedDebugOptions extends Required<Omit<DebugOptions, 'pattern'>> {}
 
-const writeNothing = ((): void => {}) as WriteDebug
+const writeNothing: WriteDebug = (): void => {}
 writeNothing.extend = (): WriteDebug => writeNothing
 writeNothing.enabled = false
 
@@ -328,34 +328,32 @@ function isEnvironmentTrue(value: undefined | string, fallback = false): boolean
  * debug('auth')('login attempt')
  * ```
  */
-export function createDebug(
-  // pattern: undefined | string = Environment['DEBUG'],
-  // write: undefined | WriteDebugLine = console.debug.bind(console),
-  {
-    pattern = Environment['DEBUG'],
-    write = console.debug.bind(console),
-    colors = isEnvironmentTrue(Environment['DEBUG_COLORS'], true),
-    timestamp = isEnvironmentTrue(Environment['DEBUG_TIMESTAMP'], true),
-  }: DebugOptions = {},
-): Debug {
+export function createDebug({
+  pattern = Environment['DEBUG'],
+  write,
+  colors = isEnvironmentTrue(Environment['DEBUG_COLORS'], true),
+  timestamp = isEnvironmentTrue(Environment['DEBUG_TIMESTAMP'], true),
+}: DebugOptions): Debug {
   if (pattern === undefined || pattern.length === 0) {
     return debugNothing
   }
 
   // Only enable colors if stdout is a terminal and colors is true
-  const colorEnabled = Deno.stdout.isTerminal() && colors
+  const colorsEnabled = Deno.stdout.isTerminal() && colors
 
   // Convert each pattern into a regex
   const regex = patternToRegex(pattern)
 
-  return function debug(category: string): WriteDebug {
-    if (category.length === 0) {
-      throw new Error('Debug category must not be empty')
+  return function debug(name: string): WriteDebug {
+    name = name.trim()
+
+    if (name.length === 0) {
+      throw new Error('Debug name of namespace must not be empty')
     }
 
     // Check if the category matches any of the patterns
-    if (regex.test(category)) {
-      return namespace(category, { colors: colorEnabled, timestamp, write })
+    if (regex.test(name)) {
+      return namespace(name, { colors: colorsEnabled, timestamp, write })
     }
 
     return writeNothing
@@ -374,7 +372,7 @@ export function createDebug(
  * Debug('bar')('no output') // Will not produce debug output
  * ```
  */
-export const Debug: Debug = createDebug()
+export const Debug: Debug = createDebug({ write: console.debug.bind(console) })
 
 const Colors = [
   20,
