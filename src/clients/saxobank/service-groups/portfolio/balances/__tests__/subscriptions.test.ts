@@ -55,7 +55,7 @@ describe('portfolio/balances/subscriptions', () => {
 
         await using stream = new SaxoBankStream({ app })
 
-        const balanceSubscription = stream.balances({
+        const balanceSubscription = stream.balance({
           ClientKey,
         })
 

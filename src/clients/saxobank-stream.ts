@@ -14,7 +14,7 @@ import { parseSaxoBankMessage } from './saxobank/stream/saxobank-message.ts'
 import type { SaxoBankSubscription } from './saxobank/stream/saxobank-subscription.ts'
 import { SaxoBankSubscriptionBalance } from './saxobank/stream/subscriptions/saxobank-subscription-balance.ts'
 import {
-  type InfoPriceSibscriptionOptions,
+  type InfoPriceSubscriptionOptions,
   SaxoBankSubscriptionInfoPrice,
 } from './saxobank/stream/subscriptions/saxobank-subscription-info-price.ts'
 import { SaxoBankSubscriptionPrice } from './saxobank/stream/subscriptions/saxobank-subscription-price.ts'
@@ -64,6 +64,10 @@ export class SaxoBankStreamDisposedError extends SaxoBankStreamError {
   }
 }
 
+// TODO: create new class called SaxoBankStream with the same interface as the currect class,
+// but with 4 instances of currect SaxoBankStream.
+// SaxoBank allows 4 webscoket connections per account with 200 subscriptions per connection.
+
 export class SaxoBankStream extends EventSwitch<{
   disposed: [error?: undefined | Error]
 }> implements AsyncDisposable {
@@ -91,6 +95,10 @@ export class SaxoBankStream extends EventSwitch<{
 
   get contextId(): string {
     return this.#contextId
+  }
+
+  get size(): number {
+    return this.#subscriptions.size
   }
 
   get state(): {
@@ -565,20 +573,23 @@ export class SaxoBankStream extends EventSwitch<{
       this.#ensureWebSocket()
     }
 
-    if (
-      debug.subscribed.enabled &&
-      'options' in subscription &&
-      typeof subscription.options === 'object' &&
-      subscription.options !== null
-    ) {
-      debug.subscribed.apply(
-        undefined,
-        [
-          this.#contextId,
-          referenceId,
-          ...Object.entries(subscription.options).map(([key, value]) => `${key}=${JSON.stringify(value)}`),
-        ],
-      )
+    if (debug.subscribed.enabled) {
+      if (
+        'options' in subscription &&
+        typeof subscription.options === 'object' &&
+        subscription.options !== null
+      ) {
+        debug.subscribed.apply(
+          undefined,
+          [
+            this.#contextId,
+            referenceId,
+            ...Object.entries(subscription.options).map(([key, value]) => `${key}=${JSON.stringify(value)}`),
+          ],
+        )
+      } else {
+        debug.subscribed(this.#contextId, referenceId)
+      }
     }
   }
 
@@ -632,8 +643,19 @@ export class SaxoBankStream extends EventSwitch<{
     return subscription
   }
 
-  infoPrice<AssetType extends keyof InfoPriceSibscriptionOptions>(
-    options: InfoPriceSibscriptionOptions[AssetType],
+  balance(options: ArgumentType<BalanceRequest>): SaxoBankSubscriptionBalance {
+    return this.#decorateSubscription(
+      new SaxoBankSubscriptionBalance({
+        stream: this,
+        queue: this.#queueMain,
+        options,
+        signal: this.#signal,
+      }),
+    )
+  }
+
+  infoPrice<AssetType extends keyof InfoPriceSubscriptionOptions>(
+    options: InfoPriceSubscriptionOptions[AssetType],
   ): SaxoBankSubscriptionInfoPrice<AssetType> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionInfoPrice({
@@ -650,19 +672,6 @@ export class SaxoBankStream extends EventSwitch<{
   ): SaxoBankSubscriptionPrice<AssetType> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionPrice<AssetType>({
-        stream: this,
-        queue: this.#queueMain,
-        options,
-        signal: this.#signal,
-      }),
-    )
-  }
-
-  balances(
-    options: ArgumentType<BalanceRequest>,
-  ): SaxoBankSubscriptionBalance {
-    return this.#decorateSubscription(
-      new SaxoBankSubscriptionBalance({
         stream: this,
         queue: this.#queueMain,
         options,
