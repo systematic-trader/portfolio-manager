@@ -91,22 +91,23 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
   #message: undefined | Message
   #state: this['state']
 
+  get message(): Message {
+    if (this.#message === undefined) {
+      throw new Error('Call initialize() before accessing message')
+    }
+
+    return this.#message
+  }
+
   get state(): {
-    readonly status: 'initializing'
-    readonly error: undefined
-    readonly message: undefined
-  } | {
     readonly status: 'active'
     readonly error: undefined
-    readonly message: Message
   } | {
     readonly status: 'disposed'
     readonly error: undefined
-    readonly message: undefined | Message
   } | {
     readonly status: 'failed'
     readonly error: Error
-    readonly message: undefined | Message
   } {
     return this.#state
   }
@@ -156,13 +157,10 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
           return 'disposed'
         }
 
-        return self.#message === undefined ? 'initializing' : 'active'
+        return 'active'
       },
       get error() {
         return self.#error
-      },
-      get message() {
-        return self.#message
       },
     } as this['state']
 
@@ -344,46 +342,42 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
   }
 
   async initialize(): Promise<this> {
-    switch (this.#state.status) {
-      case 'initializing': {
-        const { promise, resolve, reject } = Promise.withResolvers<void>()
+    if (this.#message !== undefined) {
+      return this
+    }
 
-        const onMessage: () => void = (): void => {
-          this.removeListener('disposed', onDisposed)
+    if (this.#state.status === 'disposed') {
+      throw new Error('Subscription disposed before message was received')
+    }
 
-          resolve()
-        }
+    if (this.#state.status === 'failed') {
+      throw this.#state.error
+    }
 
-        const onDisposed = () => {
-          this.removeListener('message', onMessage)
+    const { promise, resolve, reject } = Promise.withResolvers<void>()
 
-          if (this.#state.status === 'failed') {
-            reject(this.#state.error)
-          } else {
-            reject(new Error('Subscription disposed before message was received'))
-          }
-        }
+    const onMessage: () => void = (): void => {
+      this.removeListener('disposed', onDisposed)
 
-        this.addListener('message', onMessage, { persistent: true, once: true })
-        this.addListener('disposed', onDisposed, { persistent: true, once: true })
+      resolve()
+    }
 
-        await promise
+    const onDisposed = () => {
+      this.removeListener('message', onMessage)
 
-        return this
-      }
-
-      case 'failed': {
-        throw this.#state.error
-      }
-
-      case 'disposed': {
-        throw new Error('Subscription disposed')
-      }
-
-      default: {
-        return this
+      if (this.#state.status === 'failed') {
+        reject(this.#state.error)
+      } else {
+        reject(new Error('Subscription disposed before message was received'))
       }
     }
+
+    this.addListener('message', onMessage, { persistent: true, once: true })
+    this.addListener('disposed', onDisposed, { persistent: true, once: true })
+
+    await promise
+
+    return this
   }
 
   subscribe(
