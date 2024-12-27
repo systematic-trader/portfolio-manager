@@ -331,6 +331,18 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
     }
   }
 
+  getMessage(): Message {
+    if (this.#state.status === 'failed') {
+      throw this.#state.error
+    }
+
+    if (this.#state.status !== 'active') {
+      throw new Error(`${this.constructor.name} not active: ${this.#referenceId}`)
+    }
+
+    return this.#message as Message
+  }
+
   async initialize(): Promise<this> {
     switch (this.#state.status) {
       case 'initializing': {
