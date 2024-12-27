@@ -13,38 +13,38 @@ export interface InstrumentCollateralDetail extends GuardType<typeof InstrumentC
 
 export const InstrumentCollateralDetail = props({
   /**	Instrument Asset type */
-  'AssetType': AssetType,
+  AssetType: AssetType,
 
   /**	Instrument Description */
-  'Description': string(),
+  Description: string(),
 
   /**	Initial collateral available of the instrument */
-  'InitialCollateral': number(),
+  InitialCollateral: number(),
 
   /**	Initial collateral not available of the instrument */
-  'InitialCollateralNotAvailable': number(),
+  InitialCollateralNotAvailable: number(),
+
+  /** Initial concentration risk haircuts */
+  InitialConcentrationDeduction: number(),
 
   /**	Maintenance collateral available of the instrument */
-  'MaintenanceCollateral': number(),
+  MaintenanceCollateral: number(),
 
   /**	Maintenance collateral not available of the instrument */
-  'MaintenanceCollateralNotAvailable': number(),
-
-  /**	Market value of the instrument */
-  'MarketValue': number(),
-
-  /**	Instrument Symbol */
-  'Symbol': string(),
-
-  /**	Uic of the instrument */
-  'Uic': integer(),
-
-  /** Not documented */
-  ContributingAssetTypes: optional(array(AssetType)),
-
-  /** Not documented */
-  InitialConcentrationDeduction: number(),
+  MaintenanceCollateralNotAvailable: number(),
 
   /** Not documented */
   MaintenanceConcentrationDeduction: number(),
+
+  /**	Market value of the instrument */
+  MarketValue: number(),
+
+  /**	Instrument Symbol */
+  Symbol: string(),
+
+  /**	Uic of the instrument */
+  Uic: integer(),
+
+  /** Not documented */
+  ContributingAssetTypes: optional(array(AssetType)),
 })
