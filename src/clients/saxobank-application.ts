@@ -1,6 +1,7 @@
 import { open } from 'https://deno.land/x/open@v0.0.6/index.ts'
 import * as path from 'jsr:@std/path'
 
+import { toArray } from '../utils/async-iterable.ts'
 import { Environment } from '../utils/environment.ts'
 import { Timeout } from '../utils/timeout.ts'
 import { HTTPClient, HTTPClientError } from './http-client.ts'
@@ -307,5 +308,38 @@ export class SaxoBankApplication implements Disposable {
   dispose(): void {
     this.#refreshAuth?.abort()
     this.#refreshAuth = undefined
+  }
+
+  /**
+   * Reset the account in simulation mode.
+   *
+   * @param accountKey The account key to reset. If not provided, the first account will be reset.
+   * @param balance The new balance for the account. The default is 10,000,000.
+   */
+  async resetSimulationAccount({
+    accountKey,
+    balance = 10_000_000,
+  }: {
+    readonly accountKey?: undefined | string
+    readonly balance?: undefined | number
+  } = {}): Promise<void> {
+    if (this.type !== 'Simulation') {
+      throw new Error('Cannot reset account in non-simulation mode')
+    }
+
+    if (accountKey === undefined) {
+      const [account] = await toArray(this.portfolio.accounts.get())
+
+      if (account === undefined) {
+        throw new Error('No accounts returned from portfolio endpoint')
+      }
+
+      accountKey = account.AccountKey
+    }
+
+    await this.portfolio.accounts.account.reset.put({
+      AccountKey: accountKey,
+      NewBalance: balance,
+    })
   }
 }
