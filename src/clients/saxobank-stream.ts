@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-explicit-any
 import type { ArgumentType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { Debug } from '../utils/debug.ts'
 import { ensureError } from '../utils/error.ts'
@@ -23,14 +22,17 @@ import type { PriceRequest } from './saxobank/types/records/price-request.ts'
 import { WebSocketClient, WebSocketClientEventError } from './websocket-client.ts'
 
 const debug = {
+  disposed: Debug('stream:disposed'),
+  error: Debug('stream:error'),
+
+  message: {
+    heartbeat: Debug('stream:message:heartbeat'),
+    resetSubscriptions: Debug('stream:message:reset-subscriptions'),
+    snapshot: Debug('stream:message:snapshot'),
+  },
+
   subscribed: Debug('stream:subscribed'),
   unsubscribed: Debug('stream:unsubscribed'),
-  heartbeat: Debug('stream:heartbeat'),
-  socketError: Debug('stream:socket-error'),
-  disconnect: Debug('stream:disconnect'),
-  reconnect: Debug('stream:reconnect'),
-  disposed: Debug('stream:disposed'),
-  resetSubscriptions: Debug('stream:reset-subscriptions'),
 }
 
 export class SaxoBankStreamError extends Error {
@@ -73,21 +75,20 @@ export class SaxoBankStream extends EventSwitch<{
 }> implements AsyncDisposable {
   readonly #app: SaxoBankApplication
   readonly #inactivityTimeout: number
+  // deno-lint-ignore no-explicit-any
   readonly #subscriptions = new Map<string, SaxoBankSubscription<any>>()
-  readonly #socket: WebSocketClient
-  readonly #queueMain: PromiseQueue
+  readonly #websocket: WebSocketClient
+  readonly #queueStream: PromiseQueue
   readonly #queueAccessToken: PromiseQueue
-  readonly #queueServiceGroup: PromiseQueue
   readonly #contextId = SaxoBankRandom.stream.contextId()
   readonly #controller = new AbortController()
   readonly #signal: AbortSignal
 
-  #disposed: boolean
-  #connecting: boolean
   #inactivityMonitor: undefined | Timeout<void>
   #error: undefined | Error
   #state: this['state']
   #messageId: number
+  #connecting: boolean
 
   get app(): SaxoBankApplication {
     return this.#app
@@ -103,21 +104,18 @@ export class SaxoBankStream extends EventSwitch<{
 
   get state(): {
     readonly status: 'active'
-    readonly connecting: boolean
     readonly error: undefined
   } | {
     readonly status: 'disposed'
-    readonly connecting: false
     readonly error: undefined
   } | {
     readonly status: 'failed'
-    readonly connecting: false
     readonly error: Error
   } {
     return this.#state
   }
 
-  get #url(): string {
+  get #websocketURL(): string {
     const connectURL = new URL(SaxoBankApplicationConfig[this.#app.type].websocketConnectURL)
 
     if (this.#app.auth.accessToken !== undefined) {
@@ -152,34 +150,32 @@ export class SaxoBankStream extends EventSwitch<{
 
     super(queue.createNested())
 
-    this.#queueMain = queue
+    this.#queueStream = queue
     this.#queueAccessToken = queue.createNested()
-    this.#queueServiceGroup = queue.createNested()
 
     this.#app = app
-    this.#disposed = false
-    this.#connecting = false
     this.#error = undefined
     this.#messageId = 0
     this.#inactivityTimeout = inactivityTimeout
     this.#inactivityMonitor = undefined
+    this.#connecting = false
 
-    this.#socket = new WebSocketClient({ url: this.#url, binaryType: 'arraybuffer' })
-    this.#socket.addListener('open', this.#socketOpen)
-    this.#socket.addListener('close', this.#socketClose)
-    this.#socket.addListener('error', this.#socketError)
-    this.#socket.addListener('message', this.#socketMessage)
+    this.#websocket = new WebSocketClient({ url: this.#websocketURL, binaryType: 'arraybuffer' })
+    this.#websocket.addListener('open', this.#websocketOpen)
+    this.#websocket.addListener('close', this.#websocketClose)
+    this.#websocket.addListener('error', this.#websocketError)
+    this.#websocket.addListener('message', this.#websocketMessage)
 
     // deno-lint-ignore no-this-alias
     const self = this
 
     this.#state = {
       get status() {
-        if (self.#error !== undefined || self.#socket.state.status === 'failed') {
+        if (self.#error !== undefined || self.#websocket.state.status === 'failed') {
           return 'failed'
         }
 
-        if (self.#disposed || self.#controller.signal.aborted) {
+        if (self.#controller.signal.aborted) {
           return 'disposed'
         }
 
@@ -187,7 +183,7 @@ export class SaxoBankStream extends EventSwitch<{
       },
 
       get error() {
-        return self.#error ?? self.#socket.state.error
+        return self.#error ?? self.#websocket.state.error
       },
     } as this['state']
 
@@ -199,10 +195,8 @@ export class SaxoBankStream extends EventSwitch<{
     }
 
     if (this.#signal !== undefined) {
-      this.#signal.addEventListener('abort', this.dispose.bind(this, undefined), { once: true })
+      this.#signal.addEventListener('abort', this.#dispose.bind(this, undefined), { once: true })
     }
-
-    app.auth.addListener('accessToken', this.#updateAccessToken, { persistent: true, sequential: true })
   }
 
   #heartbeat(): void {
@@ -211,21 +205,142 @@ export class SaxoBankStream extends EventSwitch<{
     }
 
     this.#inactivityMonitor?.cancel()
-    this.#inactivityMonitor = Timeout.defer(this.#inactivityTimeout, this.#reconnectSubscriptions)
+    this.#inactivityMonitor = Timeout.defer(this.#inactivityTimeout, () => {
+      if (this.#state.status !== 'active' || this.#subscriptions.size === 0) {
+        return
+      }
+
+      this.#establishStream()
+    })
+  }
+
+  #dispose(error?: undefined | Error): void {
+    if (this.#inactivityMonitor !== undefined) {
+      this.#inactivityMonitor.cancel()
+      this.#inactivityMonitor = undefined
+    }
+
+    if (this.#controller.signal.aborted) {
+      return
+    }
+
+    this.#controller.abort()
+
+    if (error !== undefined) {
+      debug.error(error)
+
+      if (this.#error === undefined) {
+        this.#error = error
+      }
+    }
+
+    this.#queueStream.call(async () => {
+      debug.disposed(this.#contextId)
+
+      this.#app.auth.removeListener('accessToken', this.#updateAccessToken)
+
+      if (this.#websocket.state.status === 'open') {
+        try {
+          await this.#websocket.close()
+        } catch (closeError) {
+          debug.error(closeError)
+
+          if (this.#error === undefined) {
+            this.#error = ensureError(closeError)
+          }
+        }
+      }
+
+      if (this.#subscriptions.size > 0) {
+        await Promise.allSettled(
+          this.#subscriptions.entries().map(async ([referenceId, subscription]) => {
+            try {
+              await subscription.dispose()
+            } catch (disposeError) {
+              debug.error(subscription.constructor.name, referenceId, disposeError)
+
+              if (this.#error === undefined) {
+                this.#error = ensureError(disposeError)
+              }
+            }
+          }),
+        )
+
+        this.#subscriptions.clear()
+      }
+
+      this.emit('disposed', this.#error)
+
+      await super[Symbol.asyncDispose]()
+    })
+  }
+
+  override [Symbol.asyncDispose](): Promise<void> {
+    this.#dispose()
+
+    return this.#queueStream.drain()
+  }
+
+  dispose(): Promise<void> {
+    return this[Symbol.asyncDispose]()
+  }
+
+  #establishStream = (): void => {
+    if (this.#state.status !== 'active' || this.#connecting === true) {
+      return
+    }
+
+    this.#connecting = true
+
+    this.#queueStream.call(async () => {
+      try {
+        while (true) {
+          if (this.#state.status !== 'active') {
+            return
+          }
+
+          try {
+            await this.#websocket.reconnect({
+              connect: {
+                url: this.#websocketURL,
+                signal: this.#signal,
+              },
+            })
+
+            if (this.#subscriptions.size > 0) {
+              for (const subscription of this.#subscriptions.values()) {
+                subscription.subscribe()
+              }
+            }
+
+            return
+          } catch (error) {
+            if (this.#app.auth.accessToken === undefined) {
+              const methodName = 'authorize' as const
+
+              await this.#app.auth[methodName]()
+
+              if (this.#app.auth.accessToken === undefined) {
+                throw new SaxoBankStreamError(
+                  `Access token is not available. Unable to resolve access token with ${this.#app.auth.constructor.name}.${methodName}()`,
+                )
+              }
+
+              continue
+            }
+
+            throw error
+          }
+        }
+      } finally {
+        this.#connecting = false
+      }
+    })
   }
 
   #updateAccessToken = (accessToken: string): void => {
-    if (this.#state.status !== 'active') {
-      this.#app.auth.removeListener('accessToken', this.#updateAccessToken)
-      return
-    }
-
-    if (this.#socket.state.status !== 'open') {
-      return
-    }
-
     this.#queueAccessToken.call(async () => {
-      if (this.#state.status !== 'active' || this.#socket.state.status !== 'open') {
+      if (this.#state.status !== 'active' || this.#websocket.state.status !== 'open') {
         return
       }
 
@@ -238,7 +353,7 @@ export class SaxoBankStream extends EventSwitch<{
           headers: {
             Authorization: `BEARER ${accessToken}`,
           },
-          timeout: 5_000,
+          // timeout: 30_000,
           signal: this.#signal,
         })
       } catch (error) {
@@ -249,180 +364,36 @@ export class SaxoBankStream extends EventSwitch<{
         throw error
       }
     })
-  };
-
-  [Symbol.asyncDispose](): Promise<void> {
-    this.dispose()
-
-    return this.#queueMain.drain()
   }
 
-  async #dispose(error?: undefined | Error): Promise<void> {
-    if (this.#state.status !== 'active') {
-      return
-    }
-
-    this.#disposed = true
-
-    if (error !== undefined && error !== null) {
-      this.#error = error
-    }
-
-    try {
-      this.#controller.abort()
-      this.#inactivityMonitor?.cancel()
-      this.#inactivityMonitor = undefined
-
-      let closeWebSocketPromise: undefined | Promise<void> = undefined
-
-      if (this.#socket.state.status === 'open') {
-        closeWebSocketPromise = this.#socket.close()
-      }
-
-      const deleteContextPromise = this.#app.rootServices.subscriptions.delete({
-        ContextId: this.#contextId,
-      }, {
-        timeout: 5_000,
-      }).catch((deleteContextError) => {
-        if (deleteContextError instanceof HTTPClientRequestAbortError) {
-          return
-        }
-
-        throw deleteContextError
-      })
-
-      if (this.#subscriptions.size > 0) {
-        for (const subscription of this.#subscriptions.values()) {
-          subscription.dispose()
-        }
-      }
-
-      for (const promiseSettled of await Promise.allSettled([closeWebSocketPromise, deleteContextPromise])) {
-        if (promiseSettled.status === 'rejected') {
-          // overwrite with the latest error
-          this.#error = ensureError(promiseSettled.reason)
-        }
-      }
-
-      this.emit('disposed', this.#error)
-    } catch (uncaughtError) {
-      this.#error = ensureError(uncaughtError)
-    } finally {
-      debug.disposed(this.#contextId)
-    }
-  }
-
-  dispose(error?: undefined | Error): void {
-    this.#queueMain.add(this.#dispose(error))
-  }
-
-  #ensureWebSocket(reconnect: undefined | boolean = false): void {
-    if (this.#connecting || this.#state.status !== 'active') {
-      return
-    }
-
-    this.#connecting = true
-
-    this.#queueMain.call(async () => {
-      let retries = 0
-
-      try {
-        while (true) {
-          if (this.#state.status !== 'active') {
-            return
-          }
-
-          try {
-            if (reconnect) {
-              await this.#socket.reconnect({
-                connect: {
-                  url: this.#url,
-                  timeout: 5_000,
-                  signal: this.#signal,
-                },
-              })
-
-              for (const subscription of this.#subscriptions.values()) {
-                subscription.subscribe({ signal: this.#signal, timeout: 5_000 })
-              }
-            } else {
-              if (this.#socket.state.status === 'open') {
-                return
-              }
-
-              await this.#socket.connect({
-                url: this.#url,
-                timeout: 5_000,
-                signal: this.#signal,
-              })
-            }
-          } catch {
-            if (this.#app.auth.accessToken === undefined) {
-              const methodName = 'authorize' as const
-
-              // Wait for the access token to be updated
-              await this.#app.auth[methodName]()
-
-              if (this.#app.auth.accessToken === undefined) {
-                throw new SaxoBankStreamError(
-                  `Access token is not available. Unable to resolve access token with ${this.#app.auth.constructor.name}.${methodName}()`,
-                )
-              }
-
-              continue
-            }
-
-            // Wait for up to 5 seconds before retrying
-            let countdown = Math.min(50, retries * 10)
-            while (countdown > 0 && this.#subscriptions.size > 0 && this.#state.status === 'active') {
-              await Timeout.wait(100)
-
-              countdown--
-            }
-
-            continue
-          } finally {
-            retries++
-          }
-
-          break
-        }
-      } finally {
-        this.#connecting = false
-      }
-    })
-  }
-
-  #socketOpen = (_event: Event): void => {
+  #websocketOpen = (): void => {
     this.#heartbeat()
 
-    this.#app.auth.addListener('accessToken', this.#updateAccessToken)
+    this.#app.auth.addListener('accessToken', this.#updateAccessToken, { persistent: true, sequential: true })
   }
 
-  #socketClose = (_event: CloseEvent): void => {
+  #websocketClose = (): void => {
     this.#app.auth.removeListener('accessToken', this.#updateAccessToken)
 
     this.#inactivityMonitor?.cancel()
     this.#inactivityMonitor = undefined
+
+    this.#establishStream()
   }
 
-  #socketError = (event: Event): void => {
-    debug.socketError(this.#contextId, event)
-
+  #websocketError = (event: Event): void => {
     if (
       'message' in event &&
       typeof event.message === 'string' &&
       event.message.toLowerCase().includes('connection reset')
     ) {
-      return this.#reconnectSubscriptions()
+      return this.#establishStream()
     }
 
-    const error = new WebSocketClientEventError({ event, url: this.#url })
-
-    this.dispose(error)
+    this.#dispose(new WebSocketClientEventError({ event, url: this.#websocket.url }))
   }
 
-  #socketMessage = (event: MessageEvent): void => {
+  #websocketMessage = (event: MessageEvent): void => {
     this.#heartbeat()
 
     const messages = parseSaxoBankMessage(event.data)
@@ -432,7 +403,7 @@ export class SaxoBankStream extends EventSwitch<{
 
       switch (message.referenceId) {
         case '_heartbeat': {
-          debug.heartbeat(this.#contextId, message.referenceId, message)
+          debug.message.heartbeat(this.#contextId, message.referenceId, message)
 
           const [{ Heartbeats }] = message.payload as [
             {
@@ -462,7 +433,9 @@ export class SaxoBankStream extends EventSwitch<{
               }
 
               case 'SubscriptionPermanentlyDisabled': {
-                subscription.dispose()
+                subscription.dispose().catch((error) => {
+                  this.#dispose(ensureError(error))
+                })
 
                 continue
               }
@@ -477,7 +450,7 @@ export class SaxoBankStream extends EventSwitch<{
         }
 
         case '_disconnect': {
-          this.#reconnectSubscriptions()
+          this.#establishStream()
 
           continue
         }
@@ -487,15 +460,14 @@ export class SaxoBankStream extends EventSwitch<{
             { ReferenceId: '_resetsubscriptions'; TargetReferenceIds: readonly string[] },
           ]
 
-          debug.resetSubscriptions(this.#contextId, TargetReferenceIds.length === 0 ? 'all' : TargetReferenceIds)
+          debug.message.resetSubscriptions(
+            this.#contextId,
+            TargetReferenceIds.length === 0 ? 'all' : TargetReferenceIds,
+          )
 
           if (TargetReferenceIds.length === 0) {
-            if (this.#subscriptions.size === 0) {
-              this.#queueMain.add(this.#socket.close())
-            } else {
-              for (const subscription of this.#subscriptions.values()) {
-                subscription.subscribe()
-              }
+            for (const subscription of this.#subscriptions.values()) {
+              subscription.subscribe()
             }
           } else {
             for (const [referenceId, subscription] of this.#subscriptions) {
@@ -514,7 +486,7 @@ export class SaxoBankStream extends EventSwitch<{
           const subscription = this.#subscriptions.get(message.referenceId)
 
           if (subscription === undefined) {
-            this.#queueServiceGroup.call(async () => {
+            this.#queueStream.call(async () => {
               if (this.#state.status !== 'active') {
                 return
               }
@@ -525,7 +497,7 @@ export class SaxoBankStream extends EventSwitch<{
                   Tag: message.referenceId,
                 }, {
                   signal: this.#signal,
-                  timeout: 5_000,
+                  // timeout: 30_000,
                 })
               } catch (error) {
                 if (error instanceof HTTPClientRequestAbortError) {
@@ -534,13 +506,17 @@ export class SaxoBankStream extends EventSwitch<{
 
                 throw error
               }
-            }, {
-              immediately: true,
             })
             continue
           }
 
-          subscription.receive(message.payload)
+          try {
+            debug.message.snapshot(this.#contextId, message.referenceId, message)
+
+            subscription.receive(message.payload)
+          } catch (error) {
+            this.#dispose(ensureError(error))
+          }
 
           continue
         }
@@ -549,37 +525,75 @@ export class SaxoBankStream extends EventSwitch<{
   }
 
   #addSubscription = (
+    // deno-lint-ignore no-explicit-any
     subscription: SaxoBankSubscription<any>,
     referenceId: string,
     previousReferenceId: undefined | string,
-  ) => {
-    if (this.#state.status !== 'active') {
-      return subscription.dispose()
-    }
+  ): void => {
+    this.#queueStream.call(async () => {
+      if (this.#state.status !== 'active') {
+        await subscription.dispose()
+        return
+      }
 
-    if (referenceId === previousReferenceId) {
-      return subscription.dispose(
-        new Error('The referenceId and previousReferenceId are the same and must be different.'),
-      )
-    }
+      if (referenceId === previousReferenceId) {
+        this.#dispose(new Error('The referenceId and previousReferenceId are the same and must be different.'))
+        return
+      }
 
-    this.#subscriptions.set(referenceId, subscription)
+      this.#subscriptions.set(referenceId, subscription)
 
-    if (previousReferenceId !== undefined) {
-      this.#subscriptions.delete(previousReferenceId)
-    }
+      if (previousReferenceId !== undefined) {
+        this.#subscriptions.delete(previousReferenceId)
+      }
 
-    if (this.#subscriptions.size === 1 && this.#socket.state.status === 'closed') {
-      this.#ensureWebSocket()
-    }
+      if (this.#websocket.state.status === 'closed') {
+        this.#establishStream()
+      }
 
-    if (debug.subscribed.enabled) {
+      if (debug.subscribed.enabled) {
+        if (
+          'options' in subscription &&
+          typeof subscription.options === 'object' &&
+          subscription.options !== null
+        ) {
+          debug.subscribed.apply(
+            undefined,
+            [
+              this.#contextId,
+              referenceId,
+              ...Object.entries(subscription.options).map(([key, value]) => `${key}=${JSON.stringify(value)}`),
+            ],
+          )
+        } else {
+          debug.subscribed(this.#contextId, referenceId)
+        }
+      }
+    })
+  }
+
+  // deno-lint-ignore no-explicit-any
+  #removeSubscription = (subscription: SaxoBankSubscription<any>, referenceId: string) => {
+    this.#queueStream.call(async () => {
+      this.#subscriptions.delete(referenceId)
+
+      subscription.removeListener('subscribed', this.#addSubscription)
+      subscription.removeListener('disposed', this.#removeSubscription)
+
+      if (this.#subscriptions.size === 0) {
+        this.#inactivityMonitor?.cancel()
+        this.#inactivityMonitor = undefined
+
+        await this.#websocket.close()
+      }
+
       if (
+        debug.unsubscribed.enabled &&
         'options' in subscription &&
         typeof subscription.options === 'object' &&
         subscription.options !== null
       ) {
-        debug.subscribed.apply(
+        debug.unsubscribed.apply(
           undefined,
           [
             this.#contextId,
@@ -587,58 +601,14 @@ export class SaxoBankStream extends EventSwitch<{
             ...Object.entries(subscription.options).map(([key, value]) => `${key}=${JSON.stringify(value)}`),
           ],
         )
-      } else {
-        debug.subscribed(this.#contextId, referenceId)
       }
-    }
+    })
   }
 
-  #reconnectSubscriptions = () => {
-    if (this.#state.status === 'active' && this.#subscriptions.size > 0) {
-      this.#ensureWebSocket(true)
-      debug.reconnect(this.#contextId)
-    } else {
-      debug.disconnect(this.#contextId)
-    }
-  }
-
-  #disposeSubscription = (subscription: SaxoBankSubscription<any>, referenceId: string) => {
-    this.#subscriptions.delete(referenceId)
-
-    // if (this.#subscriptions.size === 0) {
-    //   this.#inactivityMonitor?.cancel()
-    //   this.#inactivityMonitor = undefined
-    // }
-
-    subscription.removeListener('subscribed', this.#addSubscription)
-    subscription.removeListener('inactivity', this.#reconnectSubscriptions)
-    subscription.removeListener('disposed', this.#disposeSubscription)
-
-    if (this.#subscriptions.size === 0) {
-      this.#queueMain.call(() => this.#socket.close())
-    }
-
-    if (
-      debug.unsubscribed.enabled &&
-      'options' in subscription &&
-      typeof subscription.options === 'object' &&
-      subscription.options !== null
-    ) {
-      debug.unsubscribed.apply(
-        undefined,
-        [
-          this.#contextId,
-          referenceId,
-          ...Object.entries(subscription.options).map(([key, value]) => `${key}=${JSON.stringify(value)}`),
-        ],
-      )
-    }
-  }
-
+  // deno-lint-ignore no-explicit-any
   #decorateSubscription<S extends SaxoBankSubscription<any>>(subscription: S): S {
     subscription.addListener('subscribed', this.#addSubscription, { persistent: true })
-    subscription.addListener('inactivity', this.#reconnectSubscriptions, { persistent: true })
-    subscription.addListener('disposed', this.#disposeSubscription, { persistent: true, once: true })
+    subscription.addListener('disposed', this.#removeSubscription, { persistent: true, once: true })
 
     return subscription
   }
@@ -647,7 +617,7 @@ export class SaxoBankStream extends EventSwitch<{
     return this.#decorateSubscription(
       new SaxoBankSubscriptionBalance({
         stream: this,
-        queue: this.#queueMain,
+        queue: this.#queueStream,
         options,
         signal: this.#signal,
       }),
@@ -660,7 +630,7 @@ export class SaxoBankStream extends EventSwitch<{
     return this.#decorateSubscription(
       new SaxoBankSubscriptionInfoPrice({
         stream: this,
-        queue: this.#queueMain,
+        queue: this.#queueStream,
         options,
         signal: this.#signal,
       }),
@@ -673,7 +643,7 @@ export class SaxoBankStream extends EventSwitch<{
     return this.#decorateSubscription(
       new SaxoBankSubscriptionPrice<AssetType>({
         stream: this,
-        queue: this.#queueMain,
+        queue: this.#queueStream,
         options,
         signal: this.#signal,
       }),
