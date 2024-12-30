@@ -22,7 +22,7 @@ export interface SubscriptionSwitchOptions {
  * The `EventSwitch` class allows you to register event listeners for specific event types, where each event type has a defined set of argument types.
  * Listeners can be registered to be invoked continuously or only once. Event emission is asynchronous and listeners are invoked in the order they were registered.
  */
-export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
+export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> implements AsyncDisposable {
   // WeakSet to keep track of persistent callbacks that shouldn't be removed when calling removeAllListeners.
   readonly #persistentMap: Map<keyof T, WeakSet<AnyCallback>>
   // Map of event types to their continuous callbacks.
@@ -64,6 +64,46 @@ export class EventSwitch<T extends Record<string, ReadonlyArray<unknown>>> {
     this.addListener = this.addListener.bind(this)
     this.removeListener = this.removeListener.bind(this)
     this.removeAllListeners = this.removeAllListeners.bind(this)
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    this.#persistentMap.clear()
+
+    const drainPromises: Promise<void>[] = []
+
+    for (const [type, continuousTypeSet] of this.#continuousMap) {
+      for (const callback of continuousTypeSet) {
+        const nestedQueue = this.#callbackQueueMap.get(type)?.get(callback)
+
+        if (nestedQueue !== undefined) {
+          drainPromises.push(nestedQueue.drain())
+
+          this.#queue.unnest(nestedQueue)
+        }
+      }
+    }
+
+    for (const [type, onceTypeSet] of this.#onceMap) {
+      for (const callback of onceTypeSet) {
+        const nestedQueue = this.#callbackQueueMap.get(type)?.get(callback)
+
+        if (nestedQueue !== undefined) {
+          drainPromises.push(nestedQueue.drain())
+
+          this.#queue.unnest(nestedQueue)
+        }
+      }
+    }
+
+    this.#continuousMap.clear()
+    this.#onceMap.clear()
+    this.#callbackQueueMap.clear()
+
+    if (drainPromises.length === 0) {
+      return
+    }
+
+    await Promise.all(drainPromises)
   }
 
   /**
