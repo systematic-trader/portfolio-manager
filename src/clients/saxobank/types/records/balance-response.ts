@@ -64,7 +64,7 @@ export const BalanceResponse = props({
   CollateralCreditLine: optional(LineStatus),
 
   /** The utilization state and maximum collateral credit value */
-  CollateralCreditValue: LineStatus,
+  CollateralCreditValue: optional(LineStatus),
 
   /** Size of loan secured by collateral */
   CollateralLoan: optional(number()),

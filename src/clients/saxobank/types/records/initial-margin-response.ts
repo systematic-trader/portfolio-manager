@@ -1,6 +1,7 @@
 import {
   type GuardType,
   number,
+  optional,
   props,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { LineStatus } from './line-status.ts'
@@ -31,7 +32,7 @@ export const InitialMarginResponse = props({
   OtherCollateralDeduction: number(),
 
   /** Not documented */
-  CollateralCreditValue: LineStatus,
+  CollateralCreditValue: optional(LineStatus),
 
   /** Not documented */
   MarginCollateralNotAvailable: number(),
