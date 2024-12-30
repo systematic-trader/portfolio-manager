@@ -42,30 +42,6 @@ test('extensions', async () => {
   expect(websocket.extensions).toBe('')
 })
 
-test('openedAt', async () => {
-  await using websocket = new WebSocketClient({ url: ECHO_URL })
-
-  expect(websocket.openedAt).toBe(-1)
-})
-
-test('closedAt', async () => {
-  await using websocket = new WebSocketClient({ url: ECHO_URL })
-
-  expect(websocket.closedAt).toBe(-1)
-})
-
-test('errorAt', async () => {
-  await using websocket = new WebSocketClient({ url: ECHO_URL })
-
-  expect(websocket.errorAt).toBe(-1)
-})
-
-test('messageAt', async () => {
-  await using websocket = new WebSocketClient({ url: ECHO_URL })
-
-  expect(websocket.messageAt).toBe(-1)
-})
-
 test('send', async () => {
   await using websocket = new WebSocketClient({ url: ECHO_URL })
 
@@ -158,34 +134,6 @@ describe(`URL ${ECHO_URL}`, () => {
     await websocket.connect()
 
     expect(websocket.extensions).toBe('')
-  })
-
-  test('openedAt', async () => {
-    await using websocket = new WebSocketClient({ url: ECHO_URL })
-    await websocket.connect()
-
-    expect(websocket.openedAt).not.toBe(-1)
-  })
-
-  test('closedAt', async () => {
-    await using websocket = new WebSocketClient({ url: ECHO_URL })
-    await websocket.connect()
-
-    expect(websocket.closedAt).toBe(-1)
-  })
-
-  test('errorAt', async () => {
-    await using websocket = new WebSocketClient({ url: ECHO_URL })
-    await websocket.connect()
-
-    expect(websocket.errorAt).toBe(-1)
-  })
-
-  test('messageAt', async () => {
-    await using websocket = new WebSocketClient({ url: ECHO_URL })
-    await websocket.connect()
-
-    expect(websocket.messageAt).toBe(-1)
   })
 
   test('close', async () => {

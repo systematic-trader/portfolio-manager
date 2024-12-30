@@ -70,18 +70,16 @@ export class WebSocketClientAbortError extends WebSocketClientError {
   }
 }
 
-type CallbackTargetMap = {
-  open: [event: Event]
-  close: [event: CloseEvent]
-  error: [event: Event]
-  message: [event: MessageEvent]
-}
-
 /**
  * WebSocketClient provides a high-level API to manage WebSocket connections,
  * including reconnection logic, event handling, and inactivity timeout support.
  */
-export class WebSocketClient extends EventSwitch<CallbackTargetMap> implements AsyncDisposable {
+export class WebSocketClient extends EventSwitch<{
+  open: [event: Event]
+  close: [event: CloseEvent]
+  error: [event: Event]
+  message: [event: MessageEvent]
+}> implements AsyncDisposable {
   readonly #queue: PromiseQueue
   readonly #inactivity = new WebSocketClientInactivityMonitor()
 
@@ -90,10 +88,6 @@ export class WebSocketClient extends EventSwitch<CallbackTargetMap> implements A
   #state: WebSocketClient['state']
   #url: URL
   #binaryType: 'arraybuffer' | 'blob'
-  #openedAt = -1
-  #closedAt = -1
-  #errorAt = -1
-  #messageAt = -1
 
   /**
    * The inactivity monitor instance associated with the WebSocket.
@@ -148,34 +142,6 @@ export class WebSocketClient extends EventSwitch<CallbackTargetMap> implements A
    */
   get extensions(): string {
     return this.#websocket?.extensions ?? ''
-  }
-
-  /**
-   * The timestamp when the WebSocket was opened. Returns -1 if not opened.
-   */
-  get openedAt(): number {
-    return this.#openedAt
-  }
-
-  /**
-   * The timestamp when the WebSocket was closed. Returns -1 if not closed.
-   */
-  get closedAt(): number {
-    return this.#closedAt
-  }
-
-  /**
-   * The timestamp when an error occurred. Returns -1 if no error occurred.
-   */
-  get errorAt(): number {
-    return this.#errorAt
-  }
-
-  /**
-   * The timestamp when the last message was received. Returns -1 if no message received.
-   */
-  get messageAt(): number {
-    return this.#messageAt
   }
 
   /**
@@ -334,24 +300,18 @@ export class WebSocketClient extends EventSwitch<CallbackTargetMap> implements A
       websocket.removeEventListener('close', closeListener)
       websocket.removeEventListener('error', errorListener)
 
-      // Update the timestamp for when the WebSocket was opened.
-      this.#openedAt = Date.now()
-
       // Add listeners for `message`, `error`, and `close` events on the WebSocket
       websocket.addEventListener('message', (event) => {
-        this.#messageAt = Date.now()
         this.emit('message', event)
         debug.message(this.#url.href, event)
       })
 
       websocket.addEventListener('error', (event) => {
-        this.#errorAt = Date.now()
         this.emit('error', event)
         debug.error(this.#url.href, event)
       })
 
       websocket.addEventListener('close', (event) => {
-        this.#closedAt = Date.now()
         this.#websocket = undefined
         this.emit('close', event)
         debug.closed(this.#url.href, event)
@@ -465,8 +425,9 @@ export class WebSocketClient extends EventSwitch<CallbackTargetMap> implements A
   /**
    * Cleans up resources and closes the WebSocket connection.
    */
-  [Symbol.asyncDispose](): Promise<void> {
-    return this.close()
+  override async [Symbol.asyncDispose](): Promise<void> {
+    await this.close()
+    await super[Symbol.asyncDispose]()
   }
 
   /**
