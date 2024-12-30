@@ -177,13 +177,13 @@ describe('trading/info-prices/subscriptions', () => {
             })
 
             while (true) {
-              if (infoPriceSubscription.state.status === 'failed') {
+              if (stream.state.status === 'failed') {
                 // deno-lint-ignore no-console
-                console.error(infoPriceSubscription.state.error)
-                throw infoPriceSubscription.state.error
+                console.error(stream.state.error)
+                throw stream.state.error
               }
 
-              if (infoPriceSubscription.state.status === 'disposed') {
+              if (infoPriceSubscription.status === 'disposed') {
                 break
               }
 
@@ -260,13 +260,13 @@ describe('trading/info-prices/subscriptions', () => {
         })
 
         while (true) {
-          if (infoPriceSubscription.state.status === 'failed') {
+          if (stream.state.status === 'failed') {
             // deno-lint-ignore no-console
-            console.error(infoPriceSubscription.state.error)
-            throw infoPriceSubscription.state.error
+            console.error(stream.state.error)
+            throw stream.state.error
           }
 
-          if (infoPriceSubscription.state.status === 'disposed') {
+          if (infoPriceSubscription.status === 'disposed') {
             break
           }
 

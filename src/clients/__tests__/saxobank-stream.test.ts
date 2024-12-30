@@ -51,13 +51,13 @@ test('SaxoBankStream', async () => {
   })
 
   while (true) {
-    if (infoprice.state.status === 'failed') {
+    if (stream.state.status === 'failed') {
       Debug('test:failed')(`${infoprice.options.AssetType}-${infoprice.options.Uic}`)
-      Debug('test:error')(infoprice.state.error)
-      throw infoprice.state.error
+      Debug('test:error')(stream.state.error)
+      throw stream.state.error
     }
 
-    if (infoprice.state.status === 'disposed') {
+    if (infoprice.status === 'disposed') {
       Debug('test:disposed')(`${infoprice.options.AssetType}-${infoprice.options.Uic}`)
       break
     }

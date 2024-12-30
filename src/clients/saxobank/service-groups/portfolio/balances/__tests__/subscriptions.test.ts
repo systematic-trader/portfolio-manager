@@ -80,12 +80,12 @@ describe('portfolio/balances/subscriptions', () => {
         })
 
         while (true) {
-          if (balanceSubscription.state.status === 'failed') {
-            debug(balanceSubscription.state.error)
-            throw balanceSubscription.state.error
+          if (stream.state.status === 'failed') {
+            debug(stream.state.error)
+            throw stream.state.error
           }
 
-          if (balanceSubscription.state.status === 'disposed') {
+          if (balanceSubscription.status === 'disposed') {
             break
           }
 
