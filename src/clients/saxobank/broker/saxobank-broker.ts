@@ -5,6 +5,10 @@ import type { SaxoBankSubscriptionBalance } from '../stream/subscriptions/saxoba
 import type { Currency3 } from '../types/derives/currency.ts'
 import { SaxoBankAccount } from './saxobank-account.ts'
 
+const DEFAULTS = {
+  currencyConversionFee: 0.0025,
+} as const
+
 export interface SaxoBankBrokerOptions {
   /** Type of the application. */
   readonly type?: undefined | SaxoBankApplication['type']
@@ -63,44 +67,43 @@ export class SaxoBankBrokerOptionsError extends Error {
 export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions>(
   options: SaxoBankBrokerOptions,
 ): Promise<SaxoBankBroker<Options>> {
-  using app = new SaxoBankApplication({ type: options.type })
-
-  const client = await app.portfolio.clients.me()
-
-  if (client.PositionNettingProfile !== 'FifoRealTime') {
-    throw new Error('Position Netting must be Real-time FIFO')
-  }
-
-  const accounts = await toArray(app.portfolio.accounts.get({
-    ClientKey: client.ClientKey,
-    IncludeSubAccounts: true,
-  })).then((accounts) => {
-    return accounts
-      .filter((account) =>
-        account.Active === true &&
-        account.AccountSubType === 'None' &&
-        account.AccountType === 'Normal'
-      )
-  })
-
-  for (const [accountId, accountCurrency] of Object.entries(options.accounts)) {
-    const account = accounts.find((account) => account.AccountId === accountId)
-    if (account === undefined) {
-      throw new SaxoBankBrokerOptionsError(`Broker account unknown: "${accountId}"`)
-    }
-
-    if (account.Currency !== accountCurrency) {
-      throw new SaxoBankBrokerOptionsError(
-        `Broker account "${accountId}" currency must be set to "${account.Currency}" and not "${accountCurrency}"`,
-      )
-    }
-  }
-
-  const initializePromises: Promise<unknown>[] = []
-
+  const app = new SaxoBankApplication({ type: options.type })
   const stream = new SaxoBankStream({ app })
 
   try {
+    const client = await app.portfolio.clients.me()
+
+    if (client.PositionNettingProfile !== 'FifoRealTime') {
+      throw new Error('Position Netting must be Real-time FIFO')
+    }
+
+    const accounts = await toArray(app.portfolio.accounts.get({
+      ClientKey: client.ClientKey,
+      IncludeSubAccounts: true,
+    })).then((accounts) => {
+      return accounts
+        .filter((account) =>
+          account.Active === true &&
+          account.AccountSubType === 'None' &&
+          account.AccountType === 'Normal'
+        )
+    })
+
+    for (const [accountId, accountCurrency] of Object.entries(options.accounts)) {
+      const account = accounts.find((account) => account.AccountId === accountId)
+      if (account === undefined) {
+        throw new SaxoBankBrokerOptionsError(`Broker account unknown: "${accountId}"`)
+      }
+
+      if (account.Currency !== accountCurrency) {
+        throw new SaxoBankBrokerOptionsError(
+          `Broker account "${accountId}" currency must be set to "${account.Currency}" and not "${accountCurrency}"`,
+        )
+      }
+    }
+
+    const initializePromises: Promise<unknown>[] = []
+
     const clientBalance = stream.balance({ ClientKey: client.ClientKey })
 
     initializePromises.push(clientBalance.initialize())
@@ -117,11 +120,15 @@ export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions
 
       initializePromises.push(accountBalance.initialize())
 
-      result[accountID] = new SaxoBankAccount({
-        accountID,
-        currency: options.accounts[accountID] as Currency3,
-        balance: accountBalance,
-      }, accountBalance)
+      result[accountID] = new SaxoBankAccount(
+        {
+          app,
+          balance: accountBalance,
+          currencyConversionFee: options.currencyConversionFee ?? DEFAULTS.currencyConversionFee,
+          accountID,
+          currency: options.accounts[accountID] as Currency3,
+        },
+      )
 
       return result
     }, {}) as SaxoBankBroker<Options>['accounts']
