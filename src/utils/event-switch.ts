@@ -10,7 +10,7 @@ interface AnyCallback {
   (this: any, ...args: ReadonlyArray<any>): void | Promise<void>
 }
 
-export interface SubscriptionSwitchOptions {
+export interface EventListenerOptions {
   readonly once?: undefined | boolean
   readonly persistent?: undefined | boolean
   readonly sequential?: undefined | boolean
