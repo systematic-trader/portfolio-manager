@@ -25,25 +25,6 @@ import { InstrumentDisplayAndFormat } from './instrument-display-and-format.ts'
 import { InstrumentExchangeDetails } from './instrument-exchange-details.ts'
 import { OrderDuration } from './order-duration.ts'
 
-export type OrderResponseUnion =
-  | OrderResponseBond
-  | OrderResponseCfdOnEtc
-  | OrderResponseCfdOnEtf
-  | OrderResponseCfdOnEtn
-  | OrderResponseCfdOnFund
-  | OrderResponseCfdOnFutures
-  | OrderResponseCfdOnIndex
-  | OrderResponseCfdOnStock
-  | OrderResponseContractFutures
-  | OrderResponseEtc
-  | OrderResponseEtf
-  | OrderResponseEtn
-  | OrderResponseFund
-  | OrderResponseFxForwards
-  | OrderResponseFxSpot
-  | OrderResponseStock
-  | OrderResponseUnknown
-
 // #region Bond
 const OrderResponseBondBase = props({
   AssetType: literal('Bond'),
@@ -1411,14 +1392,54 @@ export const OrderResponseUnknown = props({
     'FxSpot',
     'Stock',
   ]),
-  Uic: integer(),
   AccountId: string(),
   AccountKey: string(),
   ExternalReference: optional(string()),
+  OrderId: string(),
   Status: OrderStatus,
+  Uic: integer(),
 }, {
   extendable: true,
 })
 
 export interface OrderResponseUnknown extends GuardType<typeof OrderResponseUnknown> {}
 // #endregion
+
+export const OrderResponseUnion = union([
+  OrderResponseBond,
+  OrderResponseCfdOnEtc,
+  OrderResponseCfdOnEtf,
+  OrderResponseCfdOnEtn,
+  OrderResponseCfdOnFund,
+  OrderResponseCfdOnFutures,
+  OrderResponseCfdOnIndex,
+  OrderResponseCfdOnStock,
+  OrderResponseContractFutures,
+  OrderResponseEtc,
+  OrderResponseEtf,
+  OrderResponseEtn,
+  OrderResponseFund,
+  OrderResponseFxForwards,
+  OrderResponseFxSpot,
+  OrderResponseStock,
+  OrderResponseUnknown,
+])
+
+export type OrderResponseUnion =
+  | OrderResponseBond
+  | OrderResponseCfdOnEtc
+  | OrderResponseCfdOnEtf
+  | OrderResponseCfdOnEtn
+  | OrderResponseCfdOnFund
+  | OrderResponseCfdOnFutures
+  | OrderResponseCfdOnIndex
+  | OrderResponseCfdOnStock
+  | OrderResponseContractFutures
+  | OrderResponseEtc
+  | OrderResponseEtf
+  | OrderResponseEtn
+  | OrderResponseFund
+  | OrderResponseFxForwards
+  | OrderResponseFxSpot
+  | OrderResponseStock
+  | OrderResponseUnknown

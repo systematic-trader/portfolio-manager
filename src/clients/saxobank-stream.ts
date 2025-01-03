@@ -16,8 +16,10 @@ import {
   type InfoPriceSubscriptionOptions,
   SaxoBankSubscriptionInfoPrice,
 } from './saxobank/stream/subscriptions/saxobank-subscription-info-price.ts'
+import { SaxoBankSubscriptionOrders } from './saxobank/stream/subscriptions/saxobank-subscription-orders.ts'
 import { SaxoBankSubscriptionPrice } from './saxobank/stream/subscriptions/saxobank-subscription-price.ts'
 import type { BalanceRequest } from './saxobank/types/records/balance-request.ts'
+import type { OpenOrdersRequest } from './saxobank/types/records/open-orders-request.ts'
 import type { PriceRequest } from './saxobank/types/records/price-request.ts'
 import { WebSocketClient, WebSocketClientEventError } from './websocket-client.ts'
 
@@ -648,6 +650,19 @@ export class SaxoBankStream extends EventSwitch<{
   ): Promise<SaxoBankSubscriptionPrice<AssetType>> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionPrice<AssetType>({
+        stream: this,
+        queue: this.#queueStream,
+        options,
+        signal: this.#signal,
+      }),
+    )
+  }
+
+  orders(
+    options: ArgumentType<OpenOrdersRequest>,
+  ): SaxoBankSubscriptionOrders {
+    return this.#decorateSubscription(
+      new SaxoBankSubscriptionOrders({
         stream: this,
         queue: this.#queueStream,
         options,

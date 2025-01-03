@@ -1,8 +1,11 @@
-import { assertReturn } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import {
+  type ArgumentType,
+  assertReturn,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { AssertionError } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/errors.ts'
 import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import type { OrderFieldGroup } from '../../types/derives/order-field-group.ts'
-import type { OrderStatusFilter } from '../../types/derives/order-status-filter.ts'
+import type { OpenOrdersRequest } from '../../types/records/open-orders-request.ts'
 import {
   OrderResponseBond,
   OrderResponseCfdOnEtc,
@@ -22,6 +25,7 @@ import {
   type OrderResponseUnion,
   OrderResponseUnknown,
 } from '../../types/records/order-response.ts'
+import { Subscriptions } from './orders/subscriptions.ts'
 
 const FieldGroups: OrderFieldGroup[] = [
   'DisplayAndFormat',
@@ -32,8 +36,12 @@ const FieldGroups: OrderFieldGroup[] = [
 export class Orders {
   readonly #client: ServiceGroupClient
 
+  readonly subscriptions: Subscriptions
+
   constructor({ client }: { readonly client: ServiceGroupClient }) {
     this.#client = client.appendPath('v1/orders')
+
+    this.subscriptions = new Subscriptions({ client: this.#client })
   }
 
   /**
@@ -47,28 +55,7 @@ export class Orders {
       OrderId,
       Status,
       WatchlistId,
-    }: {
-      /** The key of the account group to which the order belongs. */
-      readonly AccountGroupKey?: undefined | string
-
-      /** Unique key identifying the account that owns the orders. */
-      readonly AccountKey?: undefined | string
-
-      /** Unique key identifying the client that owns the orders. */
-      readonly ClientKey: string
-
-      /** The id of the order */
-      readonly OrderId?: undefined | string
-
-      /**
-       * Selects only a subset of open orders to be returned.
-       * Default is to return working orders only.
-       */
-      readonly Status?: undefined | OrderStatusFilter
-
-      /** Selects only orders those instruments belongs to the given watchlist id */
-      readonly WatchlistId?: undefined | string
-    },
+    }: ArgumentType<OpenOrdersRequest>,
     options: { readonly timeout?: undefined | number } = {},
   ): AsyncIterable<OrderResponseUnion, void, undefined> {
     const orders = this.#client.getPaginated<OrderResponseUnion>({
@@ -99,7 +86,7 @@ export class Orders {
   }
 }
 
-function assertReturnOrderResponse(
+export function assertReturnOrderResponse(
   order: OrderResponseUnion,
 ): OrderResponseUnion {
   switch (order.AssetType) {
