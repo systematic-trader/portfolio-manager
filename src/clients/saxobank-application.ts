@@ -272,8 +272,6 @@ export class SaxoBankApplication implements Disposable {
           error.statusCode === 404 &&
           error.headers['content-type'] === 'text/html'
         ) {
-          console.log(error.href)
-
           const { searchParams } = new URL(error.href)
           throw new SearchParamsMaxLengthExceededError(searchParams, searchParamsMaxLength)
         }
