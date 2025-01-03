@@ -43,7 +43,7 @@ type OrderParametersByOrderType = {
 
 export type SupportedPlacableOrderTypes = OrderParametersByOrderType['OrderType']
 
-type PlaceOrderParametersByAssetType =
+type OrderParametersByAssetType =
   | {
     readonly AssetType: Extract<
       AssetType,
@@ -72,23 +72,32 @@ type PlaceOrderParametersByAssetType =
   }
 
 type PlaceOrderParametersBase =
-  & PlaceOrderParametersByAssetType
+  & OrderParametersByAssetType
   & {
-    readonly Uic: number
-    readonly BuySell: BuySell
+    readonly AccountKey?: undefined | string
     readonly Amount: number
-    readonly ManualOrder: boolean
+    readonly BuySell: BuySell
+    readonly CancelOrders?: undefined | boolean
+    readonly ClearForceOpen?: undefined | boolean
     readonly ExternalReference: string
-
-    readonly AccountKey?: string
-    readonly WithAdvice?: boolean
-    readonly CancelOrders?: boolean
-    readonly IsForceOpen?: boolean
-    readonly ClearForceOpen?: boolean
+    readonly IsForceOpen?: undefined | boolean
+    readonly ManualOrder: boolean
+    readonly Uic: number
+    readonly WithAdvice?: undefined | boolean
   }
   & OrderParametersByOrderType
 
-// #region Types for order placement method 1
+type UpdateOrderParametersBase =
+  & OrderParametersByAssetType
+  & {
+    readonly AccountKey?: undefined | string
+    readonly Amount?: undefined | number
+    readonly IsForceOpen?: undefined | boolean
+    readonly OrderId: string
+  }
+  & OrderParametersByOrderType
+
+// #region Order placement method 1
 export type PlaceOrderParametersEntryWithNoRelatedOrders =
   & PlaceOrderParametersBase
   & {
@@ -102,10 +111,9 @@ export const PlaceOrderResponseEntryWithNoRelatedOrders = props({
 
 export interface PlaceOrderResponseEntryWithNoRelatedOrders
   extends GuardType<typeof PlaceOrderResponseEntryWithNoRelatedOrders> {}
-
 // #endregion
 
-// #region Types for order placement method 2
+// #region Order placement method 2
 export type PlaceOrderParametersEntryWithOneRelatedOrder =
   & PlaceOrderParametersBase
   & {
@@ -128,10 +136,9 @@ export const PlaceOrderResponseEntryWithOneRelatedOrder = props({
 
 export interface PlaceOrderResponseEntryWithOneRelatedOrder
   extends GuardType<typeof PlaceOrderResponseEntryWithOneRelatedOrder> {}
-
 // #endregion
 
-// #region Types for order placement method 3
+// #region Order placement method 3
 export type PlaceOrderParametersEntryWithTwoRelatedOrders =
   & PlaceOrderParametersBase
   & {
@@ -164,10 +171,9 @@ export const PlaceOrderResponseEntryWithTwoRelatedOrders = props({
 
 export interface PlaceOrderResponseEntryWithTwoRelatedOrders
   extends GuardType<typeof PlaceOrderResponseEntryWithTwoRelatedOrders> {}
-
 // #endregion
 
-// #region Types for order placement method 5
+// #region Order placement method 4
 export type PlaceOrderParametersOneRelatedOrderForOrder =
   & {
     readonly RequestId?: undefined | string
@@ -193,7 +199,7 @@ export interface PlaceOrderResponseOneRelatedOrderForOrder
   extends GuardType<typeof PlaceOrderResponseOneRelatedOrderForOrder> {}
 // #endregion
 
-// #region Types for order placement method 6
+// #region Order placement method 5
 export type PlaceOrderParametersTwoRelatedOrdersForOrder =
   & {
     readonly RequestId?: undefined | string
@@ -229,7 +235,7 @@ export interface PlaceOrderResponseTwoRelatedOrdersForOrder
   extends GuardType<typeof PlaceOrderResponseTwoRelatedOrdersForOrder> {}
 // #endregion
 
-// #region Types for order placement method 7
+// #region Order placement method 6
 export type PlaceOrderParametersOneRelatedOrderForPosition =
   & {
     readonly RequestId?: undefined | string
@@ -254,7 +260,7 @@ export interface PlaceOrderResponseOneRelatedOrderForPosition
   extends GuardType<typeof PlaceOrderResponseOneRelatedOrderForPosition> {}
 // #endregion
 
-// #region Types for order placement method 8
+// #region Order placement method 7
 export type PlaceOrderParametersTwoRelatedOrdersForPosition =
   & {
     readonly RequestId?: undefined | string
@@ -289,7 +295,7 @@ export interface PlaceOrderResponseTwoRelatedOrdersForPosition
   extends GuardType<typeof PlaceOrderResponseTwoRelatedOrdersForPosition> {}
 // #endregion
 
-// #region Types for order placement method 9
+// #region Order placement method 8
 export type PlaceOrderParametersEntryOCOOrders = {
   readonly RequestId?: undefined | string
   readonly Orders: readonly [
@@ -317,10 +323,9 @@ export const PlaceOrderResponseEntryOCOOrders = props({
 })
 
 export interface PlaceOrderResponseEntryOCOOrders extends GuardType<typeof PlaceOrderResponseEntryOCOOrders> {}
-
 // #endregion
 
-// #region Types for order placement response (union)
+// #region Order placement response (union)
 const PlaceOrderResponse = union([
   PlaceOrderResponseEntryWithNoRelatedOrders,
   PlaceOrderResponseEntryWithOneRelatedOrder,
@@ -333,7 +338,86 @@ const PlaceOrderResponse = union([
 export type PlaceOrderResponse = GuardType<typeof PlaceOrderResponse>
 // #endregion
 
-// #region Types for order cancellation
+// #region Order update method 1
+export type UpdateOrderParametersEntryWithNoRelatedOrders =
+  & UpdateOrderParametersBase
+  & {
+    readonly AccountKey: string
+    readonly RequestId?: undefined | string
+  }
+
+export const UpdateOrderResponseEntryWithNoRelatedOrders = props({
+  OrderId: string(),
+})
+
+export interface UpdateOrderResponseEntryWithNoRelatedOrders
+  extends GuardType<typeof UpdateOrderResponseEntryWithNoRelatedOrders> {}
+// #endregion
+
+// #region Order update method 2
+export type UpdateOrderParametersEntryWithOneRelatedOrder =
+  & UpdateOrderParametersBase
+  & {
+    readonly RequestId?: undefined | string
+    readonly Orders: readonly [
+      UpdateOrderParametersBase,
+    ]
+  }
+
+export const UpdateOrderResponseEntryWithOneRelatedOrder = props({
+  OrderId: string(),
+  Orders: tuple([
+    props({
+      OrderId: string(),
+    }),
+  ]),
+})
+
+export interface UpdateOrderResponseEntryWithOneRelatedOrder
+  extends GuardType<typeof UpdateOrderResponseEntryWithOneRelatedOrder> {}
+// #endregion
+
+// #region Order update method 3
+export type UpdateOrderParametersEntryWithTwoRelatedOrders =
+  & UpdateOrderParametersBase
+  & {
+    readonly RequestId?: undefined | string
+    readonly Orders: readonly [
+      // First order must be a limit order
+      (UpdateOrderParametersBase & { readonly OrderType: 'Limit' }),
+
+      // Second order cannot be a limit order
+      Exclude<UpdateOrderParametersBase, { readonly OrderType: 'Limit' }>,
+    ]
+  }
+
+export const UpdateOrderResponseEntryWithTwoRelatedOrders = props({
+  OrderId: string(),
+  Orders: tuple([
+    props({
+      OrderId: string(),
+    }),
+    props({
+      OrderId: string(),
+    }),
+  ]),
+})
+
+export interface UpdateOrderResponseEntryWithTwoRelatedOrders
+  extends GuardType<typeof UpdateOrderResponseEntryWithTwoRelatedOrders> {}
+// #endregion
+
+// #region Order update response (union)
+const UpdateOrderResponse = union([
+  UpdateOrderResponseEntryWithNoRelatedOrders,
+  UpdateOrderResponseEntryWithOneRelatedOrder,
+  UpdateOrderResponseEntryWithTwoRelatedOrders,
+])
+
+export type UpdateOrderResponse = GuardType<typeof UpdateOrderResponse>
+// #endregion
+
+// #region Order cancellation
 export const CancelSpecificOrdersResponse = props({
   Orders: array(Order),
 })
@@ -562,6 +646,88 @@ export class Orders {
         body,
         headers,
         guard: PlaceOrderResponseEntryOCOOrders,
+        timeout: options.timeout,
+      }).execute()
+    }
+
+    throw new Error('Unexpected response')
+  }
+
+  /**
+   * Method 1:
+   * Updates a single order, with no related orders.
+   */
+  async patch(
+    parameters: UpdateOrderParametersEntryWithNoRelatedOrders,
+    options?: { readonly timeout?: undefined | number },
+  ): Promise<UpdateOrderResponseEntryWithNoRelatedOrders>
+
+  /**
+   * Method 2:
+   * Updates a single order, with one related order that will be activated after the first order is filled.
+   */
+  async patch(
+    parameters: UpdateOrderParametersEntryWithOneRelatedOrder,
+    options?: { readonly timeout?: undefined | number },
+  ): Promise<UpdateOrderResponseEntryWithOneRelatedOrder>
+
+  /**
+   * Method 3:
+   * Updates a single order, with two related orders that will be activated after the first order is filled.
+   */
+  async patch(
+    parameters: UpdateOrderParametersEntryWithTwoRelatedOrders,
+    options?: { readonly timeout?: undefined | number },
+  ): Promise<UpdateOrderResponseEntryWithTwoRelatedOrders>
+
+  /**
+   * Updating orders can be done in several ways.
+   * Each of these methods have their own specific requirements and limitations - see the descriptions above.
+   */
+  async patch(
+    { RequestId, ...parameters }:
+      | UpdateOrderParametersEntryWithNoRelatedOrders
+      | UpdateOrderParametersEntryWithOneRelatedOrder
+      | UpdateOrderParametersEntryWithTwoRelatedOrders,
+    options: { readonly timeout?: undefined | number } = {},
+  ): Promise<
+    | UpdateOrderResponseEntryWithNoRelatedOrders
+    | UpdateOrderResponseEntryWithOneRelatedOrder
+    | UpdateOrderResponseEntryWithTwoRelatedOrders
+  > {
+    const relatedOrders = 'Orders' in parameters ? parameters.Orders.length : undefined
+
+    const body = parameters
+    const headers = RequestId === undefined ? undefined : {
+      'x-request-id': RequestId,
+    }
+
+    // Method 1
+    if (relatedOrders === undefined) {
+      return await this.#client.patch({
+        body,
+        headers,
+        guard: UpdateOrderResponseEntryWithNoRelatedOrders,
+        timeout: options.timeout,
+      }).execute()
+    }
+
+    // Method 2
+    if (relatedOrders === 1) {
+      return await this.#client.patch({
+        body,
+        headers,
+        guard: UpdateOrderResponseEntryWithOneRelatedOrder,
+        timeout: options.timeout,
+      }).execute()
+    }
+
+    // Method 3
+    if (relatedOrders === 2) {
+      return await this.#client.patch({
+        body,
+        headers,
+        guard: UpdateOrderResponseEntryWithTwoRelatedOrders,
         timeout: options.timeout,
       }).execute()
     }

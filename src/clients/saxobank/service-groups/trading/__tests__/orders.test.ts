@@ -651,6 +651,484 @@ describe('trade/orders', () => {
     }
   })
 
+  describe('updating orders', () => {
+    test('Method 1: Updating a single order, with no related orders', async ({ step }) => {
+      const { AccountKey } = await getFirstAccount()
+
+      const instruments = findTradableInstruments({
+        assetType: 'FxSpot',
+        uics: [21],
+        limit: 1,
+      })
+
+      for await (const { instrument, quote } of instruments) {
+        const { orderPrice } = calculateFavourableOrderPrice({
+          buySell: 'Buy',
+          instrument,
+          quote,
+          orderType: 'Limit',
+          tolerance: 0.05,
+        })
+
+        const placeOrderResponse = await app.trading.orders.post({
+          RequestId: SaxoBankRandom.order.requestId(),
+          AccountKey,
+          AssetType: 'FxSpot',
+          Uic: instrument.Uic,
+          BuySell: 'Buy',
+          Amount: 50_000,
+          ManualOrder: false,
+          ExternalReference: SaxoBankRandom.order.referenceId(),
+          OrderType: 'Limit',
+          OrderPrice: orderPrice,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+        })
+
+        expect(placeOrderResponse).toBeDefined()
+
+        const updateBase = {
+          get RequestId() {
+            return SaxoBankRandom.order.requestId()
+          },
+          AccountKey,
+          AssetType: 'FxSpot',
+          OrderId: placeOrderResponse.OrderId,
+          OrderType: 'Limit',
+          OrderPrice: orderPrice,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+        } as const
+
+        await step('Amount', async () => {
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...updateBase,
+            Amount: 100_000,
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+
+        await step('OrderDuration', async () => {
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...updateBase,
+            OrderDuration: {
+              DurationType: 'GoodTillCancel',
+            },
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+
+        await step('OrderPrice', async () => {
+          const { orderPrice } = calculateFavourableOrderPrice({
+            buySell: 'Buy',
+            instrument,
+            quote,
+            orderType: 'Limit',
+            tolerance: 0.03,
+          })
+
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...updateBase,
+            OrderPrice: orderPrice,
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+
+        await step('OrderType', async () => {
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...updateBase,
+            OrderType: 'Market',
+            OrderPrice: undefined,
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+      }
+    })
+
+    test('Method 2: Updating a single order, with 1 related order', async ({ step }) => {
+      const { AccountKey } = await getFirstAccount()
+
+      const instruments = findTradableInstruments({
+        assetType: 'FxSpot',
+        uics: [21],
+        limit: 1,
+      })
+
+      for await (const { instrument, quote } of instruments) {
+        const { orderPrice: orderPriceEntry } = calculateFavourableOrderPrice({
+          instrument,
+          quote,
+          buySell: 'Buy',
+          orderType: 'Limit',
+          tolerance: 0.02,
+        })
+
+        const { orderPrice: orderPriceTakeProfit } = calculateFavourableOrderPrice({
+          instrument,
+          quote,
+          buySell: 'Sell',
+          orderType: 'Limit',
+          tolerance: 0.04,
+        })
+
+        const placeOrderResponse = await app.trading.orders.post({
+          RequestId: SaxoBankRandom.order.requestId(),
+
+          AssetType: 'FxSpot',
+          Uic: instrument.Uic,
+          BuySell: 'Buy',
+          Amount: 50_000,
+          ManualOrder: false,
+          ExternalReference: SaxoBankRandom.order.referenceId(),
+          OrderType: 'Limit',
+          OrderPrice: orderPriceEntry,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+
+          Orders: [{
+            AssetType: 'FxSpot',
+            Uic: instrument.Uic,
+            BuySell: 'Sell',
+            Amount: 50_000,
+            ManualOrder: false,
+            ExternalReference: SaxoBankRandom.order.referenceId(),
+            OrderType: 'Limit',
+            OrderPrice: orderPriceTakeProfit,
+            OrderDuration: {
+              DurationType: 'GoodTillCancel',
+            },
+          }],
+        })
+
+        expect(placeOrderResponse).toBeDefined()
+
+        const baseOrderId = placeOrderResponse.OrderId
+        const takeProfitOrderId = placeOrderResponse.Orders[0].OrderId
+
+        const entryOrderUpdate = {
+          get RequestId() {
+            return SaxoBankRandom.order.requestId()
+          },
+          AccountKey,
+          AssetType: 'FxSpot',
+          OrderId: baseOrderId,
+          OrderType: 'Limit',
+          OrderPrice: orderPriceEntry,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+        } as const
+
+        const takeProfitOrderUpdate = {
+          AccountKey,
+          OrderId: takeProfitOrderId,
+          AssetType: 'FxSpot',
+          OrderType: 'Limit',
+          OrderPrice: orderPriceTakeProfit,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+        } as const
+
+        await step('Amount', async () => {
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...entryOrderUpdate,
+            Amount: 100_000,
+
+            Orders: [{
+              ...takeProfitOrderUpdate,
+              Amount: 100_000,
+            }],
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+
+        await step('OrderDuration', async () => {
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...entryOrderUpdate,
+            OrderDuration: {
+              DurationType: 'GoodTillCancel',
+            },
+
+            Orders: [{
+              ...takeProfitOrderUpdate,
+              OrderDuration: {
+                DurationType: 'GoodTillCancel',
+              },
+            }],
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+
+        await step('OrderPrice', async () => {
+          const { orderPrice: orderPriceEntry } = calculateFavourableOrderPrice({
+            buySell: 'Buy',
+            instrument,
+            quote,
+            orderType: 'Limit',
+            tolerance: 0.03,
+          })
+
+          const { orderPrice: orderPriceTakeProfit } = calculateFavourableOrderPrice({
+            buySell: 'Sell',
+            instrument,
+            quote,
+            orderType: 'Limit',
+            tolerance: 0.06,
+          })
+
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...entryOrderUpdate,
+            OrderPrice: orderPriceEntry,
+
+            Orders: [{
+              ...takeProfitOrderUpdate,
+              OrderPrice: orderPriceTakeProfit,
+            }],
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+
+        await step('OrderType', async () => {
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...entryOrderUpdate,
+            OrderType: 'Market',
+            OrderPrice: undefined,
+
+            Orders: [{
+              ...takeProfitOrderUpdate,
+              OrderType: 'Market',
+              OrderPrice: undefined,
+            }],
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+      }
+    })
+
+    test('Method 3: Updating a single order, with 2 related order', async ({ step }) => {
+      const { AccountKey } = await getFirstAccount()
+
+      const instruments = findTradableInstruments({
+        assetType: 'FxSpot',
+        uics: [21],
+        limit: 1,
+      })
+
+      for await (const { instrument, quote } of instruments) {
+        const { orderPrice: orderPriceEntry } = calculateFavourableOrderPrice({
+          instrument,
+          quote,
+          buySell: 'Buy',
+          orderType: 'Limit',
+          tolerance: 0.02,
+        })
+
+        const { orderPrice: orderPriceTakeProfit } = calculateFavourableOrderPrice({
+          instrument,
+          quote,
+          buySell: 'Sell',
+          orderType: 'Limit',
+          tolerance: 0.04,
+        })
+
+        const { orderPrice: orderPriceStopLoss } = calculateFavourableOrderPrice({
+          instrument,
+          quote,
+          buySell: 'Sell',
+          orderType: 'Stop',
+          tolerance: 0.04,
+        })
+
+        const placeOrderResponse = await app.trading.orders.post({
+          RequestId: SaxoBankRandom.order.requestId(),
+
+          AssetType: 'FxSpot',
+          Uic: instrument.Uic,
+          BuySell: 'Buy',
+          Amount: 50_000,
+          ManualOrder: false,
+          ExternalReference: SaxoBankRandom.order.referenceId(),
+          OrderType: 'Limit',
+          OrderPrice: orderPriceEntry,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+
+          Orders: [{
+            AssetType: 'FxSpot',
+            Uic: instrument.Uic,
+            BuySell: 'Sell',
+            Amount: 50_000,
+            ManualOrder: false,
+            ExternalReference: SaxoBankRandom.order.referenceId(),
+            OrderType: 'Limit',
+            OrderPrice: orderPriceTakeProfit,
+            OrderDuration: {
+              DurationType: 'GoodTillCancel',
+            },
+          }, {
+            AssetType: 'FxSpot',
+            Uic: instrument.Uic,
+            BuySell: 'Sell',
+            Amount: 50_000,
+            ManualOrder: false,
+            ExternalReference: SaxoBankRandom.order.referenceId(),
+            OrderType: 'Stop',
+            OrderPrice: orderPriceStopLoss,
+            OrderDuration: {
+              DurationType: 'GoodTillCancel',
+            },
+          }],
+        })
+
+        expect(placeOrderResponse).toBeDefined()
+
+        const baseOrderId = placeOrderResponse.OrderId
+        const takeProfitOrderId = placeOrderResponse.Orders[0].OrderId
+
+        const entryOrderUpdate = {
+          get RequestId() {
+            return SaxoBankRandom.order.requestId()
+          },
+          AccountKey,
+          AssetType: 'FxSpot',
+          OrderId: baseOrderId,
+          OrderType: 'Limit',
+          OrderPrice: orderPriceEntry,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+        } as const
+
+        const takeProfitOrderUpdate = {
+          AccountKey,
+          OrderId: takeProfitOrderId,
+          AssetType: 'FxSpot',
+          OrderType: 'Limit',
+          OrderPrice: orderPriceTakeProfit,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+        } as const
+
+        const stopLossOrderUpdate = {
+          AccountKey,
+          OrderId: takeProfitOrderId,
+          AssetType: 'FxSpot',
+          OrderType: 'Limit',
+          OrderPrice: orderPriceTakeProfit,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+        } as const
+
+        await step('Amount', async () => {
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...entryOrderUpdate,
+            Amount: 100_000,
+
+            Orders: [{
+              ...takeProfitOrderUpdate,
+              Amount: 100_000,
+            }, {
+              ...stopLossOrderUpdate,
+              Amount: 100_000,
+            }],
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+
+        await step('OrderDuration', async () => {
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...entryOrderUpdate,
+            OrderDuration: {
+              DurationType: 'GoodTillCancel',
+            },
+
+            Orders: [{
+              ...takeProfitOrderUpdate,
+              OrderDuration: {
+                DurationType: 'GoodTillCancel',
+              },
+            }, {
+              ...stopLossOrderUpdate,
+              OrderDuration: {
+                DurationType: 'GoodTillCancel',
+              },
+            }],
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+
+        await step('OrderPrice', async () => {
+          const { orderPrice: orderPriceEntry } = calculateFavourableOrderPrice({
+            buySell: 'Buy',
+            instrument,
+            quote,
+            orderType: 'Limit',
+            tolerance: 0.03,
+          })
+
+          const { orderPrice: orderPriceTakeProfit } = calculateFavourableOrderPrice({
+            buySell: 'Sell',
+            instrument,
+            quote,
+            orderType: 'Limit',
+            tolerance: 0.06,
+          })
+
+          const { orderPrice: orderPriceStopLoss } = calculateFavourableOrderPrice({
+            buySell: 'Sell',
+            instrument,
+            quote,
+            orderType: 'Stop',
+            tolerance: -0.06,
+          })
+
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...entryOrderUpdate,
+            OrderPrice: orderPriceEntry,
+
+            Orders: [{
+              ...takeProfitOrderUpdate,
+              OrderPrice: orderPriceTakeProfit,
+            }, {
+              ...stopLossOrderUpdate,
+              OrderPrice: orderPriceStopLoss,
+            }],
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+
+        await step('OrderType', async () => {
+          const updateOrderResponse = await app.trading.orders.patch({
+            ...entryOrderUpdate,
+            OrderType: 'Market',
+            OrderPrice: undefined,
+            Orders: [takeProfitOrderUpdate, stopLossOrderUpdate],
+          })
+
+          expect(updateOrderResponse).toBeDefined()
+        })
+      }
+    })
+  })
+
   describe('cancelling orders', () => {
     test('Deleting order by order id', async () => {
       const { AccountKey } = await getFirstAccount()

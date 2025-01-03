@@ -13,6 +13,7 @@ const debug = {
   GET: Debug('http-client:get'),
   POST: Debug('http-client:post'),
   PUT: Debug('http-client:put'),
+  PATCH: Debug('http-client:patch'),
   DELETE: Debug('http-client:delete'),
 }
 
@@ -56,7 +57,7 @@ export abstract class HTTPError extends Error {
 }
 
 export class HTTPClientError extends HTTPError {
-  readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   readonly href: string
   readonly headers: Record<string, string>
   readonly body: unknown
@@ -88,7 +89,7 @@ export class HTTPClientError extends HTTPError {
 }
 
 export class HTTPClientRequestAbortError extends Error {
-  readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   readonly href: string
 
   constructor(
@@ -407,6 +408,109 @@ export class HTTPClient {
     return responseBody
   }
 
+  async patch(
+    url: string | URL,
+    {
+      headers,
+      body,
+      signal,
+      timeout,
+      onError,
+    }: {
+      readonly headers?: undefined | HTTPClientHeaders
+      readonly body?: RequestInit['body']
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+      readonly onError?: undefined | HTTPClientOnErrorHandler
+    },
+  ): Promise<Response> {
+    return await fetchResponse(this, url, {
+      method: 'PATCH',
+      headers,
+      signal,
+      timeout,
+      onError,
+      body,
+    })
+  }
+
+  async patchOk(
+    url: string | URL,
+    {
+      headers,
+      body,
+      signal,
+      timeout,
+      onError,
+    }: {
+      readonly headers?: undefined | HTTPClientHeaders
+      readonly body?: RequestInit['body']
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+      readonly onError?: undefined | HTTPClientOnErrorHandler
+    } = {},
+  ): Promise<Response> {
+    return await fetchOkResponse(this, url, {
+      method: 'PATCH',
+      headers,
+      signal,
+      timeout,
+      onError,
+      body,
+    })
+  }
+
+  async patchOkJSON<T = unknown>(
+    url: string | URL,
+    {
+      guard,
+      headers,
+      body,
+      coerce,
+      signal,
+      timeout,
+      onError,
+    }: {
+      readonly guard?: undefined | Guard<T>
+      readonly headers?: undefined | HTTPClientHeaders
+      readonly body?: RequestInit['body']
+      readonly coerce?: undefined | ((body: unknown) => unknown)
+      readonly signal?: undefined | AbortSignal
+      readonly timeout?: undefined | number
+      readonly onError?: undefined | HTTPClientOnErrorHandler
+    } = {},
+  ): Promise<T> {
+    const response = await this.patchOk(url, {
+      headers: mergeHeaders(
+        {
+          'accept': 'application/json',
+          'content-type': 'application/json; charset=utf-8',
+        },
+        headers,
+      ),
+      signal,
+      timeout,
+      onError,
+      body,
+    })
+
+    let responseBody = response.status === 204
+      ? undefined
+      : response.headers.get('Content-Length') === '0'
+      ? await response.body?.cancel().then(() => undefined)
+      : await response.json()
+
+    if (coerce !== undefined) {
+      responseBody = coerce(responseBody)
+    }
+
+    if (guard !== undefined) {
+      return assertReturnBody(guard, responseBody, response.status, response.statusText)
+    }
+
+    return responseBody
+  }
+
   async put(
     url: string | URL,
     {
@@ -628,7 +732,7 @@ function mergeHeaders(
 }
 
 async function fetchResponse(client: HTTPClient, url: string | URL, options: {
-  readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   readonly headers?: undefined | HTTPClientHeaders
   readonly body?: RequestInit['body']
   readonly signal?: undefined | AbortSignal
@@ -704,7 +808,7 @@ async function fetchResponse(client: HTTPClient, url: string | URL, options: {
 }
 
 async function fetchOkResponse(client: HTTPClient, url: string | URL, options: {
-  readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   readonly headers?: undefined | HTTPClientHeaders
   readonly body?: RequestInit['body']
   readonly signal?: undefined | AbortSignal
