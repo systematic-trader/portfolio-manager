@@ -10,13 +10,11 @@ describe('client-services/cash-management/inter-account-transfers', () => {
     const FromAccountKey = 'jLu|Tb7BCj||NieCJ4avZg==' // Aktiesparekonto (DKK)
     const ToAccountKey = 'DOVYUh7aaY33|HlcbjDS9w==' // Konto 1: DKK (DKK)
 
-    const bla = await app.clientServices.cashManagement.interAccountTransfers.post({
+    await app.clientServices.cashManagement.interAccountTransfers.post({
       FromAccountKey,
       ToAccountKey,
       Amount: 1,
       Currency: 'DKK',
     })
-
-    console.log(bla)
   })
 })
