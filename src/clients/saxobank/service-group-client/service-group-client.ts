@@ -9,6 +9,7 @@ import {
   ServiceGroupRequestDelete,
   ServiceGroupRequestGet,
   ServiceGroupRequestGetPaginated,
+  ServiceGroupRequestPatch,
   ServiceGroupRequestPost,
   ServiceGroupRequestPut,
 } from '../service-group-client/service-group-request.ts'
@@ -136,6 +137,31 @@ export class ServiceGroupClient {
     readonly timeout?: undefined | number
   } = {}): ServiceGroupRequestPost<T> {
     return new ServiceGroupRequestPost({
+      body: options.body,
+      client: this.#client,
+      guard: options.guard,
+      headers: options.headers,
+      onError: this.#onError,
+      searchParams: new ServiceGroupSearchParams({
+        values: options.searchParams,
+        maxLength: this.#searchParamsMaxLength,
+      }),
+      signal: options.signal,
+      timeout: options.timeout,
+      url: this.createURL(options.path),
+    })
+  }
+
+  patch<T = void>(options: {
+    readonly body?: JSONReadonlyRecord
+    readonly guard?: undefined | Guard<T>
+    readonly headers?: undefined | Record<string, string>
+    readonly path?: undefined | string
+    readonly searchParams?: undefined | SearchParamRecord
+    readonly signal?: undefined | AbortSignal
+    readonly timeout?: undefined | number
+  } = {}): ServiceGroupRequestPatch<T> {
+    return new ServiceGroupRequestPatch({
       body: options.body,
       client: this.#client,
       guard: options.guard,
