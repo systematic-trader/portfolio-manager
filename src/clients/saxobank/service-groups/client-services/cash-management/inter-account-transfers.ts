@@ -8,9 +8,6 @@ export class InterAccountTransfers {
     this.#client = client.appendPath('interaccounttransfers')
   }
 
-  // https://gateway.saxobank.com/openapi/cs/v2/cashmanagement/interaccounttransfers
-  // https://www.saxotrader.com/openapi/cs/v2/cashmanagement/interaccounttransfers
-
   async post(
     options: {
       readonly Amount: number
@@ -20,15 +17,11 @@ export class InterAccountTransfers {
       readonly WithdrawalReasonId?: undefined | string
     },
     httpOptions: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
-  ): Promise<string> {
-    const response = await this.#client.post({
+  ): Promise<void> {
+    await this.#client.post({
       body: options,
       signal: httpOptions.signal,
       timeout: httpOptions.timeout,
     }).execute()
-
-    console.log('response', response)
-
-    return 'todo' // todo
   }
 }
