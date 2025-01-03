@@ -186,6 +186,35 @@ export abstract class ServiceGroupRequest<T> {
     })
   }
 
+  protected async patch({ body }: {
+    readonly body?: undefined | JSONReadonlyRecord
+  }): Promise<T> {
+    const url = this.#createFullURL()
+    const headers = this.#createJSONHeaders()
+
+    if (this.#guard === undefined) {
+      await this.#client.patchOk(url, {
+        body: stringifyJSON(body),
+        headers,
+        onError: this.#onError,
+        signal: this.#signal,
+        timeout: this.#timeout,
+      })
+
+      return undefined as T
+    }
+
+    return await this.#client.patchOkJSON(url, {
+      body: stringifyJSON(body),
+      coerce: sanitizeSaxobankValue,
+      guard: this.#guard,
+      headers,
+      onError: this.#onError,
+      signal: this.#signal,
+      timeout: this.#timeout,
+    })
+  }
+
   protected async put({ body }: {
     readonly body?: undefined | JSONReadonlyRecord
   }): Promise<T> {
@@ -316,6 +345,31 @@ export class ServiceGroupRequestPost<T = void> extends ServiceGroupRequest<T> {
 
   async execute(): Promise<T> {
     return await this.post({
+      body: this.#body,
+    })
+  }
+}
+
+export class ServiceGroupRequestPatch<T = void> extends ServiceGroupRequest<T> {
+  readonly #body: undefined | JSONReadonlyRecord
+
+  constructor({ body, client, guard, headers, onError, searchParams, signal, timeout, url }: {
+    readonly body?: undefined | JSONReadonlyRecord
+    readonly client: HTTPClient
+    readonly guard: undefined | Guard<T>
+    readonly headers: undefined | Record<string, string>
+    readonly onError?: undefined | HTTPClientOnErrorHandler
+    readonly searchParams: ServiceGroupSearchParams
+    readonly signal?: undefined | AbortSignal
+    readonly timeout: undefined | number
+    readonly url: URL
+  }) {
+    super({ client, guard, headers, onError, searchParams, signal, timeout, url })
+    this.#body = body
+  }
+
+  async execute(): Promise<T> {
+    return await this.patch({
       body: this.#body,
     })
   }
