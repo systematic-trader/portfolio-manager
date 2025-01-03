@@ -2,8 +2,8 @@ import {
   type GuardType,
   number,
   props,
-  string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { Currency3 } from '../derives/currency.ts'
 
 export interface InterAccountTransferResponse extends GuardType<typeof InterAccountTransferResponse> {}
 
@@ -15,11 +15,11 @@ export const InterAccountTransferResponse = props({
   FromAccountAmount: number(),
 
   /** Currency from the sender account */
-  FromAccountCurrency: string(),
+  FromAccountCurrency: Currency3,
 
   /** Amount to the receiver account */
   ToAccountAmount: number(),
 
   /** Currency to the receiver account */
-  ToAccountCurrency: string(),
+  ToAccountCurrency: Currency3,
 })
