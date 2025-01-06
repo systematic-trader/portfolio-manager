@@ -57,15 +57,6 @@ export class SaxoBankStreamSubscribeTimeoutError extends SaxoBankStreamError {
   }
 }
 
-export class SaxoBankStreamDisposedError extends SaxoBankStreamError {
-  readonly contextId: string
-
-  constructor({ contextId }: { readonly contextId: string }) {
-    super('SaxoBankStream is disposed.')
-    this.contextId = contextId
-  }
-}
-
 // TODO: create new class called SaxoBankStream with the same interface as the currect class,
 // but with 4 instances of currect SaxoBankStream.
 // SaxoBank allows 4 webscoket connections per account with 200 subscriptions per connection.
@@ -606,14 +597,29 @@ export class SaxoBankStream extends EventSwitch<{
   }
 
   // deno-lint-ignore no-explicit-any
-  #decorateSubscription<S extends SaxoBankSubscription<any>>(subscription: S): S {
+  async #decorateSubscription<S extends SaxoBankSubscription<any>>(subscription: S): Promise<S> {
     subscription.addListener('subscribed', this.#addSubscription, { persistent: true })
     subscription.addListener('disposed', this.#removeSubscription, { persistent: true, once: true })
+
+    await subscription.initialize()
+    await this.#queueStream.drain()
+
+    if (this.#state.status === 'failed') {
+      throw this.#state.error
+    }
+
+    if (this.#state.status === 'disposed') {
+      throw new SaxoBankStreamError('The SaxoBankStream is disposed.')
+    }
+
+    if (this.#websocket.state.status !== 'open') {
+      throw new SaxoBankStreamError('The WebSocket connection is not open.')
+    }
 
     return subscription
   }
 
-  balance(options: ArgumentType<BalanceRequest>): SaxoBankSubscriptionBalance {
+  balance(options: ArgumentType<BalanceRequest>): Promise<SaxoBankSubscriptionBalance> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionBalance({
         stream: this,
@@ -626,7 +632,7 @@ export class SaxoBankStream extends EventSwitch<{
 
   infoPrice<AssetType extends keyof InfoPriceSubscriptionOptions>(
     options: InfoPriceSubscriptionOptions[AssetType],
-  ): SaxoBankSubscriptionInfoPrice<AssetType> {
+  ): Promise<SaxoBankSubscriptionInfoPrice<AssetType>> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionInfoPrice({
         stream: this,
@@ -639,7 +645,7 @@ export class SaxoBankStream extends EventSwitch<{
 
   price<AssetType extends keyof PriceRequest>(
     options: ArgumentType<PriceRequest[AssetType]>,
-  ): SaxoBankSubscriptionPrice<AssetType> {
+  ): Promise<SaxoBankSubscriptionPrice<AssetType>> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionPrice<AssetType>({
         stream: this,

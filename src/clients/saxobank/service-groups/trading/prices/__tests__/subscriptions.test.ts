@@ -154,7 +154,7 @@ describe('trading/prices/subscriptions', () => {
           await step(`${instrument.Description}: (UIC ${instrument.Uic})`, async ({ step }) => {
             let stepCount = 0
 
-            const priceSubscription = stream.price({
+            const priceSubscription = await stream.price({
               AssetType: instrument.AssetType,
               Uic: instrument.Uic,
             })
@@ -230,7 +230,7 @@ describe('trading/prices/subscriptions', () => {
       await step(`${instrument.Description}: (UIC ${instrument.Uic}, ${earliestDate.Date})`, async ({ step }) => {
         let stepCount = 0
 
-        const priceSubscription = stream.price({
+        const priceSubscription = await stream.price({
           AssetType: instrument.AssetType,
           Uic: instrument.Uic,
           ForwardDate: earliestDate.Date,
