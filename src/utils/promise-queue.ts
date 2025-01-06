@@ -308,7 +308,7 @@ export class PromiseQueue {
     promiseArray.push(this.#queue)
 
     // Wait for the queue and nested queues to settle.
-    return Promise.all(promiseArray).then(PROMISE_THEN_VOID_CALLBACK)
+    return Promise.allSettled(promiseArray).then(PROMISE_THEN_VOID_CALLBACK)
   }
 
   /**
