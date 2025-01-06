@@ -41,14 +41,7 @@ export class Timeout<T = undefined> extends Promise<undefined | T> implements Di
     let wait: undefined | Timeout<void> = undefined
 
     const instance = this.#create<void>(0, async (signal) => {
-      await Timeout.wait(0)
-
-      const listener = () => {
-        wait?.abort()
-        signal.removeEventListener('abort', listener)
-      }
-
-      signal.addEventListener('abort', listener)
+      signal.addEventListener('abort', () => wait?.abort(), { once: true })
 
       while (signal.aborted === false) {
         if (iterations !== undefined && iterations-- === 0) {
@@ -59,6 +52,11 @@ export class Timeout<T = undefined> extends Promise<undefined | T> implements Di
           await handle.call(instance, signal)
         } catch (error) {
           instance.abort(ensureError(error))
+          break
+        }
+
+        // If the signal was aborted while awaiting "handle", break the loop
+        if (signal.aborted) {
           break
         }
 
