@@ -50,9 +50,6 @@ export interface SaxoBankBroker<Options extends SaxoBankBrokerOptions> extends A
     readonly unrealized: number
   }
 
-  /** The protection limit of the broker accounts. */
-  readonly protectionLimit: number
-
   dispose(): Promise<void>
 
   refresh(): void
@@ -77,11 +74,14 @@ export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions
           throw new SaxoBankBrokerOptionsError('Position Netting must be Real-time FIFO')
         }
 
+        if ((value.AccountValueProtectionLimit ?? 0) > 0) {
+          throw new SaxoBankBrokerOptionsError('Account Value Protection Limit must be 0')
+        }
+
         return {
           clientKey: value.ClientKey,
           name: value.Name,
           nettingProfile: value.PositionNettingProfile,
-          protectionLimit: value.AccountValueProtectionLimit ?? 0,
         }
       })
     })
@@ -119,10 +119,6 @@ export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions
 
     const broker = {
       currency: options.currency,
-
-      get protectionLimit() {
-        return clientReader.value.protectionLimit
-      },
 
       get cash() {
         return clientBalanceReader.value.cash
