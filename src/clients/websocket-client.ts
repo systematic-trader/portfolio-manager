@@ -7,6 +7,7 @@ import { Timeout } from '../utils/timeout.ts'
 import { WebSocketClientInactivityMonitor } from './websocket-client-inactivity-monitor.ts'
 
 const debug = {
+  create: Debug('websocket-client:create'),
   open: Debug('websocket-client:open'),
   closed: Debug('websocket-client:closed'),
   failed: Debug('websocket-client:failed'),
@@ -202,6 +203,8 @@ export class WebSocketClient extends EventSwitch<{
         return self.#error
       },
     } as WebSocketClient['state']
+
+    debug.create(binaryType, url)
   }
 
   async #connect(
