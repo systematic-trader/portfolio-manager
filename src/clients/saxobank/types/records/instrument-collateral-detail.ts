@@ -25,7 +25,7 @@ export const InstrumentCollateralDetail = props({
   InitialCollateralNotAvailable: number(),
 
   /** Initial concentration risk haircuts */
-  InitialConcentrationDeduction: number(),
+  InitialConcentrationDeduction: optional(number()),
 
   /**	Maintenance collateral available of the instrument */
   MaintenanceCollateral: number(),
@@ -34,7 +34,7 @@ export const InstrumentCollateralDetail = props({
   MaintenanceCollateralNotAvailable: number(),
 
   /** Not documented */
-  MaintenanceConcentrationDeduction: number(),
+  MaintenanceConcentrationDeduction: optional(number()),
 
   /**	Market value of the instrument */
   MarketValue: number(),
@@ -47,10 +47,4 @@ export const InstrumentCollateralDetail = props({
 
   /** Not documented */
   ContributingAssetTypes: optional(array(AssetType)),
-
-  /** Not Documented */
-  InitialConcentrationDeduction: optional(number()),
-
-  /** Not Documented */
-  MaintenanceConcentrationDeduction: optional(number()),
 })
