@@ -80,7 +80,6 @@ export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions
 
         return {
           clientKey: value.ClientKey,
-          name: value.Name,
         }
       })
     })
