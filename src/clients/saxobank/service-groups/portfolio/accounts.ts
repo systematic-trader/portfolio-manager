@@ -26,7 +26,7 @@ export class Accounts {
       /** Optionally set true to request that all sub accounts are returned. */
       IncludeSubAccounts?: undefined | boolean
     } = {},
-    options: { readonly timeout?: undefined | number } = {},
+    options: { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
   ): AsyncIterable<AccountResponse, void, undefined> {
     yield* this.#client.getPaginated({
       searchParams: {
@@ -36,6 +36,7 @@ export class Accounts {
       },
       guard: AccountResponse,
       timeout: options.timeout,
+      signal: options.signal,
     }).execute()
   }
 }

@@ -22,14 +22,14 @@ export class SaxoBankTransferCashOrder<
   /** The conversion rate of the amount between the 'from' and 'to' accounts. */
   readonly rate: number
 
-  readonly session: MarketSession
+  readonly session: undefined | MarketSession
 
   constructor(options: {
     readonly from: SaxoBankAccount<Options['from']>
     readonly to: SaxoBankAccount<Options['to']>
     readonly transfer: { currency: Options['transfer']['currency']; amount: Options['transfer']['amount'] }
     readonly rate: number
-    readonly session: MarketSession
+    readonly session: undefined | MarketSession
   }) {
     this.from = options.from
     this.to = options.to
@@ -46,6 +46,7 @@ export class SaxoBankTransferCashOrder<
   //   /** The resulting amount of the transfered to account. */
   //   readonly amount: number
   // }> {
+  //    API throws 403 Forbidden if the account is not allowed to transfer cash
   //   return Promise.reject(new Error('Not implemented'))
   // }
 }

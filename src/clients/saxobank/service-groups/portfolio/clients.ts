@@ -29,10 +29,14 @@ export class Clients {
     }).execute()
   }
 
-  async me(): Promise<ClientResponse> {
+  async me(
+    options: { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
+  ): Promise<ClientResponse> {
     return await this.#client.get({
       path: 'me',
       guard: ClientResponse,
+      timeout: options.timeout,
+      signal: options.signal,
     }).execute()
   }
 }

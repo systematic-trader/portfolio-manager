@@ -1,13 +1,12 @@
 import { toArray } from '../../../utils/async-iterable.ts'
-import type { SaxoBankApplication } from '../../saxobank-application.ts'
-import type { SaxoBankSubscriptionBalance } from '../stream/subscriptions/saxobank-subscription-balance.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
+import type { DataContext, DataContextBalance, DataContextReader } from './data-context.ts'
 import { mapInstrumentSessions } from './market-session.ts'
 import { SaxoBankTransferCashOrder } from './saxobank-transfer-cash-order.ts'
 
 export class SaxoBankAccount<Options extends { readonly accountID: string; readonly currency: Currency3 }> {
-  readonly #app: SaxoBankApplication
-  readonly #balance: SaxoBankSubscriptionBalance
+  readonly #context: DataContext
+  readonly #balance: DataContextReader<DataContextBalance>
   readonly #currencyConversionFee: number
 
   /** The account ID. */
@@ -18,12 +17,12 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
 
   /** The cash available for trading. */
   get cash(): number {
-    return this.#balance.message.CashBalance
+    return this.#balance.value.cash
   }
 
   /** The total value of the account. */
   get total(): number {
-    return this.#balance.message.TotalValue
+    return this.#balance.value.total
   }
 
   /** The margin of the account. */
@@ -39,17 +38,17 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
   }
 
   constructor({
-    app,
+    context,
     balance,
     currencyConversionFee,
     accountID,
     currency,
   }: Options & {
-    readonly app: SaxoBankApplication
-    readonly balance: SaxoBankSubscriptionBalance
+    readonly context: DataContext
+    readonly balance: DataContextReader<DataContextBalance>
     readonly currencyConversionFee: number
   }) {
-    this.#app = app
+    this.#context = context
     this.#balance = balance
     this.#currencyConversionFee = currencyConversionFee
     this.ID = accountID
@@ -57,18 +56,16 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
 
     this.margin = {
       get available() {
-        return balance.message.MarginAvailableForTrading ?? 0
+        return balance.value.marginAvailable
       },
       get used() {
-        return balance.message.MarginUsedByCurrentPositions ?? 0
+        return balance.value.marginUsed
       },
       get total() {
-        const { MarginAvailableForTrading, MarginUsedByCurrentPositions } = balance.message
-
-        return (MarginAvailableForTrading ?? 0) + (MarginUsedByCurrentPositions ?? 0)
+        return balance.value.marginTotal
       },
       get utilization() {
-        return (balance.message.MarginUtilizationPct ?? 0) / 100
+        return balance.value.marginUtilization
       },
     }
   }
@@ -108,11 +105,11 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
         to,
         transfer: { currency, amount },
         rate: 1,
-        session: undefined, /* Tal om problemet med placering */
+        session: undefined,
       })
     }
 
-    const [fxspot] = await toArray(this.#app.referenceData.instruments.get({
+    const [fxspot] = await toArray(this.#context.app.referenceData.instruments.get({
       AssetTypes: ['FxSpot'],
       IncludeNonTradable: false,
       Keywords: [`${this.currency}${currency}`, `${currency}${this.currency}`],
@@ -123,7 +120,7 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       throw new Error(`No FX Spot (currency pair) found for ${this.currency} and ${currency}.`)
     }
 
-    const { Quote } = await this.#app.trading.infoPrices.get({
+    const { Quote } = await this.#context.app.trading.infoPrices.get({
       AssetType: fxspot.AssetType,
       Uic: fxspot.Identifier,
     })
@@ -137,9 +134,7 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
     const rate = (this.currency === fxspot.Symbol.slice(0, this.currency.length) ? midprice : 1 / midprice) *
       (1 - this.#currencyConversionFee)
 
-    console.log('rate', rate)
-
-    const [instrumentDetails] = await toArray(this.#app.referenceData.instruments.details.get({
+    const [instrumentDetails] = await toArray(this.#context.app.referenceData.instruments.details.get({
       AssetTypes: ['FxSpot'],
       Uics: [fxspot.Identifier],
     }))

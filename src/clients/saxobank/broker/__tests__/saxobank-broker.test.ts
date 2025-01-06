@@ -4,7 +4,9 @@ import { SaxoBankBroker, SaxoBankBrokerOptionsError } from '../saxobank-broker.t
 test('broker properties', async () => {
   const options = await SaxoBankBroker.options({ type: 'Live' })
 
-  await using broker = await SaxoBankBroker(options)
+  // const oneAccount = Object.fromEntries([Object.entries(options.accounts)[0]!])
+
+  await using broker = await SaxoBankBroker({ ...options })
 
   expect(broker.currency).toBe(options.currency)
   expect(broker.cash).toBeGreaterThanOrEqual(0)

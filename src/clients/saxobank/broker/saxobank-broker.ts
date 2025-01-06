@@ -1,8 +1,7 @@
 import { toArray } from '../../../utils/async-iterable.ts'
 import { SaxoBankApplication } from '../../saxobank-application.ts'
-import { SaxoBankStream } from '../../saxobank-stream.ts'
-import type { SaxoBankSubscriptionBalance } from '../stream/subscriptions/saxobank-subscription-balance.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
+import { DataContext } from './data-context.ts'
 import { SaxoBankAccount } from './saxobank-account.ts'
 
 const DEFAULTS = {
@@ -55,6 +54,8 @@ export interface SaxoBankBroker<Options extends SaxoBankBrokerOptions> extends A
   readonly protectionLimit: number
 
   dispose(): Promise<void>
+
+  refresh(): void
 }
 
 export class SaxoBankBrokerOptionsError extends Error {
@@ -67,135 +68,137 @@ export class SaxoBankBrokerOptionsError extends Error {
 export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions>(
   options: SaxoBankBrokerOptions,
 ): Promise<SaxoBankBroker<Options>> {
-  const app = new SaxoBankApplication({ type: options.type })
-  const stream = new SaxoBankStream({ app })
+  const context = new DataContext({ type: options.type })
 
   try {
-    const client = await app.portfolio.clients.me()
+    const clientReader = await context.client().then((reader) => {
+      return reader.view((value) => {
+        if (value.PositionNettingProfile !== 'FifoRealTime') {
+          throw new SaxoBankBrokerOptionsError('Position Netting must be Real-time FIFO')
+        }
 
-    if (client.PositionNettingProfile !== 'FifoRealTime') {
-      throw new Error('Position Netting must be Real-time FIFO')
-    }
-
-    const accounts = await toArray(app.portfolio.accounts.get({
-      ClientKey: client.ClientKey,
-      IncludeSubAccounts: true,
-    })).then((accounts) => {
-      return accounts
-        .filter((account) =>
-          account.Active === true &&
-          account.AccountSubType === 'None' &&
-          account.AccountType === 'Normal'
-        )
+        return {
+          clientKey: value.ClientKey,
+          name: value.Name,
+          nettingProfile: value.PositionNettingProfile,
+          protectionLimit: value.AccountValueProtectionLimit ?? 0,
+        }
+      })
     })
 
-    for (const [accountId, accountCurrency] of Object.entries(options.accounts)) {
-      const account = accounts.find((account) => account.AccountId === accountId)
-      if (account === undefined) {
-        throw new SaxoBankBrokerOptionsError(`Broker account unknown: "${accountId}"`)
-      }
+    const clientBalanceReader = await context.balance({ clientKey: clientReader.value.clientKey }).then((reader) => {
+      return reader.view((value) => {
+        if (options.currency !== value.currency) {
+          throw new SaxoBankBrokerOptionsError(
+            `Broker currency must be set to "${value.currency}" and not "${options.currency}"`,
+          )
+        }
 
-      if (account.Currency !== accountCurrency) {
-        throw new SaxoBankBrokerOptionsError(
-          `Broker account "${accountId}" currency must be set to "${account.Currency}" and not "${accountCurrency}"`,
-        )
-      }
-    }
+        return value
+      })
+    })
 
-    const initializePromises: Promise<unknown>[] = []
+    const accountsReader = await context.accounts({ clientKey: clientReader.value.clientKey }).then((reader) => {
+      return reader.view((value) => {
+        for (const [accountId, accountCurrency] of Object.entries(options.accounts)) {
+          const account = value.find((account) => account.AccountId === accountId)
+          if (account === undefined) {
+            throw new SaxoBankBrokerOptionsError(`Broker account unknown: "${accountId}"`)
+          }
 
-    const clientBalance = stream.balance({ ClientKey: client.ClientKey })
+          if (account.Currency !== accountCurrency) {
+            throw new SaxoBankBrokerOptionsError(
+              `Broker account "${accountId}" currency must be set to "${account.Currency}" and not "${accountCurrency}"`,
+            )
+          }
+        }
 
-    initializePromises.push(clientBalance.initialize())
-
-    const accountBalances: SaxoBankSubscriptionBalance[] = []
-
-    const accountsRecord = Object.keys(
-      options.accounts,
-    ).reduce<Record<string, SaxoBankAccount<{ accountID: string; currency: Currency3 }>>>((result, accountID) => {
-      const account = accounts.find((account) => account.AccountId === accountID)!
-      const accountBalance = stream.balance({ ClientKey: client.ClientKey, AccountKey: account.AccountKey })
-
-      accountBalances.push(accountBalance)
-
-      initializePromises.push(accountBalance.initialize())
-
-      result[accountID] = new SaxoBankAccount(
-        {
-          app,
-          balance: accountBalance,
-          currencyConversionFee: options.currencyConversionFee ?? DEFAULTS.currencyConversionFee,
-          accountID,
-          currency: options.accounts[accountID] as Currency3,
-        },
-      )
-
-      return result
-    }, {}) as SaxoBankBroker<Options>['accounts']
-
-    for (const initializeResult of await Promise.allSettled(initializePromises)) {
-      if (initializeResult.status === 'rejected') {
-        throw initializeResult.reason
-      }
-    }
-
-    if (clientBalance.message.Currency !== options.currency) {
-      throw new SaxoBankBrokerOptionsError(
-        `Broker currency must be set to "${clientBalance.message.Currency}" and not "${options.currency}"`,
-      )
-    }
-
-    const margin = {
-      get available() {
-        return clientBalance.message.MarginAvailableForTrading ?? 0
-      },
-      get used() {
-        return clientBalance.message.MarginUsedByCurrentPositions ?? 0
-      },
-      get total() {
-        const { MarginAvailableForTrading, MarginUsedByCurrentPositions } = clientBalance.message
-
-        return (MarginAvailableForTrading ?? 0) + (MarginUsedByCurrentPositions ?? 0)
-      },
-      get utilization() {
-        return (clientBalance.message.MarginUtilizationPct ?? 0) / 100
-      },
-    }
-
-    const positions = {
-      get unrealized() {
-        return clientBalance.message.UnrealizedPositionsValue
-      },
-    }
+        return value
+      })
+    })
 
     const broker = {
       currency: options.currency,
-      get cash() {
-        return clientBalance.message.CashBalance
+
+      get protectionLimit() {
+        return clientReader.value.protectionLimit
       },
-      margin,
-      positions,
-      protectionLimit: client.AccountValueProtectionLimit ?? 0,
+
+      get cash() {
+        return clientBalanceReader.value.cash
+      },
+
+      margin: {
+        get available() {
+          return clientBalanceReader.value.marginAvailable
+        },
+        get used() {
+          return clientBalanceReader.value.marginUsed
+        },
+        get total() {
+          return clientBalanceReader.value.marginTotal
+        },
+        get utilization() {
+          return clientBalanceReader.value.marginUtilization
+        },
+      },
+
+      positions: {
+        get unrealized() {
+          return clientBalanceReader.value.positionsUnrealized
+        },
+      },
+
       get total() {
-        return clientBalance.message.TotalValue
+        return clientBalanceReader.value.total
       },
 
       [Symbol.asyncDispose](): Promise<void> {
-        return broker.dispose()
+        return context[Symbol.asyncDispose]()
       },
 
-      accounts: accountsRecord,
+      accounts: Object.fromEntries(
+        await Promise.allSettled(
+          Object.keys(options.accounts).map(async (accountID) => {
+            const account = accountsReader.value.find((account) => account.AccountId === accountID)!
+            const accountBalance = await context.balance({
+              clientKey: clientReader.value.clientKey,
+              accountKey: account.AccountKey,
+            })
 
-      async dispose(): Promise<void> {
-        await stream[Symbol.asyncDispose]()
-        app.dispose()
+            return new SaxoBankAccount(
+              {
+                context,
+                balance: accountBalance,
+                currencyConversionFee: options.currencyConversionFee ?? DEFAULTS.currencyConversionFee,
+                accountID,
+                currency: options.accounts[accountID] as Currency3,
+              },
+            )
+          }),
+        ).then((results) => {
+          return results.map((result) => {
+            if (result.status === 'rejected') {
+              throw result.reason
+            }
+
+            return [result.value.ID, result.value] as const
+          })
+        }),
+      ) as SaxoBankBroker<Options>['accounts'],
+
+      dispose(): Promise<void> {
+        return broker[Symbol.asyncDispose]()
+      },
+
+      refresh(): void {
+        context.refresh()
       },
     }
 
     return broker
   } catch (error) {
-    await stream.dispose()
-    app.dispose()
+    await context.dispose()
 
     throw error
   }
