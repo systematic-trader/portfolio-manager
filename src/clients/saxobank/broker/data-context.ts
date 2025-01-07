@@ -176,6 +176,10 @@ export class DataContext implements AsyncDisposable {
     for (const reader of this.#subscriptionReaders.values()) {
       reader.refresh()
     }
+
+    for (const reader of this.#appReaders.values()) {
+      reader.refresh()
+    }
   }
 
   #createSubscriptionReader<T, U>(
