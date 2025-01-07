@@ -8,6 +8,7 @@ import {
   optional,
   props,
   string,
+  union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { AssetType } from '../derives/asset-type.ts'
 import { CalculationReliability } from '../derives/calculation-reliability.ts'
@@ -272,25 +273,6 @@ export const PositionResponse = props({
 })
 
 export interface PositionResponse extends GuardType<typeof PositionResponse> {}
-
-export type PositionResponseUnion =
-  | PositionResponseBond
-  | PositionResponseCfdOnEtc
-  | PositionResponseCfdOnEtf
-  | PositionResponseCfdOnEtn
-  | PositionResponseCfdOnFund
-  | PositionResponseCfdOnFutures
-  | PositionResponseCfdOnIndex
-  | PositionResponseCfdOnStock
-  | PositionResponseContractFutures
-  | PositionResponseEtc
-  | PositionResponseEtf
-  | PositionResponseEtn
-  | PositionResponseFund
-  | PositionResponseFxForwards
-  | PositionResponseFxSpot
-  | PositionResponseStock
-  | PositionResponseUnknown
 
 // #region Bond
 export const PositionResponseBond = props({
@@ -1247,7 +1229,47 @@ export const PositionResponseUnknown = props({
     ]),
     ExternalReference: optional(string()),
   }, { extendable: true }),
+  PositionId: string(),
 }, { extendable: true })
 
 export interface PositionResponseUnknown extends GuardType<typeof PositionResponseUnknown> {}
 // #endregion
+
+export const PositionResponseUnion = union([
+  PositionResponseBond,
+  PositionResponseCfdOnEtc,
+  PositionResponseCfdOnEtf,
+  PositionResponseCfdOnEtn,
+  PositionResponseCfdOnFund,
+  PositionResponseCfdOnFutures,
+  PositionResponseCfdOnIndex,
+  PositionResponseCfdOnStock,
+  PositionResponseContractFutures,
+  PositionResponseEtc,
+  PositionResponseEtf,
+  PositionResponseEtn,
+  PositionResponseFund,
+  PositionResponseFxForwards,
+  PositionResponseFxSpot,
+  PositionResponseStock,
+  PositionResponseUnknown,
+])
+
+export type PositionResponseUnion =
+  | PositionResponseBond
+  | PositionResponseCfdOnEtc
+  | PositionResponseCfdOnEtf
+  | PositionResponseCfdOnEtn
+  | PositionResponseCfdOnFund
+  | PositionResponseCfdOnFutures
+  | PositionResponseCfdOnIndex
+  | PositionResponseCfdOnStock
+  | PositionResponseContractFutures
+  | PositionResponseEtc
+  | PositionResponseEtf
+  | PositionResponseEtn
+  | PositionResponseFund
+  | PositionResponseFxForwards
+  | PositionResponseFxSpot
+  | PositionResponseStock
+  | PositionResponseUnknown
