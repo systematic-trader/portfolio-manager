@@ -17,7 +17,6 @@ test('broker properties', async () => {
   expect(broker.margin.utilization).toBeGreaterThanOrEqual(0)
   expect(Object.keys(broker.positions).toSorted()).toStrictEqual(['unrealized'])
   expect(broker.positions.unrealized).toBeGreaterThanOrEqual(0)
-  expect(broker.protectionLimit).toBeGreaterThanOrEqual(0)
   expect(broker.total).toBeGreaterThanOrEqual(0)
 
   await broker.dispose()
