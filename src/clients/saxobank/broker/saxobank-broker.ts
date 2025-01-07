@@ -147,10 +147,6 @@ export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions
         return clientBalanceReader.value.total
       },
 
-      [Symbol.asyncDispose](): Promise<void> {
-        return context[Symbol.asyncDispose]()
-      },
-
       accounts: Object.fromEntries(
         await Promise.allSettled(
           Object.keys(options.accounts).map(async (accountID) => {
@@ -180,6 +176,10 @@ export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions
           })
         }),
       ) as SaxoBankBroker<Options>['accounts'],
+
+      [Symbol.asyncDispose](): Promise<void> {
+        return context[Symbol.asyncDispose]()
+      },
 
       dispose(): Promise<void> {
         return broker[Symbol.asyncDispose]()

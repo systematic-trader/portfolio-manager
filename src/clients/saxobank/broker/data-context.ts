@@ -39,7 +39,8 @@ export class DataContext implements AsyncDisposable {
   readonly app: SaxoBankApplication
   readonly #controller: AbortController
   readonly #initializers = new Map<string, Promise<DataContextReader<unknown>>>()
-  readonly #readers = new Map<string, DataContextReader<unknown>>()
+  readonly #subscriptionReaders = new Map<string, DataContextReader<unknown>>()
+  readonly #appReaders = new Map<string, DataContextReader<unknown>>()
   readonly #stream1: SaxoBankStream
   readonly #stream2: SaxoBankStream
   readonly #stream3: SaxoBankStream
@@ -79,12 +80,15 @@ export class DataContext implements AsyncDisposable {
     this.#stream3 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
     this.#stream4 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
 
-    const dispose = this.dispose.bind(this)
+    const streamDispose = () => {
+      // Do NOT return the promise here, as it will cause a deadlock
+      this[Symbol.asyncDispose]()
+    }
 
-    this.#stream1.addListener('disposed', dispose)
-    this.#stream2.addListener('disposed', dispose)
-    this.#stream3.addListener('disposed', dispose)
-    this.#stream4.addListener('disposed', dispose)
+    this.#stream1.addListener('disposed', streamDispose)
+    this.#stream2.addListener('disposed', streamDispose)
+    this.#stream3.addListener('disposed', streamDispose)
+    this.#stream4.addListener('disposed', streamDispose)
 
     this.#disposePromise = undefined
     this.#error = undefined
@@ -105,49 +109,52 @@ export class DataContext implements AsyncDisposable {
 
     this.#disposePromise = promise
 
-    Promise.allSettled([
-      this.#stream1?.dispose(),
-      this.#stream2?.dispose(),
-      this.#stream3?.dispose(),
-      this.#stream4?.dispose(),
-    ]).then((results) => {
-      try {
-        this.app.dispose()
-      } catch (error) {
-        if (this.#error === undefined) {
-          this.#error = ensureError(error)
+    Promise.allSettled(this.#initializers.values()).then(() => {
+      return Promise.allSettled([
+        this.#stream1.dispose(),
+        this.#stream2.dispose(),
+        this.#stream3.dispose(),
+        this.#stream4.dispose(),
+        ...this.#appReaders.values().map((reader) => reader.dispose()),
+      ]).then((results) => {
+        try {
+          this.app.dispose()
+        } catch (error) {
+          if (this.#error === undefined) {
+            this.#error = ensureError(error)
+          }
+
+          return reject(this.#error)
         }
 
-        return reject(this.#error)
-      }
-
-      for (const result of results) {
-        if (result.status === 'rejected') {
-          if (this.#error === undefined) {
-            this.#error = ensureError(result.reason)
+        for (const result of results) {
+          if (result.status === 'rejected') {
+            if (this.#error === undefined) {
+              this.#error = ensureError(result.reason)
+            }
           }
         }
-      }
 
-      if (this.#error === undefined) {
-        if (this.#stream1?.state.status === 'failed') {
-          this.#error = this.#stream1.state.error
-        } else if (this.#stream2?.state.status === 'failed') {
-          this.#error = this.#stream2.state.error
-        } else if (this.#stream3?.state.status === 'failed') {
-          this.#error = this.#stream3.state.error
-        } else if (this.#stream4?.state.status === 'failed') {
-          this.#error = this.#stream4.state.error
+        if (this.#error === undefined) {
+          if (this.#stream1?.state.status === 'failed') {
+            this.#error = this.#stream1.state.error
+          } else if (this.#stream2?.state.status === 'failed') {
+            this.#error = this.#stream2.state.error
+          } else if (this.#stream3?.state.status === 'failed') {
+            this.#error = this.#stream3.state.error
+          } else if (this.#stream4?.state.status === 'failed') {
+            this.#error = this.#stream4.state.error
+          }
         }
-      }
 
-      if (this.#error !== undefined) {
-        return reject(this.#error)
-      }
+        if (this.#error !== undefined) {
+          return reject(this.#error)
+        }
 
-      resolve()
-    }).finally(() => {
-      this.#disposePromise = undefined
+        resolve()
+      }).finally(() => {
+        this.#disposePromise = undefined
+      })
     })
 
     await promise
@@ -166,7 +173,7 @@ export class DataContext implements AsyncDisposable {
       return
     }
 
-    for (const reader of this.#readers.values()) {
+    for (const reader of this.#subscriptionReaders.values()) {
       reader.refresh()
     }
   }
@@ -186,7 +193,7 @@ export class DataContext implements AsyncDisposable {
       throw new DataContextError('DataContext is disposed')
     }
 
-    const reader = this.#readers.get(key)
+    const reader = this.#subscriptionReaders.get(key)
 
     if (reader !== undefined) {
       return Promise.resolve(reader as DataContextReader<U>)
@@ -203,10 +210,10 @@ export class DataContext implements AsyncDisposable {
 
       const reader = new DataContextReader({
         dispose: async (): Promise<void> => {
-          const value = this.#readers.get(key)
+          const value = this.#subscriptionReaders.get(key)
 
           if (value === reader) {
-            this.#readers.delete(key)
+            this.#subscriptionReaders.delete(key)
           }
 
           if (subscription.status === 'active') {
@@ -239,7 +246,7 @@ export class DataContext implements AsyncDisposable {
 
       subscription.addListener('disposed', reader.dispose)
 
-      this.#readers.set(key, reader)
+      this.#subscriptionReaders.set(key, reader)
 
       return reader
     }).finally(() => {
@@ -267,7 +274,7 @@ export class DataContext implements AsyncDisposable {
       throw new DataContextError('DataContext is disposed')
     }
 
-    const reader = this.#readers.get(key)
+    const reader = this.#appReaders.get(key)
 
     if (reader !== undefined) {
       return Promise.resolve(reader as DataContextReader<U>)
@@ -298,8 +305,6 @@ export class DataContext implements AsyncDisposable {
           }
 
           repeater.abort()
-
-          return this[Symbol.asyncDispose]()
         }
       })
 
@@ -331,7 +336,7 @@ export class DataContext implements AsyncDisposable {
         },
       })
 
-      this.#readers.set(key, reader)
+      this.#appReaders.set(key, reader)
 
       return reader
     }).finally(() => {

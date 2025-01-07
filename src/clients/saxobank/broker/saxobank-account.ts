@@ -105,7 +105,7 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
         to,
         transfer: { currency, amount },
         rate: 1,
-        session: undefined,
+        session: undefined as any, /* Tal om problemet med placering */
       })
     }
 
