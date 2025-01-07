@@ -90,10 +90,32 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
     }>
   > {
     if (this.ID === to.ID) {
-      throw new Error('Cannot transfer cash to the same account')
+      throw new Error('It does not make sense to transfer cash to the same account.')
     }
 
     if (this.currency === currency) {
+      const [fxspot] = await toArray(this.#context.app.referenceData.instruments.get({
+        AssetTypes: ['FxSpot'],
+        IncludeNonTradable: false,
+        Keywords: [`${this.currency}USD`, `USD${this.currency}`],
+        limit: 1,
+      }))
+
+      if (fxspot === undefined) {
+        throw new Error(`No FX Spot (currency pair) found for ${this.currency} and USD.`)
+      }
+
+      const [instrumentDetails] = await toArray(this.#context.app.referenceData.instruments.details.get({
+        AssetTypes: ['FxSpot'],
+        Uics: [fxspot.Identifier],
+      }))
+
+      if (instrumentDetails === undefined) {
+        throw new Error(`No FX Spot details found for ${fxspot.Symbol}.`)
+      }
+
+      const session = mapInstrumentSessions(instrumentDetails)
+
       return new SaxoBankTransferCashOrder<
         {
           from: Options
@@ -105,7 +127,7 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
         to,
         transfer: { currency, amount },
         rate: 1,
-        session: undefined as any, /* Tal om problemet med placering */
+        session,
       })
     }
 
