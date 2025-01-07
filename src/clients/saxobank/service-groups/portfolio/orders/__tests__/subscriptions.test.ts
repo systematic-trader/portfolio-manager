@@ -14,6 +14,7 @@ describe('portfolio/orders/subscriptions', () => {
 
   const {
     getFirstClient,
+    getFirstAccount,
     findTradableInstruments,
     resetSimulationAccount,
     placeFavourableOrder,
@@ -23,14 +24,15 @@ describe('portfolio/orders/subscriptions', () => {
   beforeEach(resetSimulationAccount)
   afterAll(resetSimulationAccount)
 
-  test('Streaming messages', async ({ step }) => {
+  test('Placing a single limit-order, then updating it to a market-order', async ({ step }) => {
     const instrumentLimit = 1
 
     const { ClientKey } = await getFirstClient()
+    const { AccountKey } = await getFirstAccount()
 
     const instruments = findTradableInstruments({
       assetType: 'Stock',
-      sessions: ['Closed'], // Only consider instruments for closed exchanges, since otherwise, the orders might be filled
+      sessions: ['AutomatedTrading'], // Find a stock that is currently tradable
       limit: instrumentLimit,
     })
 
@@ -45,7 +47,7 @@ describe('portfolio/orders/subscriptions', () => {
 
         await using stream = new SaxoBankStream({ app })
 
-        const ordersSubscription = stream.orders({
+        const ordersSubscription = await stream.orders({
           ClientKey,
         })
 
@@ -66,24 +68,34 @@ describe('portfolio/orders/subscriptions', () => {
           })
         })
 
-        await placeFavourableOrder({
+        await Timeout.wait(5000)
+
+        const order = await placeFavourableOrder({
           buySell: 'Buy',
           instrument: instrument,
-          orderType: 'Market',
+          orderType: 'Limit',
           quote,
-        })
-
-        await waitForPortfolioState({
-          orders: ['=', 1],
         })
 
         await Timeout.wait(5000)
 
-        stream.dispose()
+        await app.trading.orders.patch({
+          AccountKey,
+          AssetType: instrument.AssetType,
+          OrderId: order.OrderId,
+          OrderDuration: {
+            DurationType: 'DayOrder',
+          },
+          OrderType: 'Market',
+        })
 
-        expect(firstMessage).toBeDefined()
-        expect(latestMessage).toBeDefined()
-        expect(firstMessage).not.toEqual(latestMessage)
+        await Timeout.wait(5000)
+
+        await waitForPortfolioState({
+          positions: ['=', 1],
+        })
+
+        stream.dispose()
 
         while (true) {
           if (stream.state.status === 'failed') {
@@ -97,6 +109,10 @@ describe('portfolio/orders/subscriptions', () => {
 
           await Timeout.wait(250)
         }
+
+        expect(firstMessage).toBeDefined()
+        expect(latestMessage).toBeDefined()
+        expect(firstMessage).toEqual(latestMessage) // we start with no orders, and end up with no orders
       })
     }
 
