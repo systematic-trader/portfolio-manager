@@ -50,8 +50,10 @@ export interface SaxoBankBroker<Options extends SaxoBankBrokerOptions> extends A
     readonly unrealized: number
   }
 
+  /** Dispose of the broker and release resources. */
   dispose(): Promise<void>
 
+  /** Refresh the broker data. */
   refresh(): void
 }
 
