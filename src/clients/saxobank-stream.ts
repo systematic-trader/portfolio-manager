@@ -660,7 +660,7 @@ export class SaxoBankStream extends EventSwitch<{
 
   orders(
     options: ArgumentType<OpenOrdersRequest>,
-  ): SaxoBankSubscriptionOrders {
+  ): Promise<SaxoBankSubscriptionOrders> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionOrders({
         stream: this,

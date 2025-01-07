@@ -9,9 +9,11 @@ import {
   props,
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { mergeDeltaContent } from '../../../../utils/merge-delta-content.ts'
 import type { PromiseQueue } from '../../../../utils/promise-queue.ts'
 import type { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { SaxoBankRandom } from '../../saxobank-random.ts'
+import { sanitizeSaxobankValue } from '../../service-group-client/sanitize-saxobank-value.ts'
 import type { OpenOrdersRequest } from '../../types/records/open-orders-request.ts'
 import { OrderResponseUnion } from '../../types/records/order-response.ts'
 import {
@@ -22,15 +24,16 @@ import {
   type SaxoBankSubscriptionUnsubscribe,
 } from '../saxobank-subscription.ts'
 
-const Payload = props({
+const Payload = array(props({
   OrderId: string(),
+}, { extendable: true }))
+
+const OrderDeletedMessage = props({
+  OrderId: string(),
+  '__meta_deleted': literal(true),
 })
 
-const PayloadOrderDeleted = Payload.merge({
-  '__meta_seleted': literal(true),
-})
-
-const isPayloadOrderDeleted = is(PayloadOrderDeleted)
+const isOrderDeletedMessage = is(OrderDeletedMessage)
 
 export class SaxoBankSubscriptionOrders extends SaxoBankSubscription<readonly OrderResponseUnion[]> {
   readonly options: OpenOrdersRequest
@@ -63,22 +66,30 @@ export class SaxoBankSubscriptionOrders extends SaxoBankSubscription<readonly Or
   }
 }
 
-const parse: SaxoBankSubscriptionParse<readonly OrderResponseUnion[]> = (previous, payload) => {
-  console.log('payload', payload)
-
+const parse: SaxoBankSubscriptionParse<readonly OrderResponseUnion[]> = (previous, rawPayload) => {
+  const payload = sanitizeSaxobankValue(rawPayload)
   assert(Payload, payload)
 
-  if (isPayloadOrderDeleted(payload)) {
-    const index = previous.findIndex((order) => order.OrderId === payload.OrderId)
+  return [payload.reduce<readonly OrderResponseUnion[]>((orders, message) => {
+    const index = orders.findIndex((order) => order.OrderId === message.OrderId)
+    const order = orders[index]
 
-    if (index === -1) {
-      throw new Error(`Unknown order has been deleted: ${payload.OrderId}`)
+    // If we don't know the order by it's ID, we assume it's a new order - and it must pass the order guard
+    if (order === undefined) {
+      assert(OrderResponseUnion, message)
+      return [...orders, message]
     }
 
-    return [[...previous.slice(0, index), ...previous.slice(index + 1)]]
-  }
+    // If we do know the order id, we should check for the the __meta_deleted-property (this happens when the order is filled or cancelled)
+    if (isOrderDeletedMessage(message)) {
+      return [...orders.slice(0, index), ...orders.slice(index + 1)]
+    }
 
-  return []
+    // If none of the above matches the message, the message must be a update to the order (containing only the changed properties)
+    const mergedOrder = mergeDeltaContent(order, message)
+    assert(OrderResponseUnion, mergedOrder)
+    return [...orders.slice(0, index), mergedOrder, ...orders.slice(index + 1)]
+  }, previous)]
 }
 
 function createReferenceIdGenerator(options: ArgumentType<OpenOrdersRequest>): SaxoBankSubscriptionCreateReferenceId {
@@ -123,7 +134,7 @@ function createSubscribe(
 }
 
 const unsubscribe: SaxoBankSubscriptionUnsubscribe = async ({ app, contextId, referenceId, timeout, signal }) => {
-  await app.portfolio.balances.subscriptions.delete({
+  await app.portfolio.orders.subscriptions.delete({
     ContextId: contextId,
     ReferenceId: referenceId,
   }, { timeout, signal })
