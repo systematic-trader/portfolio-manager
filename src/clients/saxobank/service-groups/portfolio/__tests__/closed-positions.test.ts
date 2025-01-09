@@ -5,7 +5,7 @@ import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
 
 describe('portfolio/closed-positions', () => {
-  describe.only('live', () => {
+  describe('live', () => {
     using appLive = new SaxoBankApplication({
       type: 'Live',
     })
