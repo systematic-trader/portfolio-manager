@@ -402,7 +402,7 @@ export const InstrumentDetailsCfdOnEtn = props({
   PriceCurrency: Currency3,
   PriceToContractFactor: number(),
   PrimaryListing: optional(integer()),
-  RelatedInstruments: array(InstrumentKey),
+  RelatedInstruments: optional(array(InstrumentKey)),
   RelatedOptionRoots: optional(array(integer())),
   RelatedOptionRootsEnhanced: optional(array(RelatedOptionRoot)),
   ShortTradeDisabled: boolean(),

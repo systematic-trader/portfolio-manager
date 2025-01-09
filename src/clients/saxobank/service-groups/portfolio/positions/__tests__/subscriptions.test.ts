@@ -108,7 +108,7 @@ describe('portfolio/positions/subscriptions', () => {
     }
   })
 
-  test.only('Opening a single stock-position, then closing it', async ({ step }) => {
+  test('Opening a single stock-position, then closing it', async ({ step }) => {
     const instrumentLimit = 1
 
     const { ClientKey } = await getFirstClient()
