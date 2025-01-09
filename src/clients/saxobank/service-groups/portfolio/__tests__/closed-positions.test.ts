@@ -5,7 +5,7 @@ import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
 
 describe('portfolio/closed-positions', () => {
-  describe('live', () => {
+  describe.only('live', () => {
     using appLive = new SaxoBankApplication({
       type: 'Live',
     })
@@ -15,10 +15,10 @@ describe('portfolio/closed-positions', () => {
     test('response passes guard', async () => {
       const { ClientKey } = await getFirstClient()
 
-      const positions = await toArray(appLive.portfolio.positions.get({
+      const closedPositions = await toArray(appLive.portfolio.closedPositions.get({
         ClientKey,
       }))
-      expect(positions).toBeDefined()
+      expect(closedPositions).toBeDefined()
     })
   })
 
