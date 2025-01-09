@@ -3,6 +3,7 @@ import { AccountGroups } from './portfolio/account-groups.ts'
 import { Accounts } from './portfolio/accounts.ts'
 import { Balances } from './portfolio/balances.ts'
 import { Clients } from './portfolio/clients.ts'
+import { ClosedPositions } from './portfolio/closed-positions.ts'
 import { Exposure } from './portfolio/exposure.ts'
 import { IsAlive } from './portfolio/is-alive.ts'
 import { Orders } from './portfolio/orders.ts'
@@ -14,6 +15,7 @@ export class Portfolio {
   readonly accounts: Accounts
   readonly balances: Balances
   readonly clients: Clients
+  readonly closedPositions: ClosedPositions
   readonly exposure: Exposure
   readonly isAlive: IsAlive
   readonly orders: Orders
@@ -27,6 +29,7 @@ export class Portfolio {
     this.accounts = new Accounts({ client: serviceGroupClient })
     this.balances = new Balances({ client: serviceGroupClient })
     this.clients = new Clients({ client: serviceGroupClient })
+    this.closedPositions = new ClosedPositions({ client: serviceGroupClient })
     this.exposure = new Exposure({ client: serviceGroupClient })
     this.isAlive = new IsAlive({ client: serviceGroupClient })
     this.orders = new Orders({ client: serviceGroupClient })
