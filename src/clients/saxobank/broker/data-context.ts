@@ -12,13 +12,21 @@ import type {
 } from '../stream/subscriptions/saxobank-subscription-info-price.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
 import type { AccountResponse } from '../types/records/account-response.ts'
+import type { BalanceResponse } from '../types/records/balance-response.ts'
 import type { ClientResponse } from '../types/records/client-response.ts'
 import type { PriceResponse } from '../types/records/price-response.ts'
+import {
+  SaxoBankAccountBalancePropertyUndefinedError,
+  SaxoBankAccountCurrencyMismatchError,
+  SaxoBankAccountNotFoundError,
+  SaxoBankBrokerOptionsError,
+  SaxoBankClientBalancePropertyUndefinedError,
+  SaxoBankDefaultCurrencyMismatchError,
+} from './errors.ts'
 
 type PriceResponse = { [K in keyof typeof PriceResponse]: GuardType<typeof PriceResponse[K]> }
 
 export interface DataContextBalance {
-  readonly currency: Currency3
   readonly cash: number
   readonly marginAvailable: number
   readonly marginUsed: number
@@ -26,6 +34,67 @@ export interface DataContextBalance {
   readonly marginUtilization: number
   readonly positionsUnrealized: number
   readonly total: number
+}
+
+export interface DataContextClient {
+  readonly key: string
+  readonly currency: Currency3
+  readonly balance: DataContextBalance
+}
+
+export interface DataContextAccount {
+  readonly ID: string
+  readonly key: string
+  readonly currency: Currency3
+  readonly balance: DataContextBalance
+}
+
+function mapClientBalance(value: BalanceResponse): DataContextBalance {
+  if (value.MarginAvailableForTrading === undefined) {
+    throw new SaxoBankClientBalancePropertyUndefinedError('MarginAvailableForTrading')
+  }
+
+  if (value.MarginUsedByCurrentPositions === undefined) {
+    throw new SaxoBankClientBalancePropertyUndefinedError('MarginUsedByCurrentPositions')
+  }
+
+  if (value.MarginUtilizationPct === undefined) {
+    throw new SaxoBankClientBalancePropertyUndefinedError('MarginUtilizationPct')
+  }
+
+  return {
+    cash: value.CashBalance,
+    marginAvailable: value.MarginAvailableForTrading,
+    marginUsed: value.MarginUsedByCurrentPositions,
+    marginTotal: value.MarginAvailableForTrading + value.MarginUsedByCurrentPositions,
+    marginUtilization: value.MarginUtilizationPct / 100,
+    positionsUnrealized: value.UnrealizedPositionsValue,
+    total: value.TotalValue,
+  }
+}
+
+function mapAccountBalance(accountID: string, value: BalanceResponse): DataContextBalance {
+  if (value.MarginAvailableForTrading === undefined) {
+    throw new SaxoBankAccountBalancePropertyUndefinedError(accountID, 'MarginAvailableForTrading')
+  }
+
+  if (value.MarginUsedByCurrentPositions === undefined) {
+    throw new SaxoBankAccountBalancePropertyUndefinedError(accountID, 'MarginUsedByCurrentPositions')
+  }
+
+  if (value.MarginUtilizationPct === undefined) {
+    throw new SaxoBankAccountBalancePropertyUndefinedError(accountID, 'MarginUtilizationPct')
+  }
+
+  return {
+    cash: value.CashBalance,
+    marginAvailable: value.MarginAvailableForTrading,
+    marginUsed: value.MarginUsedByCurrentPositions,
+    marginTotal: value.MarginAvailableForTrading + value.MarginUsedByCurrentPositions,
+    marginUtilization: value.MarginUtilizationPct / 100,
+    positionsUnrealized: value.UnrealizedPositionsValue,
+    total: value.TotalValue,
+  }
 }
 
 export class DataContextError extends Error {
@@ -100,6 +169,10 @@ export class DataContext implements AsyncDisposable {
     }
 
     if (this.#controller.signal.aborted) {
+      if (this.#error !== undefined) {
+        throw this.#error
+      }
+
       return
     }
 
@@ -123,8 +196,6 @@ export class DataContext implements AsyncDisposable {
           if (this.#error === undefined) {
             this.#error = ensureError(error)
           }
-
-          return reject(this.#error)
         }
 
         for (const result of results) {
@@ -148,11 +219,9 @@ export class DataContext implements AsyncDisposable {
         }
 
         if (this.#error !== undefined) {
-          return reject(this.#error)
+          throw this.#error
         }
-
-        resolve()
-      }).finally(() => {
+      }).then(resolve).catch(reject).finally(() => {
         this.#disposePromise = undefined
       })
     })
@@ -214,13 +283,7 @@ export class DataContext implements AsyncDisposable {
 
       const reader = new DataContextReader({
         dispose: async (): Promise<void> => {
-          const value = this.#subscriptionReaders.get(key)
-
-          if (value === reader) {
-            this.#subscriptionReaders.delete(key)
-          }
-
-          if (subscription.status === 'active') {
+          if (this.#subscriptionReaders.delete(key)) {
             await subscription.dispose()
           }
 
@@ -244,7 +307,17 @@ export class DataContext implements AsyncDisposable {
             return
           }
 
-          value = map(subscription.message)
+          try {
+            value = map(subscription.message)
+          } catch (error) {
+            if (this.#error === undefined) {
+              this.#error = ensureError(error)
+            }
+
+            this[Symbol.asyncDispose]().catch(() => {})
+
+            throw error
+          }
         },
       })
 
@@ -253,6 +326,14 @@ export class DataContext implements AsyncDisposable {
       this.#subscriptionReaders.set(key, reader)
 
       return reader
+    }).catch(async (error) => {
+      if (this.#error === undefined) {
+        this.#error = ensureError(error)
+      }
+
+      await this[Symbol.asyncDispose]().catch(() => {})
+
+      throw error
     }).finally(() => {
       this.#initializers.delete(key)
     })
@@ -316,9 +397,11 @@ export class DataContext implements AsyncDisposable {
 
       const reader = new DataContextReader({
         dispose: async () => {
-          repeater.abort()
+          if (this.#appReaders.delete(key)) {
+            repeater.abort()
 
-          await repeater
+            await repeater
+          }
         },
         read: () => {
           if (this.#error !== undefined) {
@@ -336,13 +419,31 @@ export class DataContext implements AsyncDisposable {
             return
           }
 
-          readerValue = map(value)
+          try {
+            readerValue = map(value)
+          } catch (error) {
+            if (this.#error === undefined) {
+              this.#error = ensureError(error)
+            }
+
+            this[Symbol.asyncDispose]().catch(() => {})
+
+            throw error
+          }
         },
       })
 
       this.#appReaders.set(key, reader)
 
       return reader
+    }).catch(async (error) => {
+      if (this.#error === undefined) {
+        this.#error = ensureError(error)
+      }
+
+      await this[Symbol.asyncDispose]().catch(() => {})
+
+      throw error
     }).finally(() => {
       this.#initializers.delete(key)
     })
@@ -352,45 +453,64 @@ export class DataContext implements AsyncDisposable {
     return initializer as Promise<DataContextReader<U>>
   }
 
-  async balance(
+  async #client(): Promise<DataContextReader<ClientResponse>> {
+    return await this.#createAppReader({
+      key: 'client-me',
+      wait: 2 * 60 * 1000, // 2 minutes
+      read: (signal) => this.app.portfolio.clients.me({ signal }),
+      map: (value) => {
+        if (value.PositionNettingProfile !== 'FifoRealTime') {
+          throw new SaxoBankBrokerOptionsError('Position Netting must be Real-time FIFO')
+        }
+
+        if (value.AccountValueProtectionLimit !== undefined && value.AccountValueProtectionLimit > 0) {
+          throw new SaxoBankBrokerOptionsError('Account Value Protection Limit must be 0')
+        }
+
+        return value
+      },
+    })
+  }
+
+  async #accounts(
+    { clientKey }: { readonly clientKey: string },
+  ): Promise<DataContextReader<readonly AccountResponse[]>> {
+    return await this.#createAppReader({
+      key: 'accounts-' + clientKey,
+      wait: 2 * 60 * 1000, // 2 minutes
+      read: (signal) =>
+        toArray(this.app.portfolio.accounts.get({ ClientKey: clientKey, IncludeSubAccounts: true }, { signal })),
+      map: (accounts) => {
+        return accounts
+          .filter((account) =>
+            account.Active === true &&
+            account.AccountSubType === 'None' &&
+            account.AccountType === 'Normal'
+          )
+      },
+    })
+  }
+
+  async #balance(
     { clientKey, accountKey }: { readonly clientKey: string; readonly accountKey?: undefined | string },
-  ): Promise<DataContextReader<DataContextBalance>> {
+  ): Promise<DataContextReader<BalanceResponse>> {
     return await this.#createSubscriptionReader({
       key: 'balance-' + (accountKey === undefined ? clientKey : `${clientKey}:${accountKey}`),
       create: () => this.#availableStream.balance({ ClientKey: clientKey, AccountKey: accountKey }),
       map: (message) => {
-        const {
-          Currency,
-          CashBalance,
-          MarginAvailableForTrading,
-          MarginUsedByCurrentPositions,
-          MarginUtilizationPct,
-          UnrealizedPositionsValue,
-          TotalValue,
-        } = message
-
-        if (MarginAvailableForTrading === undefined) {
-          throw new Error('MarginAvailableForTrading is undefined')
+        if (message.MarginAvailableForTrading === undefined) {
+          throw new Error(`Account "${accountKey}" - balance.MarginAvailableForTrading is undefined`)
         }
 
-        if (MarginUsedByCurrentPositions === undefined) {
-          throw new Error('MarginUsedByCurrentPositions is undefined')
+        if (message.MarginUsedByCurrentPositions === undefined) {
+          throw new Error(`Account "${accountKey}" - balance.MarginUsedByCurrentPositions is undefined`)
         }
 
-        if (MarginUtilizationPct === undefined) {
-          throw new Error('MarginUtilizationPct is undefined')
+        if (message.MarginUtilizationPct === undefined) {
+          throw new Error(`Account "${accountKey}" - balance.MarginUtilizationPct is undefined`)
         }
 
-        return {
-          currency: Currency,
-          cash: CashBalance,
-          marginAvailable: MarginAvailableForTrading,
-          marginUsed: MarginUsedByCurrentPositions,
-          marginTotal: MarginAvailableForTrading + MarginUsedByCurrentPositions,
-          marginUtilization: MarginUtilizationPct / 100,
-          positionsUnrealized: UnrealizedPositionsValue,
-          total: TotalValue,
-        }
+        return message
       },
     })
   }
@@ -423,64 +543,205 @@ export class DataContext implements AsyncDisposable {
     })
   }
 
-  async client(): Promise<
-    DataContextReader<ClientResponse>
+  client({ currency }: { readonly currency: Currency3 }): Promise<DataContextReader<DataContextClient>> {
+    type ReaderPromise = ReturnType<DataContext['client']>
+    type Reader = Awaited<ReaderPromise>
+
+    const key = 'client'
+
+    const reader = this.#appReaders.get(key)
+
+    if (reader !== undefined) {
+      return Promise.resolve(reader as Reader)
+    }
+
+    let initializer = this.#initializers.get(key)
+
+    if (initializer !== undefined) {
+      return initializer as ReaderPromise
+    }
+
+    initializer = this.#client().then(async (clientReader) => {
+      const client = clientReader.view((value) => {
+        if (value.DefaultCurrency !== currency) {
+          throw new SaxoBankDefaultCurrencyMismatchError(currency, value.DefaultCurrency)
+        }
+
+        return {
+          key: value.ClientKey,
+          currency: value.DefaultCurrency,
+        }
+      })
+
+      const clientBalance = await this.#balance({ clientKey: client.value.key })
+
+      const balance = clientBalance.view((value) => {
+        if (value.Currency !== currency) {
+          throw new SaxoBankDefaultCurrencyMismatchError(currency, value.Currency)
+        }
+
+        return mapClientBalance(value)
+      })
+
+      let value = {
+        key: client.value.key,
+        currency: client.value.currency,
+        balance: balance.value,
+      }
+
+      const combinedReader = new DataContextReader({
+        dispose: async () => {
+          await clientBalance.dispose()
+
+          if (this.#error !== undefined) {
+            throw this.#error
+          }
+        },
+        read: () => {
+          return value
+        },
+        refresh: () => {
+          clientReader.refresh()
+          clientBalance.refresh()
+
+          value = {
+            key: client.value.key,
+            currency: client.value.currency,
+            balance: balance.value,
+          }
+        },
+      })
+
+      this.#appReaders.set('client', combinedReader)
+
+      return combinedReader
+    }).finally(() => {
+      this.#initializers.delete('client')
+    })
+
+    return initializer as ReaderPromise
+  }
+
+  account({ accountID, currency }: { readonly accountID: string; readonly currency: Currency3 }): Promise<
+    DataContextReader<DataContextAccount>
   > {
-    return await this.#createAppReader({
-      key: 'client-me',
-      wait: 10 * 60 * 1000, // 10 minutes
-      read: (signal) => this.app.portfolio.clients.me({ signal }),
-      map: (response) => response,
-      // map: (response) => {
-      //   return {
-      //     clientKey: response.ClientKey,
-      //     name: response.Name,
-      //     nettingProfile: response.PositionNettingProfile,
-      //     protectionLimit: response.AccountValueProtectionLimit ?? 0,
-      //   }
-      // },
+    type ReaderPromise = ReturnType<DataContext['account']>
+    type Reader = Awaited<ReaderPromise>
+
+    const key = 'account-' + accountID
+
+    const reader = this.#appReaders.get(key)
+
+    if (reader !== undefined) {
+      return Promise.resolve(reader as Reader)
+    }
+
+    let initializer = this.#initializers.get(key) as undefined | ReaderPromise
+
+    if (initializer !== undefined) {
+      return initializer
+    }
+
+    initializer = this.#client().then(async (clientReader) => {
+      const accountsReader = await this.#accounts({ clientKey: clientReader.value.ClientKey })
+
+      const accountNotFound = accountsReader.value.find((account) => account.AccountId === accountID) === undefined
+
+      if (accountNotFound) {
+        throw new SaxoBankAccountNotFoundError(accountID)
+      }
+
+      const account = accountsReader.view((accounts) => {
+        const found = accounts.find((account) => account.AccountId === accountID)
+
+        if (found === undefined) {
+          throw new SaxoBankAccountNotFoundError(accountID)
+        }
+
+        if (found.Currency !== currency) {
+          throw new SaxoBankAccountCurrencyMismatchError(accountID, currency, found.Currency)
+        }
+
+        return {
+          ID: found.AccountId,
+          key: found.AccountKey,
+        }
+      })
+
+      const balanceReader = await this.#balance({
+        clientKey: clientReader.value.ClientKey,
+        accountKey: account.value.key,
+      })
+
+      const balance = balanceReader.view((value) => {
+        if (value.Currency !== currency) {
+          throw new SaxoBankAccountCurrencyMismatchError(accountID, currency, value.Currency)
+        }
+
+        return mapAccountBalance(accountID, value)
+      })
+
+      let value = {
+        ID: account.value.ID,
+        key: account.value.key,
+        currency,
+        balance: balance.value,
+      }
+
+      const combinedReader = new DataContextReader({
+        dispose: async () => {
+          await balanceReader.dispose()
+
+          if (this.#error !== undefined) {
+            throw this.#error
+          }
+        },
+        read: () => {
+          return value
+        },
+        refresh: () => {
+          accountsReader.refresh()
+          balanceReader.refresh()
+
+          value = {
+            ID: account.value.ID,
+            key: account.value.key,
+            currency,
+            balance: balance.value,
+          }
+        },
+      })
+
+      this.#appReaders.set(key, combinedReader)
+
+      return combinedReader
+    }).finally(() => {
+      this.#initializers.delete(key)
     })
+
+    return initializer as ReaderPromise
   }
 
-  async accounts(
-    { clientKey }: { readonly clientKey: string },
-  ): Promise<DataContextReader<readonly AccountResponse[]>> {
-    return await this.#createAppReader({
-      key: 'accounts-' + clientKey,
-      wait: 9 * 60 * 1000, // 9 minutes
-      read: (signal) =>
-        toArray(this.app.portfolio.accounts.get({ ClientKey: clientKey, IncludeSubAccounts: true }, { signal })),
-      map: (accounts) => {
-        return accounts
-          .filter((account) =>
-            account.Active === true &&
-            account.AccountSubType === 'None' &&
-            account.AccountType === 'Normal'
-          )
-      },
-    })
-  }
+  // /** instruments */
+  // search(): void {
+  //   throw new Error('Not implemented')
+  // }
 
-  /** instruments */
-  search(): void {
-    throw new Error('Not implemented')
-  }
+  // add({ uics }: { readonly uics: readonly number[] }): Promise<void> {
+  //   throw new Error('Not implemented')
+  // }
 
-  add({ uics }: { readonly uics: readonly number[] }): Promise<void> {
-    throw new Error('Not implemented')
-  }
+  // get({}: { assetType: string; uic: number }): unknown /* instrument */ {
+  //   throw new Error('Not implemented')
+  // }
 
-  get({}: { assetType: string; uic: number }): unknown /* instrument */ {
-    throw new Error('Not implemented')
-  }
+  // has({}: { assetType: string; uic: number }): boolean {
+  //   throw new Error('Not implemented')
+  // }
 
-  has({}: { assetType: string; uic: number }): boolean {
-    throw new Error('Not implemented')
-  }
-
-  tryGet({}: { assetType: string; uic: number }): unknown /* instrument */ {
-    throw new Error('Not implemented')
-  }
+  // tryGet({}: { assetType: string; uic: number }): unknown /* instrument */ {
+  //   throw new Error('Not implemented')
+  // }
 }
 
 export class DataContextReader<T> {

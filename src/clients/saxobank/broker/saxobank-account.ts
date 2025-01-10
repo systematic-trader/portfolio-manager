@@ -1,28 +1,32 @@
 import { toArray } from '../../../utils/async-iterable.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
-import type { DataContext, DataContextBalance, DataContextReader } from './data-context.ts'
+import type { DataContext, DataContextAccount, DataContextReader } from './data-context.ts'
 import { mapInstrumentSessions } from './market-session.ts'
 import { SaxoBankTransferCashOrder } from './saxobank-transfer-cash-order.ts'
 
 export class SaxoBankAccount<Options extends { readonly accountID: string; readonly currency: Currency3 }> {
   readonly #context: DataContext
-  readonly #balance: DataContextReader<DataContextBalance>
+  readonly #account: DataContextReader<DataContextAccount>
   readonly #currencyConversionFee: number
 
   /** The account ID. */
-  readonly ID: Options['accountID'] // '3432432INET'
+  get ID(): Options['accountID'] { // '3432432INET'
+    return this.#account.value.ID
+  }
 
   /** The currency of the account. */
-  readonly currency: Options['currency'] // Currency
+  get currency(): Options['currency'] { // Currency
+    return this.#account.value.currency
+  }
 
   /** The cash available for trading. */
   get cash(): number {
-    return this.#balance.value.cash
+    return this.#account.value.balance.cash
   }
 
   /** The total value of the account. */
   get total(): number {
-    return this.#balance.value.total
+    return this.#account.value.balance.total
   }
 
   /** The margin of the account. */
@@ -39,33 +43,29 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
 
   constructor({
     context,
-    balance,
+    account,
     currencyConversionFee,
-    accountID,
-    currency,
-  }: Options & {
+  }: {
     readonly context: DataContext
-    readonly balance: DataContextReader<DataContextBalance>
+    readonly account: DataContextReader<DataContextAccount>
     readonly currencyConversionFee: number
   }) {
     this.#context = context
-    this.#balance = balance
+    this.#account = account
     this.#currencyConversionFee = currencyConversionFee
-    this.ID = accountID
-    this.currency = currency
 
     this.margin = {
       get available() {
-        return balance.value.marginAvailable
+        return account.value.balance.marginAvailable
       },
       get used() {
-        return balance.value.marginUsed
+        return account.value.balance.marginUsed
       },
       get total() {
-        return balance.value.marginTotal
+        return account.value.balance.marginTotal
       },
       get utilization() {
-        return balance.value.marginUtilization
+        return account.value.balance.marginUtilization
       },
     }
   }

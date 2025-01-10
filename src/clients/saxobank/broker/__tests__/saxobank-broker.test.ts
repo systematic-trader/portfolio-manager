@@ -1,5 +1,6 @@
 import { expect, test } from '../../../../utils/testing.ts'
-import { SaxoBankBroker, SaxoBankBrokerOptionsError } from '../saxobank-broker.ts'
+import { SaxoBankAccountCurrencyMismatchError, SaxoBankDefaultCurrencyMismatchError } from '../errors.ts'
+import { SaxoBankBroker } from '../saxobank-broker.ts'
 
 test('broker properties', async () => {
   const options = await SaxoBankBroker.options({ type: 'Live' })
@@ -28,9 +29,7 @@ test('Invalid broker currency', async () => {
   const otherCurrency = options.currency === 'EUR' ? 'USD' : 'EUR'
 
   await expect(SaxoBankBroker({ ...options, currency: otherCurrency })).rejects.toThrow(
-    new SaxoBankBrokerOptionsError(
-      `Broker currency must be set to "${options.currency}" and not "${otherCurrency}"`,
-    ),
+    new SaxoBankDefaultCurrencyMismatchError(otherCurrency, options.currency),
   )
 })
 
@@ -38,9 +37,7 @@ test('Invalid account ID', async () => {
   const options = await SaxoBankBroker.options({ type: 'Live' })
 
   await expect(SaxoBankBroker({ ...options, accounts: { ABC: 'USD' } })).rejects.toThrow(
-    new SaxoBankBrokerOptionsError(
-      `Broker account unknown: "ABC"`,
-    ),
+    `"ABC"`,
   )
 })
 
@@ -55,10 +52,10 @@ test('Invalid account currency', async () => {
 
   const acccountsWithInvalidCurrency = Object.fromEntries([firstEntry])
 
+  const accountID = firstEntry[0]
+  const actualCurrency = firstEntryCurrency
+  const expectedCurrency = firstEntry[1]
+
   await expect(SaxoBankBroker({ ...options, accounts: acccountsWithInvalidCurrency })).rejects
-    .toThrow(
-      new SaxoBankBrokerOptionsError(
-        `Broker account "${firstEntry[0]}" currency must be set to "${firstEntryCurrency}" and not "${firstEntry[1]}"`,
-      ),
-    )
+    .toThrow(new SaxoBankAccountCurrencyMismatchError(accountID, expectedCurrency, actualCurrency))
 })

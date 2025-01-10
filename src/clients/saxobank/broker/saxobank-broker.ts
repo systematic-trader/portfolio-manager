@@ -2,6 +2,7 @@ import { toArray } from '../../../utils/async-iterable.ts'
 import { SaxoBankApplication } from '../../saxobank-application.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
 import { DataContext } from './data-context.ts'
+import { SaxoBankAccountNotFoundError } from './errors.ts'
 import { SaxoBankAccount } from './saxobank-account.ts'
 
 const DEFAULTS = {
@@ -42,9 +43,16 @@ export interface SaxoBankBroker<Options extends SaxoBankBrokerOptions> extends A
   }
 
   /** The accounts of the broker. */
-  readonly accounts: {
-    [K in keyof Options['accounts'] & string]: SaxoBankAccount<{ accountID: K; currency: Options['accounts'][K] }>
-  }
+  readonly accounts:
+    & {
+      [K in keyof Options['accounts'] & string]: SaxoBankAccount<{ accountID: K; currency: Options['accounts'][K] }>
+    }
+    & {
+      /** Get the account by ID and currency. */
+      get<AccountID extends string, Currency extends Currency3>(
+        { ID, currency }: { readonly ID: AccountID; readonly currency: Currency },
+      ): Promise<undefined | SaxoBankAccount<{ accountID: string; currency: Currency3 }>>
+    }
 
   readonly positions: {
     readonly unrealized: number
@@ -57,127 +65,107 @@ export interface SaxoBankBroker<Options extends SaxoBankBrokerOptions> extends A
   refresh(): void
 }
 
-export class SaxoBankBrokerOptionsError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = this.constructor.name
-  }
-}
-
 export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions>(
   options: SaxoBankBrokerOptions,
 ): Promise<SaxoBankBroker<Options>> {
   const context = new DataContext({ type: options.type })
 
   try {
-    const clientReader = await context.client().then((reader) => {
-      return reader.view((value) => {
-        if (value.PositionNettingProfile !== 'FifoRealTime') {
-          throw new SaxoBankBrokerOptionsError('Position Netting must be Real-time FIFO')
+    const client = await context.client({ currency: options.currency })
+
+    const accountInitializers = new Map<string, Promise<unknown>>()
+
+    const accounts = {
+      get: ({ ID, currency }: { readonly ID: string; readonly currency: Currency3 }) => {
+        const account = accounts[ID]
+
+        if (account !== undefined) {
+          return account
         }
 
-        if ((value.AccountValueProtectionLimit ?? 0) > 0) {
-          throw new SaxoBankBrokerOptionsError('Account Value Protection Limit must be 0')
+        let initializer = accountInitializers.get(ID)
+
+        if (initializer !== undefined) {
+          return initializer as Promise<SaxoBankAccount<{ accountID: string; currency: Currency3 }>>
         }
 
-        return {
-          clientKey: value.ClientKey,
-        }
-      })
-    })
+        initializer = context.account({ accountID: ID, currency }).then((accountReader) => {
+          const account = new SaxoBankAccount({
+            context,
+            account: accountReader,
+            currencyConversionFee: options.currencyConversionFee ?? DEFAULTS.currencyConversionFee,
+          })
 
-    const clientBalanceReader = await context.balance({ clientKey: clientReader.value.clientKey }).then((reader) => {
-      return reader.view((value) => {
-        if (options.currency !== value.currency) {
-          throw new SaxoBankBrokerOptionsError(
-            `Broker currency must be set to "${value.currency}" and not "${options.currency}"`,
-          )
-        }
+          Reflect.set(accounts, ID, account)
 
-        return value
-      })
-    })
-
-    const accountsReader = await context.accounts({ clientKey: clientReader.value.clientKey }).then((reader) => {
-      return reader.view((value) => {
-        for (const [accountId, accountCurrency] of Object.entries(options.accounts)) {
-          const account = value.find((account) => account.AccountId === accountId)
-          if (account === undefined) {
-            throw new SaxoBankBrokerOptionsError(`Broker account unknown: "${accountId}"`)
+          return account
+        }).catch((error) => {
+          if (error instanceof SaxoBankAccountNotFoundError) {
+            return undefined
           }
 
-          if (account.Currency !== accountCurrency) {
-            throw new SaxoBankBrokerOptionsError(
-              `Broker account "${accountId}" currency must be set to "${account.Currency}" and not "${accountCurrency}"`,
-            )
-          }
+          throw error
+        }).finally(() => {
+          accountInitializers.delete(ID)
+        })
+
+        return initializer as Promise<SaxoBankAccount<{ accountID: string; currency: Currency3 }>>
+      },
+    } as SaxoBankBroker<Options>['accounts']
+
+    await Promise.allSettled(
+      Object.entries(options.accounts).map(async ([accountID, accountCurrency]) => {
+        return new SaxoBankAccount({
+          context,
+          account: await context.account({ accountID, currency: accountCurrency }),
+          currencyConversionFee: options.currencyConversionFee ?? DEFAULTS.currencyConversionFee,
+        })
+      }),
+    ).then((results) => {
+      return results.map((result) => {
+        if (result.status === 'rejected') {
+          throw result.reason
         }
 
-        return value
+        Reflect.set(accounts, result.value.ID, result.value)
       })
     })
 
     const broker = {
-      currency: options.currency,
+      get currency() {
+        return client.value.currency
+      },
 
       get cash() {
-        return clientBalanceReader.value.cash
+        return client.value.balance.cash
       },
 
       margin: {
         get available() {
-          return clientBalanceReader.value.marginAvailable
+          return client.value.balance.marginAvailable
         },
         get used() {
-          return clientBalanceReader.value.marginUsed
+          return client.value.balance.marginUsed
         },
         get total() {
-          return clientBalanceReader.value.marginTotal
+          return client.value.balance.marginTotal
         },
         get utilization() {
-          return clientBalanceReader.value.marginUtilization
+          return client.value.balance.marginUtilization
         },
       },
 
       positions: {
         get unrealized() {
-          return clientBalanceReader.value.positionsUnrealized
+          return client.value.balance.positionsUnrealized
         },
       },
 
       get total() {
-        return clientBalanceReader.value.total
+        return client.value.balance.total
       },
 
-      accounts: Object.fromEntries(
-        await Promise.allSettled(
-          Object.keys(options.accounts).map(async (accountID) => {
-            const account = accountsReader.value.find((account) => account.AccountId === accountID)!
-            const accountBalance = await context.balance({
-              clientKey: clientReader.value.clientKey,
-              accountKey: account.AccountKey,
-            })
-
-            return new SaxoBankAccount(
-              {
-                context,
-                balance: accountBalance,
-                currencyConversionFee: options.currencyConversionFee ?? DEFAULTS.currencyConversionFee,
-                accountID,
-                currency: options.accounts[accountID] as Currency3,
-              },
-            )
-          }),
-        ).then((results) => {
-          return results.map((result) => {
-            if (result.status === 'rejected') {
-              throw result.reason
-            }
-
-            return [result.value.ID, result.value] as const
-          })
-        }),
-      ) as SaxoBankBroker<Options>['accounts'],
+      accounts,
 
       [Symbol.asyncDispose](): Promise<void> {
         return context[Symbol.asyncDispose]()

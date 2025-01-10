@@ -4,12 +4,25 @@ import { Currency3 } from '../../types/derives/currency.ts'
 import { SaxoBankBroker } from '../saxobank-broker.ts'
 
 test('account properties', async () => {
-  await using broker = await SaxoBankBroker(await SaxoBankBroker.options({ type: 'Live' }))
+  const options = await SaxoBankBroker.options({ type: 'Live' })
+  await using broker = await SaxoBankBroker(options)
 
   try {
-    expect(Object.keys(broker.accounts).length).toBeGreaterThan(0)
+    const loadedAccounts = Object.keys(options.accounts).length
 
-    for (const [ID, account] of Object.entries(broker.accounts)) {
+    expect(loadedAccounts).toBeGreaterThan(0)
+
+    let loaded = 0
+
+    for (const [ID, currency] of Object.entries(options.accounts)) {
+      const account = await broker.accounts.get({ ID, currency })
+
+      if (account === undefined) {
+        throw new Error(`Account not found: ${ID}`)
+      }
+
+      expect(broker.accounts[ID]).toBe(account)
+
       expect(account.ID).toBe(ID)
       expect(is(Currency3)(account.currency)).toBe(true)
       expect(account.cash).toBeGreaterThanOrEqual(0)
@@ -18,7 +31,11 @@ test('account properties', async () => {
       expect(account.margin.used).toBeGreaterThanOrEqual(0)
       expect(account.margin.total).toBeGreaterThanOrEqual(0)
       expect(account.margin.utilization).toBeGreaterThanOrEqual(0)
+
+      loaded++
     }
+
+    expect(loaded).toBe(loadedAccounts)
   } finally {
     await broker.dispose()
   }
