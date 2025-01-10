@@ -984,7 +984,7 @@ export const PositionResponseUnknown = props({
 export interface PositionResponseUnknown extends GuardType<typeof PositionResponseUnknown> {}
 // #endregion
 
-export const PositionResponseUnion = union([
+export const ClosedPositionResponseUnion = union([
   PositionResponseBond,
   PositionResponseCfdOnEtc,
   PositionResponseCfdOnEtf,
@@ -1004,7 +1004,7 @@ export const PositionResponseUnion = union([
   PositionResponseUnknown,
 ])
 
-export type PositionResponseUnion =
+export type ClosedPositionResponseUnion =
   | PositionResponseBond
   | PositionResponseCfdOnEtc
   | PositionResponseCfdOnEtf

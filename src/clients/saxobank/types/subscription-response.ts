@@ -8,7 +8,7 @@ import {
   string,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
-export function createSubscriptionResponseGuard<T>(snapshotGuard: Guard<T>): ObjectGuard<{
+export function subscriptionResponseGuard<T>(snapshotGuard: Guard<T>): ObjectGuard<{
   ContextId: Guard<string>
   Format: Guard<'application/json' | 'application/x-protobuf'>
   InactivityTimeout: Guard<number>

@@ -14,8 +14,8 @@ import type { PromiseQueue } from '../../../../utils/promise-queue.ts'
 import type { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { SaxoBankRandom } from '../../saxobank-random.ts'
 import { sanitizeSaxobankValue } from '../../service-group-client/sanitize-saxobank-value.ts'
-import type { OpenOrdersRequest } from '../../types/records/open-orders-request.ts'
-import { OrderResponseUnion } from '../../types/records/order-response.ts'
+import { ClosedPositionResponseUnion } from '../../types/records/closed-position-response.ts'
+import type { ClosedPositionsRequest } from '../../types/records/closed-positions-request.ts'
 import {
   SaxoBankSubscription,
   type SaxoBankSubscriptionCreateReferenceId,
@@ -25,18 +25,18 @@ import {
 } from '../saxobank-subscription.ts'
 
 const Payload = array(props({
-  OrderId: string(),
+  ClosedPositionUniqueId: string(),
 }, { extendable: true }))
 
-const OrderDeletedMessage = props({
-  OrderId: string(),
+const ClosedPositionDeletedMessage = props({
+  ClosedPositionUniqueId: string(),
   '__meta_deleted': literal(true),
 })
 
-const isOrderDeletedMessage = is(OrderDeletedMessage)
+const isClosedPositionDeletedMessage = is(ClosedPositionDeletedMessage)
 
-export class SaxoBankSubscriptionOrders extends SaxoBankSubscription<readonly OrderResponseUnion[]> {
-  readonly options: OpenOrdersRequest
+export class SaxoBankSubscriptionClosedPositions extends SaxoBankSubscription<readonly ClosedPositionResponseUnion[]> {
+  readonly options: ClosedPositionsRequest
 
   constructor({
     options,
@@ -49,7 +49,7 @@ export class SaxoBankSubscriptionOrders extends SaxoBankSubscription<readonly Or
     readonly queue: PromiseQueue
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
-    readonly options: ArgumentType<OpenOrdersRequest>
+    readonly options: ArgumentType<ClosedPositionsRequest>
   }) {
     super({
       stream,
@@ -62,37 +62,41 @@ export class SaxoBankSubscriptionOrders extends SaxoBankSubscription<readonly Or
       timeout,
     })
 
-    this.options = options as OpenOrdersRequest
+    this.options = options as ClosedPositionsRequest
   }
 }
 
-const parse: SaxoBankSubscriptionParse<readonly OrderResponseUnion[]> = (previous, rawPayload) => {
+const parse: SaxoBankSubscriptionParse<readonly ClosedPositionResponseUnion[]> = (previous, rawPayload) => {
   const payload = sanitizeSaxobankValue(rawPayload)
   assert(Payload, payload)
 
-  return [payload.reduce<readonly OrderResponseUnion[]>((orders, message) => {
-    const index = orders.findIndex((order) => order.OrderId === message.OrderId)
-    const order = orders[index]
+  return [payload.reduce<readonly ClosedPositionResponseUnion[]>((closedPositions, message) => {
+    const index = closedPositions.findIndex((closedPosition) =>
+      closedPosition.ClosedPositionUniqueId === message.ClosedPositionUniqueId
+    )
+    const position = closedPositions[index]
 
-    // If we don't know the order by it's ID, we assume it's a new order - and it must pass the order guard
-    if (order === undefined) {
-      assert(OrderResponseUnion, message)
-      return [...orders, message]
+    // If we don't know the position by it's ID, we assume it's a new position - and it must pass the position guard
+    if (position === undefined) {
+      assert(ClosedPositionResponseUnion, message)
+      return [...closedPositions, message]
     }
 
-    // If we do know the order id, we should check for the the __meta_deleted-property (this happens when the order is filled or cancelled)
-    if (isOrderDeletedMessage(message)) {
-      return [...orders.slice(0, index), ...orders.slice(index + 1)]
+    // If we do know the position id, we should check for the the __meta_deleted-property (this happens when the position is filled or cancelled)
+    if (isClosedPositionDeletedMessage(message)) {
+      return [...closedPositions.slice(0, index), ...closedPositions.slice(index + 1)]
     }
 
-    // If none of the above matches the message, the message must be a update to the order (containing only the changed properties)
-    const mergedOrder = mergeDeltaContent(order, message)
-    assert(OrderResponseUnion, mergedOrder)
-    return [...orders.slice(0, index), mergedOrder, ...orders.slice(index + 1)]
+    // If none of the above matches the message, the message must be a update to the position (containing only the changed properties)
+    const mergedPosition = mergeDeltaContent(position, message)
+    assert(ClosedPositionResponseUnion, mergedPosition)
+    return [...closedPositions.slice(0, index), mergedPosition, ...closedPositions.slice(index + 1)]
   }, previous)]
 }
 
-function createReferenceIdGenerator(options: ArgumentType<OpenOrdersRequest>): SaxoBankSubscriptionCreateReferenceId {
+function createReferenceIdGenerator(
+  options: ArgumentType<ClosedPositionsRequest>,
+): SaxoBankSubscriptionCreateReferenceId {
   const accountGroupKey = options.AccountGroupKey === undefined ? undefined : `g${options.AccountGroupKey}`
   const accountKey = options.AccountKey === undefined ? undefined : `a${options.AccountKey}`
   const clientKey = options.ClientKey === undefined ? undefined : `c${options.ClientKey}`
@@ -102,18 +106,18 @@ function createReferenceIdGenerator(options: ArgumentType<OpenOrdersRequest>): S
     .join('-')
     .replace(/[^a-zA-Z]/g, 'x')
 
-  return () => SaxoBankRandom.stream.referenceId(`orders-${infix}`)
+  return () => SaxoBankRandom.stream.referenceId(`closed-positions-${infix}`)
 }
 
 function createSubscribe(
-  options: ArgumentType<OpenOrdersRequest>,
-): SaxoBankSubscriptionSubscribe<readonly OrderResponseUnion[]> {
+  options: ArgumentType<ClosedPositionsRequest>,
+): SaxoBankSubscriptionSubscribe<readonly ClosedPositionResponseUnion[]> {
   return async function subscribe({ app, contextId, referenceId, previousReferenceId, timeout, signal }): Promise<{
     readonly referenceId: string
-    readonly message: readonly OrderResponseUnion[]
+    readonly message: readonly ClosedPositionResponseUnion[]
     readonly inactivityTimeout: number
   }> {
-    const response = await app.portfolio.orders.subscriptions.post({
+    const response = await app.portfolio.closedPositions.subscriptions.post({
       Arguments: options,
       ContextId: contextId,
       ReferenceId: referenceId,
@@ -149,7 +153,7 @@ function createSubscribe(
       )
     }
 
-    const message = assertReturn(array(OrderResponseUnion), coerce(OrderResponseUnion)(Data))
+    const message = assertReturn(array(ClosedPositionResponseUnion), coerce(ClosedPositionResponseUnion)(Data))
 
     return {
       referenceId: response.ReferenceId,
@@ -160,7 +164,7 @@ function createSubscribe(
 }
 
 const unsubscribe: SaxoBankSubscriptionUnsubscribe = async ({ app, contextId, referenceId, timeout, signal }) => {
-  await app.portfolio.orders.subscriptions.delete({
+  await app.portfolio.positions.subscriptions.delete({
     ContextId: contextId,
     ReferenceId: referenceId,
   }, { timeout, signal })

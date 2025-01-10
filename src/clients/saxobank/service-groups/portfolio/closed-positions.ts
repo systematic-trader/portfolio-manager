@@ -26,6 +26,7 @@ import {
   ClosedPositionResponseUnknown,
 } from '../../types/records/closed-position-response.ts'
 import type { ClosedPositionsRequest } from '../../types/records/closed-positions-request.ts'
+import { Subscriptions } from './closed-positions/subscriptions.ts'
 
 const FieldGroups: ClosedPositionFieldGroup[] = [
   'ClosedPosition',
@@ -37,12 +38,12 @@ const FieldGroups: ClosedPositionFieldGroup[] = [
 export class ClosedPositions {
   readonly #client: ServiceGroupClient
 
-  // readonly subscriptions: Subscriptions // todo
+  readonly subscriptions: Subscriptions
 
   constructor({ client }: { readonly client: ServiceGroupClient }) {
     this.#client = client.appendPath('v1/closedpositions')
 
-    // this.subscriptions = new Subscriptions({ client: this.#client })
+    this.subscriptions = new Subscriptions({ client: this.#client })
   }
 
   async *get(
