@@ -35,7 +35,7 @@ test('SaxoBankStream', async () => {
 
   let count = 0
 
-  const infoprice = stream.infoPrice(EURUSD)
+  const infoprice = await stream.infoPrice(EURUSD)
 
   infoprice.addListener('message', (message) => {
     count++
