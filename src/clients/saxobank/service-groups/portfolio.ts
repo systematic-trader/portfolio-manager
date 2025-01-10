@@ -6,6 +6,7 @@ import { Clients } from './portfolio/clients.ts'
 import { ClosedPositions } from './portfolio/closed-positions.ts'
 import { Exposure } from './portfolio/exposure.ts'
 import { IsAlive } from './portfolio/is-alive.ts'
+import { NetPositions } from './portfolio/net-positions.ts'
 import { Orders } from './portfolio/orders.ts'
 import { Positions } from './portfolio/positions.ts'
 import { Users } from './portfolio/users.ts'
@@ -18,6 +19,7 @@ export class Portfolio {
   readonly closedPositions: ClosedPositions
   readonly exposure: Exposure
   readonly isAlive: IsAlive
+  readonly netPositions: NetPositions
   readonly orders: Orders
   readonly positions: Positions
   readonly users: Users
@@ -32,6 +34,7 @@ export class Portfolio {
     this.closedPositions = new ClosedPositions({ client: serviceGroupClient })
     this.exposure = new Exposure({ client: serviceGroupClient })
     this.isAlive = new IsAlive({ client: serviceGroupClient })
+    this.netPositions = new NetPositions({ client: serviceGroupClient })
     this.orders = new Orders({ client: serviceGroupClient })
     this.positions = new Positions({ client: serviceGroupClient })
     this.users = new Users({ client: serviceGroupClient })
