@@ -2,7 +2,7 @@ import type { ArgumentType } from 'https://raw.githubusercontent.com/systematic-
 import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
 import type { OrderFieldGroup } from '../../../types/derives/order-field-group.ts'
 import type { OpenOrdersRequest } from '../../../types/records/open-orders-request.ts'
-import { OrderSubscriptionResponse } from '../../../types/records/order-subscription-response.ts'
+import { OrderSubscriptionListResponse } from '../../../types/records/order-subscription-list-response.ts'
 
 const FieldGroups: OrderFieldGroup[] = [
   'DisplayAndFormat',
@@ -28,7 +28,7 @@ export class Subscriptions {
       readonly Tag?: undefined | string
     },
     httpOptions: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
-  ): Promise<OrderSubscriptionResponse> {
+  ): Promise<OrderSubscriptionListResponse> {
     return await this.#client.post({
       body: {
         ...options,
@@ -37,7 +37,7 @@ export class Subscriptions {
           FieldGroups,
         },
       },
-      guard: OrderSubscriptionResponse,
+      guard: OrderSubscriptionListResponse,
       timeout: httpOptions.timeout,
       signal: httpOptions.signal,
     }).execute()

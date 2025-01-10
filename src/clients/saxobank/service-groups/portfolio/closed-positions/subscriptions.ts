@@ -1,17 +1,14 @@
 import type { ArgumentType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { ServiceGroupClient } from '../../../service-group-client/service-group-client.ts'
-import type { PositionFieldGroup } from '../../../types/derives/position-field-group.ts'
-import { PositionSubscriptionListResponse } from '../../../types/records/position-subscription-list-response.ts'
-import type { PositionsRequest } from '../../../types/records/positions-request.ts'
+import type { ClosedPositionFieldGroup } from '../../../types/derives/closed-position-field-group.ts'
+import { ClosedPositionSubscriptionListResponse } from '../../../types/records/closed-position-subscription-list-response.ts'
+import type { ClosedPositionsRequest } from '../../../types/records/closed-positions-request.ts'
 
-const FieldGroups: PositionFieldGroup[] = [
-  'Costs',
+const FieldGroups: ClosedPositionFieldGroup[] = [
+  'ClosedPosition',
+  'ClosedPositionDetails',
   'DisplayAndFormat',
   'ExchangeInfo',
-  'Greeks',
-  'PositionBase',
-  'PositionIdOnly',
-  'PositionView',
 ]
 
 export class Subscriptions {
@@ -23,7 +20,7 @@ export class Subscriptions {
 
   async post(
     options: {
-      readonly Arguments: ArgumentType<PositionsRequest>
+      readonly Arguments: ArgumentType<ClosedPositionsRequest>
       readonly ContextId: string
       readonly Format?: undefined | 'application/json' | 'application/x-protobuf'
       readonly ReferenceId: string
@@ -32,7 +29,7 @@ export class Subscriptions {
       readonly Tag?: undefined | string
     },
     httpOptions: undefined | { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
-  ): Promise<PositionSubscriptionListResponse> {
+  ): Promise<ClosedPositionSubscriptionListResponse> {
     return await this.#client.post({
       body: {
         ...options,
@@ -41,7 +38,7 @@ export class Subscriptions {
           FieldGroups,
         },
       },
-      guard: PositionSubscriptionListResponse,
+      guard: ClosedPositionSubscriptionListResponse,
       timeout: httpOptions.timeout,
       signal: httpOptions.signal,
     }).execute()

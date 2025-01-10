@@ -12,6 +12,7 @@ import { SaxoBankRandom } from './saxobank/saxobank-random.ts'
 import { parseSaxoBankMessage } from './saxobank/stream/saxobank-message.ts'
 import type { SaxoBankSubscription } from './saxobank/stream/saxobank-subscription.ts'
 import { SaxoBankSubscriptionBalance } from './saxobank/stream/subscriptions/saxobank-subscription-balance.ts'
+import { SaxoBankSubscriptionClosedPositions } from './saxobank/stream/subscriptions/saxobank-subscription-closed-positions.ts'
 import {
   type InfoPriceSubscriptionOptions,
   SaxoBankSubscriptionInfoPrice,
@@ -20,6 +21,7 @@ import { SaxoBankSubscriptionOrders } from './saxobank/stream/subscriptions/saxo
 import { SaxoBankSubscriptionPositions } from './saxobank/stream/subscriptions/saxobank-subscription-positions.ts'
 import { SaxoBankSubscriptionPrice } from './saxobank/stream/subscriptions/saxobank-subscription-price.ts'
 import type { BalanceRequest } from './saxobank/types/records/balance-request.ts'
+import type { ClosedPositionsRequest } from './saxobank/types/records/closed-positions-request.ts'
 import type { OpenOrdersRequest } from './saxobank/types/records/open-orders-request.ts'
 import type { PositionsRequest } from './saxobank/types/records/positions-request.ts'
 import type { PriceRequest } from './saxobank/types/records/price-request.ts'
@@ -678,6 +680,19 @@ export class SaxoBankStream extends EventSwitch<{
   ): Promise<SaxoBankSubscriptionPositions> {
     return this.#decorateSubscription(
       new SaxoBankSubscriptionPositions({
+        stream: this,
+        queue: this.#queueStream,
+        options,
+        signal: this.#signal,
+      }),
+    )
+  }
+
+  closedPositions(
+    options: ArgumentType<ClosedPositionsRequest>,
+  ): Promise<SaxoBankSubscriptionClosedPositions> {
+    return this.#decorateSubscription(
+      new SaxoBankSubscriptionClosedPositions({
         stream: this,
         queue: this.#queueStream,
         options,
