@@ -1,3 +1,5 @@
+import { Currency3 } from '../types/derives/currency.ts'
+
 export class SaxoBankBrokerOptionsError extends Error {
   constructor(message: string) {
     super(message)
@@ -38,6 +40,35 @@ export class SaxoBankClientBalancePropertyUndefinedError extends Error {
 export class SaxoBankAccountBalancePropertyUndefinedError extends Error {
   constructor(accountID: string, property: string) {
     super(`SaxoBank account "${accountID}" property undefined:  "${property}"`)
+    this.name = this.constructor.name
+  }
+}
+
+export class SaxoBankAccountTransferPermissionError extends Error {
+  constructor({ fromAccountID, toAccountID }: { readonly fromAccountID: string; readonly toAccountID: string }) {
+    super(`The account ${fromAccountID} is not allowed to transfer cash to ${toAccountID}.`)
+    this.name = this.constructor.name
+  }
+}
+
+export class SaxoBankAccountTransferInsufficientCashError extends Error {
+  constructor({
+    account,
+    withdraw,
+  }: {
+    readonly account: { readonly ID: string; readonly currency: Currency3; readonly cash: number }
+    readonly withdraw: number
+  }) {
+    super(
+      `Insufficient cash in account ${account.ID} where ${account.currency} ${account.cash} is available and ${account.currency} ${withdraw} cannot be withdrawn.`,
+    )
+    this.name = this.constructor.name
+  }
+}
+
+export class SaxoBankMarketClosedError extends Error {
+  constructor(message: string) {
+    super(message)
     this.name = this.constructor.name
   }
 }

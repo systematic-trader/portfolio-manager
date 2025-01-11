@@ -1,13 +1,34 @@
 import { toArray } from '../../../utils/async-iterable.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
 import type { DataContext, DataContextAccount, DataContextReader } from './data-context.ts'
-import { mapInstrumentSessions } from './market-session.ts'
+import { mapInstrumentSessions, type MarketSessionOpened } from './market-session.ts'
 import { SaxoBankTransferCashOrder } from './saxobank-transfer-cash-order.ts'
+
+const AlwaysOpenSession: MarketSessionOpened = {
+  state: 'Open',
+  reason: 'SameCurrencyAlwaysOpen',
+  executable: true,
+  startTime: '2000-01-01T00:00:00.000Z',
+  endTime: '2100-01-01T00:00:00.000Z',
+  next: {
+    state: 'Closed',
+    reason: 'VeryFarInTheFuture',
+    executable: false,
+    startTime: '2100-01-01T00:00:00.000Z',
+    endTime: '2100-01-01T00:00:00.000Z',
+    next: undefined,
+  },
+}
 
 export class SaxoBankAccount<Options extends { readonly accountID: string; readonly currency: Currency3 }> {
   readonly #context: DataContext
   readonly #account: DataContextReader<DataContextAccount>
   readonly #currencyConversionFee: number
+
+  /** The internal SaxoBank identifier */
+  get key(): string {
+    return this.#account.value.key
+  }
 
   /** The account ID. */
   get ID(): Options['accountID'] { // '3432432INET'
@@ -93,29 +114,11 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       throw new Error('It does not make sense to transfer cash to the same account.')
     }
 
-    if (this.currency === currency) {
-      const [fxspot] = await toArray(this.#context.app.referenceData.instruments.get({
-        AssetTypes: ['FxSpot'],
-        IncludeNonTradable: false,
-        Keywords: [`${this.currency}USD`, `USD${this.currency}`],
-        limit: 1,
-      }))
+    if (amount <= 0) {
+      throw new Error('The amount must be greater than zero.')
+    }
 
-      if (fxspot === undefined) {
-        throw new Error(`No FX Spot (currency pair) found for ${this.currency} and USD.`)
-      }
-
-      const [instrumentDetails] = await toArray(this.#context.app.referenceData.instruments.details.get({
-        AssetTypes: ['FxSpot'],
-        Uics: [fxspot.Identifier],
-      }))
-
-      if (instrumentDetails === undefined) {
-        throw new Error(`No FX Spot details found for ${fxspot.Symbol}.`)
-      }
-
-      const session = mapInstrumentSessions(instrumentDetails)
-
+    if (this.currency === to.currency) {
       return new SaxoBankTransferCashOrder<
         {
           from: Options
@@ -123,23 +126,24 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
           transfer: { currency: Currency; amount: Amount }
         }
       >({
-        from: this,
-        to,
+        context: this.#context,
+        session: AlwaysOpenSession,
         transfer: { currency, amount },
+        from: { account: this, withdraw: amount, commission: 0 },
+        to: { account: to, deposit: amount },
         rate: 1,
-        session,
       })
     }
 
     const [fxspot] = await toArray(this.#context.app.referenceData.instruments.get({
       AssetTypes: ['FxSpot'],
       IncludeNonTradable: false,
-      Keywords: [`${this.currency}${currency}`, `${currency}${this.currency}`],
+      Keywords: [`${this.currency}${to.currency}`, `${to.currency}${this.currency}`],
       limit: 1,
     }))
 
     if (fxspot === undefined) {
-      throw new Error(`No FX Spot (currency pair) found for ${this.currency} and ${currency}.`)
+      throw new Error(`No FX Spot (currency pair) found for ${this.currency} and ${to.currency}.`)
     }
 
     const { Quote } = await this.#context.app.trading.infoPrices.get({
@@ -151,11 +155,6 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       throw new Error(`No FX Spot quote found for ${fxspot.Symbol}.`)
     }
 
-    const midprice = (Quote.Bid + Quote.Ask) / 2
-
-    const rate = (this.currency === fxspot.Symbol.slice(0, this.currency.length) ? midprice : 1 / midprice) *
-      (1 - this.#currencyConversionFee)
-
     const [instrumentDetails] = await toArray(this.#context.app.referenceData.instruments.details.get({
       AssetTypes: ['FxSpot'],
       Uics: [fxspot.Identifier],
@@ -165,7 +164,14 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       throw new Error(`No FX Spot details found for ${fxspot.Symbol}.`)
     }
 
-    const session = mapInstrumentSessions(instrumentDetails)
+    const midprice = (Quote.Bid + Quote.Ask) / 2
+    const rate = this.currency === fxspot.Symbol.slice(0, this.currency.length) ? midprice : 1 / midprice
+
+    const from = {
+      account: this,
+      withdraw: this.currency === currency ? amount : amount * rate,
+      commission: (this.currency === currency ? amount : amount * rate) * this.#currencyConversionFee,
+    }
 
     return new SaxoBankTransferCashOrder<
       {
@@ -174,11 +180,15 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
         transfer: { currency: Currency; amount: Amount }
       }
     >({
-      from: this,
-      to,
+      context: this.#context,
+      session: mapInstrumentSessions(instrumentDetails),
       transfer: { currency, amount },
+      from,
+      to: {
+        account: to,
+        deposit: to.currency === currency ? amount : amount / rate,
+      },
       rate,
-      session,
     })
   }
 }
