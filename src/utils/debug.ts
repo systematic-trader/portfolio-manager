@@ -282,7 +282,7 @@ function patternToRegex(pattern: string): RegExp {
       .map((r) => `(?:${r})`)
       .join('|')
 
-    return new RegExp(`^${excludeLookahead}(?:${includeRegexPart})$`)
+    return new RegExp(`^${excludeLookahead}(?:${includeRegexPart})`)
   }
 }
 
