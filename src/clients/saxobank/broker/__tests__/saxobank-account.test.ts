@@ -44,7 +44,7 @@ test('account properties', async () => {
 })
 
 describe('transfer', () => {
-  test.only('same currency', async () => {
+  test('same currency', async () => {
     const options = await SaxoBankBroker.options({ type: 'Live' })
 
     const accountID1 = Object.entries(options.accounts).find((entry): entry is [string, 'DKK'] => entry[1] === 'DKK')
@@ -67,8 +67,8 @@ describe('transfer', () => {
     type Account = SaxoBankAccount<{ accountID: string; currency: 'DKK' }>
 
     try {
-      const account2 = await broker.accounts.get({ ID: accountID1, currency: 'DKK' }) as Account
-      const account1 = await broker.accounts.get({ ID: accountID2, currency: 'DKK' }) as Account
+      const account1 = await broker.accounts.get({ ID: accountID1, currency: 'DKK' }) as Account
+      const account2 = await broker.accounts.get({ ID: accountID2, currency: 'DKK' }) as Account
 
       if (account1 === account2) {
         throw new Error('Same account')
@@ -109,7 +109,7 @@ describe('transfer', () => {
     }
   })
 
-  test('dkk to euro', async () => {
+  test.only('dkk to euro', async () => {
     const options = await SaxoBankBroker.options({ type: 'Live' })
 
     const accountID1 = Object.entries(options.accounts).find((entry): entry is [string, 'DKK'] => entry[1] === 'DKK')

@@ -14,6 +14,9 @@ import type { Currency3 } from '../types/derives/currency.ts'
 import type { AccountResponse } from '../types/records/account-response.ts'
 import type { BalanceResponse } from '../types/records/balance-response.ts'
 import type { ClientResponse } from '../types/records/client-response.ts'
+import type { InfoPriceRequest } from '../types/records/info-price-request.ts'
+import type { InstrumentDetails, InstrumentDetailsUnion } from '../types/records/instrument-details.ts'
+import type { InstrumentSummaryInfoType } from '../types/records/instrument-summary-info.ts'
 import type { PriceResponse } from '../types/records/price-response.ts'
 import {
   SaxoBankAccountBalancePropertyUndefinedError,
@@ -22,6 +25,13 @@ import {
   SaxoBankBrokerOptionsError,
   SaxoBankClientBalancePropertyUndefinedError,
   SaxoBankDefaultCurrencyMismatchError,
+  SaxoBankInstrumentNotFoundError,
+  SaxoBankInstrumentSymbolAssetTypeMismatchError,
+  SaxoBankInstrumentSymbolNotFoundError,
+  SaxoBankInstrumentSymbolsNotFoundError,
+  SaxoBankInstrumentUICAssetTypeMismatchError,
+  SaxoBankInstrumentUICNotFoundError,
+  SaxoBankInstrumentUICNotTradableError,
 } from './errors.ts'
 
 type PriceResponse = { [K in keyof typeof PriceResponse]: GuardType<typeof PriceResponse[K]> }
@@ -115,7 +125,6 @@ export class DataContext implements AsyncDisposable {
   readonly #stream3: SaxoBankStream
   readonly #stream4: SaxoBankStream
 
-  #disposePromise: undefined | Promise<void>
   #error: undefined | Error
 
   get #availableStream(): SaxoBankStream {
@@ -149,25 +158,17 @@ export class DataContext implements AsyncDisposable {
     this.#stream3 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
     this.#stream4 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
 
-    const streamDispose = () => {
-      // Do NOT return the promise here, as it will cause a deadlock
-      this[Symbol.asyncDispose]()
-    }
+    const disposeListener = this[Symbol.asyncDispose].bind(this)
 
-    this.#stream1.addListener('disposed', streamDispose)
-    this.#stream2.addListener('disposed', streamDispose)
-    this.#stream3.addListener('disposed', streamDispose)
-    this.#stream4.addListener('disposed', streamDispose)
+    this.#stream1.addListener('disposed', disposeListener)
+    this.#stream2.addListener('disposed', disposeListener)
+    this.#stream3.addListener('disposed', disposeListener)
+    this.#stream4.addListener('disposed', disposeListener)
 
-    this.#disposePromise = undefined
     this.#error = undefined
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
-    if (this.#disposePromise !== undefined) {
-      return this.#disposePromise
-    }
-
     if (this.#controller.signal.aborted) {
       if (this.#error !== undefined) {
         throw this.#error
@@ -178,11 +179,7 @@ export class DataContext implements AsyncDisposable {
 
     this.#controller.abort()
 
-    const { promise, reject, resolve } = Promise.withResolvers<void>()
-
-    this.#disposePromise = promise
-
-    Promise.allSettled(this.#initializers.values()).then(() => {
+    await Promise.allSettled(this.#initializers.values()).then(() => {
       return Promise.allSettled([
         this.#stream1.dispose(),
         this.#stream2.dispose(),
@@ -221,12 +218,8 @@ export class DataContext implements AsyncDisposable {
         if (this.#error !== undefined) {
           throw this.#error
         }
-      }).then(resolve).catch(reject).finally(() => {
-        this.#disposePromise = undefined
       })
     })
-
-    await promise
   }
 
   dispose(): Promise<void> {
@@ -722,26 +715,367 @@ export class DataContext implements AsyncDisposable {
     return initializer as ReaderPromise
   }
 
-  // /** instruments */
-  // search(): void {
-  //   throw new Error('Not implemented')
-  // }
+  readonly #instruments = new Map<string, InstrumentDetailsUnion>()
 
-  // add({ uics }: { readonly uics: readonly number[] }): Promise<void> {
-  //   throw new Error('Not implemented')
-  // }
+  async preloadInstruments(
+    options: ReadonlyArray<
+      { readonly assetType: InstrumentDetailsUnion['AssetType']; readonly uics: readonly number[] }
+    >,
+  ): Promise<void> {
+    for (const { assetType, uics } of options) {
+      if (uics.length === 0) {
+        continue
+      }
 
-  // get({}: { assetType: string; uic: number }): unknown /* instrument */ {
-  //   throw new Error('Not implemented')
-  // }
+      const unknownUics: number[] = []
 
-  // has({}: { assetType: string; uic: number }): boolean {
-  //   throw new Error('Not implemented')
-  // }
+      for (const uic of uics) {
+        const existing = this.#instruments.get(`${assetType}:${uic}`)
 
-  // tryGet({}: { assetType: string; uic: number }): unknown /* instrument */ {
-  //   throw new Error('Not implemented')
-  // }
+        if (existing === undefined) {
+          unknownUics.push(uic)
+          continue
+        }
+      }
+
+      if (unknownUics.length === 0) {
+        continue
+      }
+
+      const instruments = await toArray(
+        this.app.referenceData.instruments.details.get({
+          AssetTypes: [assetType],
+          Uics: unknownUics as [number, ...number[]],
+        }, {
+          signal: this.#controller.signal,
+        }),
+      )
+
+      for (const uic of unknownUics) {
+        const instrument = instruments.find((i) => i.Uic === uic)
+
+        if (instrument === undefined) {
+          throw new SaxoBankInstrumentUICNotFoundError(assetType, uic)
+        }
+
+        if (instrument.AssetType !== assetType) {
+          throw new Error(`AssetType mismatch for instrument with Uic ${uic}`)
+        }
+
+        if (isInstrumentTradable(instrument, assetType) === false) {
+          throw new SaxoBankInstrumentUICNotTradableError(assetType, uic)
+        }
+
+        this.#instruments.set(`${assetType}:${uic}`, instrument)
+      }
+    }
+  }
+
+  async preloadInstrumentsBySymbol(
+    options: ReadonlyArray<
+      { readonly assetType: InstrumentDetailsUnion['AssetType']; readonly symbols: readonly string[] }
+    >,
+  ): Promise<void> {
+    const preloadOptions: Array<
+      { readonly assetType: InstrumentDetailsUnion['AssetType']; readonly uics: readonly number[] }
+    > = []
+
+    for (const { assetType, symbols } of options) {
+      if (symbols.length === 0) {
+        continue
+      }
+
+      const unknownSymbols: string[] = []
+
+      for (let symbol of symbols) {
+        symbol = symbol.toUpperCase()
+        let found = false
+
+        for (const instrument of this.#instruments.values()) {
+          if (instrument.Symbol === symbol) {
+            if (instrument.AssetType !== assetType) {
+              throw new SaxoBankInstrumentSymbolAssetTypeMismatchError(assetType, instrument.AssetType, symbol)
+            }
+
+            found = true
+            break
+          }
+        }
+
+        if (found) {
+          continue
+        }
+
+        unknownSymbols.push(symbol)
+      }
+
+      if (unknownSymbols.length === 0) {
+        continue
+      }
+
+      const instruments = await Promise.allSettled(
+        unknownSymbols.map(async (symbol) => {
+          const [instrument] = await toArray<InstrumentSummaryInfoType>(this.app.referenceData.instruments.get({
+            AssetTypes: [assetType],
+            Keywords: [symbol],
+            IncludeNonTradable: false,
+            limit: 1,
+          }))
+
+          if (instrument === undefined) {
+            throw new SaxoBankInstrumentSymbolNotFoundError(assetType, symbol)
+          }
+
+          if (instrument.AssetType !== assetType) {
+            throw new SaxoBankInstrumentSymbolAssetTypeMismatchError(assetType, instrument.AssetType, symbol)
+          }
+
+          return instrument
+        }),
+      ).then((results) => {
+        return results.map<InstrumentSummaryInfoType>((result) => {
+          if (result.status === 'rejected') {
+            throw result.reason
+          }
+
+          return result.value
+        })
+      })
+
+      preloadOptions.push({ assetType, uics: instruments.map((i) => i.Identifier) })
+    }
+
+    await this.preloadInstruments(preloadOptions)
+  }
+
+  async instrument<T extends InstrumentDetailsUnion['AssetType']>(
+    { assetType, uic }: { readonly assetType: T; readonly uic: number },
+  ): Promise<DataContextReaderView<InstrumentDetails[T]>> {
+    await this.preloadInstruments([{ assetType, uics: [uic] }])
+
+    const reader = await this.#createAppReader({
+      key: `instruments`,
+      wait: 39 * 60 * 1000, // 39 minutes
+      read: async (signal): Promise<ReadonlyMap<string, InstrumentDetailsUnion>> => {
+        if (this.#instruments.size === 0) {
+          return this.#instruments
+        }
+
+        try {
+          const uics = [...this.#instruments.values().map((i) => i.Uic)] as [number, ...number[]]
+
+          const instruments = await toArray(
+            this.app.referenceData.instruments.details.get(
+              { Uics: uics },
+              { signal },
+            ),
+          )
+
+          const instrumentsMap = new Map<string, InstrumentDetailsUnion>()
+
+          for (const instrument of instruments) {
+            if (isInstrumentTradable(instrument)) {
+              instrumentsMap.set(`${instrument.AssetType}:${instrument.Uic}`, instrument)
+            }
+          }
+
+          if (signal !== undefined && signal.aborted) {
+            return this.#instruments
+          }
+
+          for (const instrument of this.#instruments.values()) {
+            const instrumentKey = `${instrument.AssetType}:${instrument.Uic}`
+            const downloaded = instrumentsMap.get(instrumentKey)
+
+            if (downloaded === undefined) {
+              this.#instruments.delete(instrumentKey)
+              continue
+            }
+
+            this.#instruments.set(instrumentKey, downloaded)
+          }
+
+          return this.#instruments
+        } catch (error) {
+          if (error instanceof HTTPClientRequestAbortError) {
+            return this.#instruments
+          }
+
+          throw error
+        }
+      },
+      map: (value) => value,
+    })
+
+    const instrumentKey = `${assetType}:${uic}`
+
+    return reader.view((instruments) => {
+      const instrument = instruments.get(instrumentKey)
+
+      if (instrument === undefined) {
+        throw new SaxoBankInstrumentUICNotFoundError(assetType, uic)
+      }
+
+      if (instrument.AssetType !== assetType) {
+        throw new SaxoBankInstrumentUICAssetTypeMismatchError(assetType, instrument.AssetType, uic)
+      }
+
+      return instrument as InstrumentDetails[T]
+    })
+  }
+
+  async instrumentBySymbol<T extends InstrumentDetailsUnion['AssetType']>({
+    assetType,
+    symbol,
+  }: {
+    readonly assetType: T
+    readonly symbol: string
+  }): Promise<DataContextReaderView<InstrumentDetails[T]>> {
+    await this.preloadInstrumentsBySymbol([{ assetType, symbols: [symbol] }])
+
+    symbol = symbol.toUpperCase()
+
+    let uic: undefined | number = undefined
+
+    for (const instrument of this.#instruments.values()) {
+      if (instrument.Symbol === symbol) {
+        if (instrument.AssetType !== assetType) {
+          throw new SaxoBankInstrumentSymbolAssetTypeMismatchError(assetType, instrument.AssetType, symbol)
+        }
+
+        uic = instrument.Uic
+        break
+      }
+    }
+
+    if (uic === undefined) {
+      throw new SaxoBankInstrumentSymbolNotFoundError(assetType, symbol)
+    }
+
+    return this.instrument({ assetType, uic })
+  }
+
+  async instrumentFirstMatch<T extends InstrumentDetailsUnion['AssetType']>({
+    assetType,
+    symbols,
+  }: {
+    readonly assetType: T
+    readonly symbols: readonly string[]
+  }): Promise<DataContextReaderView<InstrumentDetails[T]>> {
+    await this.preloadInstrumentsBySymbol([{ assetType, symbols }]).catch((error) => {
+      if (error instanceof SaxoBankInstrumentNotFoundError === false) {
+        throw error
+      }
+    })
+
+    for (const symbol of symbols) {
+      try {
+        return await this.instrumentBySymbol({ assetType, symbol })
+      } catch (error) {
+        if (error instanceof SaxoBankInstrumentNotFoundError) {
+          continue
+        }
+
+        throw error
+      }
+    }
+
+    throw new SaxoBankInstrumentSymbolsNotFoundError(assetType, symbols)
+  }
+
+  async tryInstrument<T extends InstrumentDetailsUnion['AssetType']>({
+    assetType,
+    uic,
+  }: {
+    readonly assetType: T
+    readonly uic: number
+  }): Promise<undefined | DataContextReaderView<InstrumentDetails[T]>> {
+    try {
+      return await this.instrument({ assetType, uic })
+    } catch (error) {
+      if (error instanceof SaxoBankInstrumentNotFoundError) {
+        return undefined
+      }
+
+      throw error
+    }
+  }
+
+  async tryInstrumentBySymbol<T extends InstrumentDetailsUnion['AssetType']>({
+    assetType,
+    symbol,
+  }: {
+    readonly assetType: T
+    readonly symbol: string
+  }): Promise<undefined | DataContextReaderView<InstrumentDetails[T]>> {
+    try {
+      return await this.instrumentBySymbol({ assetType, symbol })
+    } catch (error) {
+      if (error instanceof SaxoBankInstrumentNotFoundError) {
+        return undefined
+      }
+
+      throw error
+    }
+  }
+
+  async tryInstrumentFirstMatch<T extends InstrumentDetailsUnion['AssetType']>({
+    assetType,
+    symbols,
+  }: {
+    readonly assetType: T
+    readonly symbols: readonly string[]
+  }): Promise<undefined | DataContextReaderView<InstrumentDetails[T]>> {
+    try {
+      return await this.instrumentFirstMatch({ assetType, symbols })
+    } catch (error) {
+      if (error instanceof SaxoBankInstrumentSymbolsNotFoundError) {
+        return undefined
+      }
+
+      throw error
+    }
+  }
+
+  async priceSnapshot<T extends keyof InfoPriceRequest>({
+    assetType,
+    uic,
+  }: {
+    readonly assetType: T
+    readonly uic: number
+  }): Promise<{
+    /** Ask price. */
+    readonly askPrice: number
+    /** Ask size. */
+    readonly askSize: undefined | number
+    /** Bid price. */
+    readonly bidPrice: number
+    /** Bid size. */
+    readonly bidSize: undefined | number
+    /** Mid price calculated as (Ask + Bid) / 2. */
+    readonly midPrice: number
+  }> {
+    const { Quote } = await this.app.trading.infoPrices.get({
+      AssetType: assetType,
+      Uic: uic,
+    } as never)
+
+    if (Quote.Ask === undefined) {
+      throw new Error('Ask is undefined')
+    }
+
+    if (Quote.Bid === undefined) {
+      throw new Error('Bid is undefined')
+    }
+
+    return {
+      askPrice: Quote.Ask,
+      askSize: Quote.AskSize,
+      bidPrice: Quote.Bid,
+      bidSize: Quote.BidSize,
+      midPrice: (Quote.Ask + Quote.Bid) / 2,
+    }
+  }
 }
 
 export class DataContextReader<T> {
@@ -811,4 +1145,26 @@ export class DataContextReaderView<T> {
       },
     })
   }
+}
+
+function isInstrumentTradable(
+  instrument: InstrumentDetailsUnion,
+  assetType?: undefined | InstrumentDetailsUnion['AssetType'],
+): boolean {
+  return (
+    instrument.IsTradable &&
+    instrument.NonTradableReason === 'None' &&
+    instrument.TradingStatus === 'Tradable' &&
+    (
+      'Exchange' in instrument && instrument.Exchange !== undefined
+    ) &&
+    (
+      assetType === undefined ||
+      (
+        'TradableAs' in instrument &&
+        instrument.TradableAs !== undefined &&
+        instrument.TradableAs.includes(assetType as never)
+      )
+    )
+  )
 }

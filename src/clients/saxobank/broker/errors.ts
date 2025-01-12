@@ -1,4 +1,4 @@
-import { Currency3 } from '../types/derives/currency.ts'
+import type { Currency3 } from '../types/derives/currency.ts'
 
 export class SaxoBankBrokerOptionsError extends Error {
   constructor(message: string) {
@@ -70,5 +70,52 @@ export class SaxoBankMarketClosedError extends Error {
   constructor(message: string) {
     super(message)
     this.name = this.constructor.name
+  }
+}
+
+export abstract class SaxoBankInstrumentNotFoundError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = this.constructor.name
+  }
+}
+
+export class SaxoBankInstrumentUICNotFoundError extends SaxoBankInstrumentNotFoundError {
+  constructor(assetType: string, uic: number) {
+    super(`SaxoBank "${assetType}" instrument with UIC ${uic} not found.`)
+  }
+}
+
+export class SaxoBankInstrumentUICNotTradableError extends SaxoBankInstrumentNotFoundError {
+  constructor(assetType: string, uic: number) {
+    super(`SaxoBank "${assetType}" instrument with UIC ${uic} is not tradable.`)
+  }
+}
+
+export class SaxoBankInstrumentSymbolNotFoundError extends SaxoBankInstrumentNotFoundError {
+  constructor(assetType: string, symbol: string) {
+    super(`SaxoBank "${assetType}" instrument with symbol "${symbol}" not found.`)
+  }
+}
+
+export class SaxoBankInstrumentSymbolsNotFoundError extends SaxoBankInstrumentNotFoundError {
+  constructor(assetType: string, symbols: readonly string[]) {
+    super(`SaxoBank "${assetType}" instruments with symbols "${symbols.join(', ')}" not found.`)
+  }
+}
+
+export class SaxoBankInstrumentUICAssetTypeMismatchError extends SaxoBankInstrumentNotFoundError {
+  constructor(expectedAssetType: string, actualAssetType: string, uic: number) {
+    super(
+      `SaxoBank "${expectedAssetType}" instrument with UIC ${uic} not found, but found "${actualAssetType}" instrument.`,
+    )
+  }
+}
+
+export class SaxoBankInstrumentSymbolAssetTypeMismatchError extends SaxoBankInstrumentNotFoundError {
+  constructor(expectedAssetType: string, actualAssetType: string, symbol: string) {
+    super(
+      `SaxoBank "${expectedAssetType}" instrument with symbol "${symbol}" not found, but found "${actualAssetType}" instrument.`,
+    )
   }
 }

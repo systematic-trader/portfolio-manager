@@ -1,4 +1,3 @@
-import { toArray } from '../../../utils/async-iterable.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
 import type { DataContext, DataContextAccount, DataContextReader } from './data-context.ts'
 import { mapInstrumentSessions, type MarketSessionOpened } from './market-session.ts'
@@ -8,7 +7,7 @@ const AlwaysOpenSession: MarketSessionOpened = {
   state: 'Open',
   reason: 'SameCurrencyAlwaysOpen',
   executable: true,
-  startTime: '2000-01-01T00:00:00.000Z',
+  startTime: '1920-01-01T00:00:00.000Z',
   endTime: '2100-01-01T00:00:00.000Z',
   next: {
     state: 'Closed',
@@ -135,43 +134,17 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       })
     }
 
-    const [fxspot] = await toArray(this.#context.app.referenceData.instruments.get({
-      AssetTypes: ['FxSpot'],
-      IncludeNonTradable: false,
-      Keywords: [`${this.currency}${to.currency}`, `${to.currency}${this.currency}`],
-      limit: 1,
-    }))
-
-    if (fxspot === undefined) {
-      throw new Error(`No FX Spot (currency pair) found for ${this.currency} and ${to.currency}.`)
-    }
-
-    const { Quote } = await this.#context.app.trading.infoPrices.get({
-      AssetType: fxspot.AssetType,
-      Uic: fxspot.Identifier,
+    const fxspot = await this.#context.instrumentFirstMatch({
+      assetType: 'FxSpot',
+      symbols: [`${this.currency}${to.currency}`, `${to.currency}${this.currency}`],
     })
 
-    if (Quote?.Ask === undefined || Quote?.Bid === undefined) {
-      throw new Error(`No FX Spot quote found for ${fxspot.Symbol}.`)
-    }
+    const { midPrice } = await this.#context.priceSnapshot({
+      assetType: 'FxSpot',
+      uic: fxspot.value.Uic,
+    })
 
-    const [instrumentDetails] = await toArray(this.#context.app.referenceData.instruments.details.get({
-      AssetTypes: ['FxSpot'],
-      Uics: [fxspot.Identifier],
-    }))
-
-    if (instrumentDetails === undefined) {
-      throw new Error(`No FX Spot details found for ${fxspot.Symbol}.`)
-    }
-
-    const midprice = (Quote.Bid + Quote.Ask) / 2
-    const rate = this.currency === fxspot.Symbol.slice(0, this.currency.length) ? midprice : 1 / midprice
-
-    const from = {
-      account: this,
-      withdraw: this.currency === currency ? amount : amount * rate,
-      commission: (this.currency === currency ? amount : amount * rate) * this.#currencyConversionFee,
-    }
+    const rate = this.currency === fxspot.value.Symbol.slice(0, this.currency.length) ? midPrice : 1 / midPrice
 
     return new SaxoBankTransferCashOrder<
       {
@@ -181,9 +154,13 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       }
     >({
       context: this.#context,
-      session: mapInstrumentSessions(instrumentDetails),
+      session: mapInstrumentSessions(fxspot.value),
       transfer: { currency, amount },
-      from,
+      from: {
+        account: this,
+        withdraw: this.currency === currency ? amount : amount * rate,
+        commission: (this.currency === currency ? amount : amount * rate) * this.#currencyConversionFee,
+      },
       to: {
         account: to,
         deposit: to.currency === currency ? amount : amount / rate,
