@@ -14,7 +14,7 @@ import type { PromiseQueue } from '../../../../utils/promise-queue.ts'
 import type { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { SaxoBankRandom } from '../../saxobank-random.ts'
 import { sanitizeSaxobankValue } from '../../service-group-client/sanitize-saxobank-value.ts'
-import { ClosedPositionResponseUnion } from '../../types/records/position-response.ts'
+import { PositionResponseUnion } from '../../types/records/position-response.ts'
 import type { PositionsRequest } from '../../types/records/positions-request.ts'
 import {
   SaxoBankSubscription,
@@ -35,7 +35,7 @@ const PositionDeletedMessage = props({
 
 const isPositionDeletedMessage = is(PositionDeletedMessage)
 
-export class SaxoBankSubscriptionPositions extends SaxoBankSubscription<readonly ClosedPositionResponseUnion[]> {
+export class SaxoBankSubscriptionPositions extends SaxoBankSubscription<readonly PositionResponseUnion[]> {
   readonly options: PositionsRequest
 
   constructor({
@@ -66,17 +66,17 @@ export class SaxoBankSubscriptionPositions extends SaxoBankSubscription<readonly
   }
 }
 
-const parse: SaxoBankSubscriptionParse<readonly ClosedPositionResponseUnion[]> = (previous, rawPayload) => {
+const parse: SaxoBankSubscriptionParse<readonly PositionResponseUnion[]> = (previous, rawPayload) => {
   const payload = sanitizeSaxobankValue(rawPayload)
   assert(Payload, payload)
 
-  return [payload.reduce<readonly ClosedPositionResponseUnion[]>((positions, message) => {
+  return [payload.reduce<readonly PositionResponseUnion[]>((positions, message) => {
     const index = positions.findIndex((position) => position.PositionId === message.PositionId)
     const position = positions[index]
 
     // If we don't know the position by it's ID, we assume it's a new position - and it must pass the position guard
     if (position === undefined) {
-      assert(ClosedPositionResponseUnion, message)
+      assert(PositionResponseUnion, message)
       return [...positions, message]
     }
 
@@ -87,7 +87,7 @@ const parse: SaxoBankSubscriptionParse<readonly ClosedPositionResponseUnion[]> =
 
     // If none of the above matches the message, the message must be a update to the position (containing only the changed properties)
     const mergedPosition = mergeDeltaContent(position, message)
-    assert(ClosedPositionResponseUnion, mergedPosition)
+    assert(PositionResponseUnion, mergedPosition)
     return [...positions.slice(0, index), mergedPosition, ...positions.slice(index + 1)]
   }, previous)]
 }
@@ -109,10 +109,10 @@ function createReferenceIdGenerator(
 
 function createSubscribe(
   options: ArgumentType<PositionsRequest>,
-): SaxoBankSubscriptionSubscribe<readonly ClosedPositionResponseUnion[]> {
+): SaxoBankSubscriptionSubscribe<readonly PositionResponseUnion[]> {
   return async function subscribe({ app, contextId, referenceId, previousReferenceId, timeout, signal }): Promise<{
     readonly referenceId: string
-    readonly message: readonly ClosedPositionResponseUnion[]
+    readonly message: readonly PositionResponseUnion[]
     readonly inactivityTimeout: number
   }> {
     const response = await app.portfolio.positions.subscriptions.post({
@@ -151,7 +151,7 @@ function createSubscribe(
       )
     }
 
-    const message = assertReturn(array(ClosedPositionResponseUnion), coerce(ClosedPositionResponseUnion)(Data))
+    const message = assertReturn(array(PositionResponseUnion), coerce(PositionResponseUnion)(Data))
 
     return {
       referenceId: response.ReferenceId,
