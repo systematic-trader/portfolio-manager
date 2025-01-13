@@ -33,6 +33,7 @@ import {
   SaxoBankInstrumentUICNotFoundError,
   SaxoBankInstrumentUICNotTradableError,
 } from './errors.ts'
+import { mapInstrumentSessions, type MarketSession } from './market-session.ts'
 
 type PriceResponse = { [K in keyof typeof PriceResponse]: GuardType<typeof PriceResponse[K]> }
 
@@ -44,6 +45,43 @@ export interface DataContextBalance {
   readonly marginUtilization: number
   readonly positionsUnrealized: number
   readonly total: number
+}
+
+export interface DataContextQuoteSnapshot {
+  /** Updated at timestamp. */
+  readonly updatedAt: string
+  /** The ask price and size of the stock. */
+  readonly ask: {
+    /** The ask price of the stock. */
+    readonly price: number
+    /** The ask size of the stock. */
+    readonly size: number
+  }
+  /** The bid price and size of the stock. */
+  readonly bid: {
+    /** The bid price of the stock. */
+    readonly price: number
+    /** The bid size of the stock. */
+    readonly size: number
+  }
+  /** Mid price calculated as (ask.amount + bid.amount) / 2. */
+  readonly midPrice: number
+}
+
+export interface DataContextStock {
+  readonly symbol: string
+  readonly description: string
+  readonly lot: {
+    readonly minimum: number
+    readonly maximum: undefined | number
+    readonly increment: number
+  }
+  readonly sum: {
+    readonly minimum: undefined | number
+    readonly maximum: undefined | number
+  }
+  readonly session: MarketSession
+  roundPriceToTickSize(price: number): number
 }
 
 export interface DataContextClient {
@@ -226,7 +264,7 @@ export class DataContext implements AsyncDisposable {
     return this[Symbol.asyncDispose]()
   }
 
-  refresh(): void {
+  async refresh(): Promise<void> {
     if (this.#error !== undefined) {
       throw this.#error
     }
@@ -235,13 +273,29 @@ export class DataContext implements AsyncDisposable {
       return
     }
 
+    const refreshPromises: Promise<void>[] = []
+
     for (const reader of this.#subscriptionReaders.values()) {
-      reader.refresh()
+      refreshPromises.push(reader.refresh())
     }
 
     for (const reader of this.#appReaders.values()) {
-      reader.refresh()
+      refreshPromises.push(reader.refresh())
     }
+
+    await Promise.allSettled(refreshPromises).then((results) => {
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          if (this.#error === undefined) {
+            this.#error = ensureError(result.reason)
+          }
+        }
+      }
+
+      if (this.#error !== undefined) {
+        throw this.#error
+      }
+    })
   }
 
   #createSubscriptionReader<T, U>(
@@ -291,7 +345,8 @@ export class DataContext implements AsyncDisposable {
 
           return value
         },
-        refresh: () => {
+        // deno-lint-ignore require-await
+        refresh: async () => {
           if (this.#error !== undefined) {
             throw this.#error
           }
@@ -403,7 +458,7 @@ export class DataContext implements AsyncDisposable {
 
           return readerValue
         },
-        refresh: () => {
+        refresh: async () => {
           if (this.#error !== undefined) {
             throw this.#error
           }
@@ -419,7 +474,7 @@ export class DataContext implements AsyncDisposable {
               this.#error = ensureError(error)
             }
 
-            this[Symbol.asyncDispose]().catch(() => {})
+            await this[Symbol.asyncDispose]().catch(() => {})
 
             throw error
           }
@@ -593,9 +648,11 @@ export class DataContext implements AsyncDisposable {
         read: () => {
           return value
         },
-        refresh: () => {
-          clientReader.refresh()
-          clientBalance.refresh()
+        refresh: async () => {
+          await Promise.allSettled([
+            clientReader.refresh(),
+            clientBalance.refresh(),
+          ])
 
           value = {
             key: client.value.key,
@@ -692,9 +749,11 @@ export class DataContext implements AsyncDisposable {
         read: () => {
           return value
         },
-        refresh: () => {
-          accountsReader.refresh()
-          balanceReader.refresh()
+        refresh: async () => {
+          await Promise.allSettled([
+            accountsReader.refresh(),
+            balanceReader.refresh(),
+          ])
 
           value = {
             ID: account.value.ID,
@@ -1037,25 +1096,10 @@ export class DataContext implements AsyncDisposable {
     }
   }
 
-  async priceSnapshot<T extends keyof InfoPriceRequest>({
-    assetType,
-    uic,
-  }: {
-    readonly assetType: T
-    readonly uic: number
-  }): Promise<{
-    /** Ask price. */
-    readonly askPrice: number
-    /** Ask size. */
-    readonly askSize: undefined | number
-    /** Bid price. */
-    readonly bidPrice: number
-    /** Bid size. */
-    readonly bidSize: undefined | number
-    /** Mid price calculated as (Ask + Bid) / 2. */
-    readonly midPrice: number
-  }> {
-    const { Quote } = await this.app.trading.infoPrices.get({
+  async quoteSnapshot<T extends keyof InfoPriceRequest>(
+    { assetType, uic }: { readonly assetType: T; readonly uic: number },
+  ): Promise<DataContextQuoteSnapshot> {
+    const { Quote, LastUpdated } = await this.app.trading.infoPrices.get({
       AssetType: assetType,
       Uic: uic,
     } as never)
@@ -1069,25 +1113,45 @@ export class DataContext implements AsyncDisposable {
     }
 
     return {
-      askPrice: Quote.Ask,
-      askSize: Quote.AskSize,
-      bidPrice: Quote.Bid,
-      bidSize: Quote.BidSize,
+      updatedAt: LastUpdated,
+      ask: {
+        price: Quote.Ask,
+        size: Quote.AskSize ?? 0,
+      },
+      bid: {
+        price: Quote.Bid,
+        size: Quote.BidSize ?? 0,
+      },
       midPrice: (Quote.Ask + Quote.Bid) / 2,
     }
+  }
+
+  async stock({ uic }: { readonly uic: number }): Promise<DataContextReaderView<DataContextStock>> {
+    return await this.instrument({ assetType: 'Stock', uic }).then((reader) => {
+      return reader.view((value) => {
+        return {
+          symbol: value.Symbol,
+          description: value.Description,
+          lot: calculateOrderLotSpecification(value),
+          sum: calculateOrderSumSpecification(value),
+          session: mapInstrumentSessions(value),
+          roundPriceToTickSize: roundPriceToTickSize.bind(null, value),
+        }
+      })
+    })
   }
 }
 
 export class DataContextReader<T> {
   readonly #dispose: () => Promise<void>
   readonly #read: () => T
-  readonly #refresh: () => void
+  readonly #refresh: () => Promise<void>
 
   get value(): T {
     return this.#read()
   }
 
-  constructor({ dispose, read, refresh }: { dispose(): Promise<void>; read(): T; refresh(): void }) {
+  constructor({ dispose, read, refresh }: { dispose(): Promise<void>; read(): T; refresh(): Promise<void> }) {
     this.#read = read
 
     this.#dispose = dispose
@@ -1098,8 +1162,8 @@ export class DataContextReader<T> {
     await this.#dispose()
   }
 
-  refresh(): void {
-    this.#refresh()
+  refresh(): Promise<void> {
+    return this.#refresh()
   }
 
   view<U>(map: (value: T) => U): DataContextReaderView<U> {
@@ -1147,6 +1211,20 @@ export class DataContextReaderView<T> {
   }
 }
 
+type PickInstrumentDetails<T, K extends UnionKeys<T> = UnionKeys<T>> =
+  & {
+    [P in Extract<OptionalKeys<T>, K>]?: T extends unknown ? P extends keyof T ? T[P] : undefined : never
+  }
+  & {
+    [P in Extract<RequiredKeys<T>, K>]: T extends unknown ? P extends keyof T ? T[P] : never : never
+  }
+
+type UnionKeys<T> = T extends unknown ? keyof T : never
+type OptionalKeys<T> = T extends unknown ? { [K in keyof T]: undefined extends T[K] ? K : never }[keyof T] : never
+type RequiredKeys<T> = {
+  [K in Exclude<UnionKeys<T>, OptionalKeys<T>>]: undefined extends T[K] ? never : K
+}[Exclude<UnionKeys<T>, OptionalKeys<T>>]
+
 function isInstrumentTradable(
   instrument: InstrumentDetailsUnion,
   assetType?: undefined | InstrumentDetailsUnion['AssetType'],
@@ -1167,4 +1245,97 @@ function isInstrumentTradable(
       )
     )
   )
+}
+
+function calculateOrderLotSpecification(
+  instrument: PickInstrumentDetails<
+    InstrumentDetailsUnion,
+    'MinimumLotSize' | 'MinimumTradeSize' | 'LotSize' | 'LotSizeType' | 'OrderSetting'
+  >,
+): {
+  readonly minimum: number
+  readonly maximum: undefined | number
+  readonly increment: number
+} {
+  const lotSize = instrument.LotSizeType === 'NotUsed' ? 1 : instrument.LotSize ?? 1
+
+  return {
+    minimum: Math.max(
+      lotSize,
+      instrument.MinimumTradeSize ?? 1,
+      instrument.MinimumLotSize ?? 1,
+    ),
+    maximum: instrument.OrderSetting?.MaxOrderSize,
+    increment: lotSize,
+  }
+}
+
+function calculateOrderSumSpecification(
+  instrument: PickInstrumentDetails<
+    InstrumentDetailsUnion,
+    'AssetType' | 'MinimumOrderValue' | 'OrderSetting' | 'Symbol' | 'Uic'
+  >,
+): {
+  readonly minimum: undefined | number
+  readonly maximum: undefined | number
+} {
+  if (
+    instrument.MinimumOrderValue !== undefined && instrument.OrderSetting?.MinOrderValue !== undefined &&
+    instrument.MinimumOrderValue !== instrument.OrderSetting?.MinOrderValue
+  ) {
+    // We dont know what to do, since we have never encountered this case.
+    // Once we do, we can decide what to do by investigating the instrument in SaxoTrader.
+    throw new Error(
+      `MinimumOrderValue and OrderSetting.MinOrderValue do not match for asset "${instrument.AssetType}" on "${instrument.Symbol}" (UIC ${instrument.Uic})`,
+    )
+  }
+
+  const minimum = instrument.OrderSetting?.MinOrderValue ?? instrument.MinimumOrderValue
+
+  return {
+    minimum,
+    maximum: instrument.OrderSetting?.MaxOrderValue,
+  }
+}
+
+function roundPriceToTickSize(
+  instrument: PickInstrumentDetails<
+    InstrumentDetailsUnion,
+    'AssetType' | 'TickSizeScheme' | 'TickSize' | 'Format' | 'Symbol' | 'Uic'
+  >,
+  price: number,
+): number {
+  // See https://www.developer.saxo/openapi/learn/order-placement at section "Decimals, TickSize and Tick Size Schemes"
+  let tickSize: undefined | number = undefined
+
+  if (instrument.TickSizeScheme !== undefined) {
+    tickSize = instrument.TickSizeScheme.Elements
+      ?.toSorted((left, right) => left.HighPrice - right.HighPrice)
+      .find((element) => price <= element.HighPrice)
+      ?.TickSize ??
+      instrument.TickSizeScheme.DefaultTickSize
+  } else if (instrument.TickSize !== undefined) {
+    tickSize = instrument.TickSize
+  } else if (instrument.Format !== undefined) {
+    // A price is always denoted in the the number of decimals supported by the instrument.
+    // The number of decimals can be found on the instrument data looked up in the Reference Data.
+    // However for certain Fx crosses the number is one higher if the format has the flag AllowDecimalPips.
+    const decimals = instrument.Format.Decimals +
+      (instrument.Format.Format === 'AllowDecimalPips' ? 1 : 0)
+
+    tickSize = 1 / 10 ** decimals
+  }
+
+  if (tickSize === undefined) {
+    throw new Error(
+      `Tick size not found for asset "${instrument.AssetType}" on "${instrument.Symbol}" (UIC ${instrument.Uic})`,
+    )
+  }
+
+  // Calculate the precision based on the tick size
+  const precision = Math.ceil(-Math.log10(tickSize))
+  const roundedPrice = Math.round((price + Number.EPSILON) / tickSize) * tickSize
+
+  // Fix the precision to avoid floating-point artifacts
+  return parseFloat(roundedPrice.toFixed(precision))
 }

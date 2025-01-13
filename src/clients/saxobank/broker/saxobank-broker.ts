@@ -62,7 +62,7 @@ export interface SaxoBankBroker<Options extends SaxoBankBrokerOptions> extends A
   dispose(): Promise<void>
 
   /** Refresh the broker data. */
-  refresh(): void
+  refresh(): Promise<void>
 }
 
 export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions>(
@@ -175,8 +175,8 @@ export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions
         return broker[Symbol.asyncDispose]()
       },
 
-      refresh(): void {
-        context.refresh()
+      refresh(): Promise<void> {
+        return context.refresh()
       },
     }
 

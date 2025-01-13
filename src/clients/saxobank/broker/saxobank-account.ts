@@ -139,12 +139,14 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       symbols: [`${this.currency}${to.currency}`, `${to.currency}${this.currency}`],
     })
 
-    const { midPrice } = await this.#context.priceSnapshot({
+    const quote = await this.#context.quoteSnapshot({
       assetType: 'FxSpot',
       uic: fxspot.value.Uic,
     })
 
-    const rate = this.currency === fxspot.value.Symbol.slice(0, this.currency.length) ? midPrice : 1 / midPrice
+    const middlePrice = (quote.ask.price + quote.bid.price) / 2
+
+    const rate = this.currency === fxspot.value.Symbol.slice(0, this.currency.length) ? middlePrice : 1 / middlePrice
 
     return new SaxoBankTransferCashOrder<
       {
@@ -168,4 +170,31 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       rate,
     })
   }
+
+  // /**
+  //  * Get a stock available for the account.
+  //  * @param symbol - The symbol of the stock.
+  //  * @returns The stock.
+  //  */
+  // async stock<
+  //   Symbol extends StockSymbols<Options['currency']>,
+  // >(symbol: Symbol): Promise<
+  //   SaxoBankStock<{
+  //     symbol: Symbol
+  //     account: { accountID: Options['accountID']; currency: Options['currency'] }
+  //   }>
+  // > {
+  //   const uic = SaxoBankStock.uic(this.currency, symbol)
+
+  //   const stock = new SaxoBankStock<{
+  //     symbol: Symbol
+  //     account: { accountID: Options['accountID']; currency: Options['currency'] }
+  //   }>({
+  //     context: this.#context,
+  //     account: this,
+  //     symbol,
+  //   })
+
+  //   return stock
+  // }
 }
