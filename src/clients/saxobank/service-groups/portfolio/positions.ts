@@ -6,7 +6,6 @@ import {
 import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import type { PositionFieldGroup } from '../../types/derives/position-field-group.ts'
 import {
-  type ClosedPositionResponseUnion,
   PositionResponseBond,
   PositionResponseCfdOnEtc,
   PositionResponseCfdOnEtf,
