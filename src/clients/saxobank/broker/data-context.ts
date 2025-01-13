@@ -14,9 +14,12 @@ import type { Currency3 } from '../types/derives/currency.ts'
 import type { AccountResponse } from '../types/records/account-response.ts'
 import type { BalanceResponse } from '../types/records/balance-response.ts'
 import type { ClientResponse } from '../types/records/client-response.ts'
+import type { ClosedPositionResponseUnion } from '../types/records/closed-position-response.ts'
 import type { InfoPriceRequest } from '../types/records/info-price-request.ts'
 import type { InstrumentDetails, InstrumentDetailsUnion } from '../types/records/instrument-details.ts'
 import type { InstrumentSummaryInfoType } from '../types/records/instrument-summary-info.ts'
+import type { OrderResponseUnion } from '../types/records/order-response.ts'
+import type { PositionResponseUnion } from '../types/records/position-response.ts'
 import type { PriceResponse } from '../types/records/price-response.ts'
 import {
   SaxoBankAccountBalancePropertyUndefinedError,
@@ -588,6 +591,51 @@ export class DataContext implements AsyncDisposable {
           { AssetType: assetType, Uic: uic } as unknown as InfoPriceSubscriptionOptions[AssetType],
         ),
       map: (message) => message,
+    })
+  }
+
+  async orders(): Promise<DataContextReader<readonly OrderResponseUnion[]>> {
+    return await this.#client().then(async (clientReader) => {
+      const clientKey = clientReader.value.ClientKey
+
+      return await this.#createSubscriptionReader({
+        key: `orders-${clientKey}`,
+        create: () =>
+          this.#availableStream.orders({
+            ClientKey: clientKey,
+          }),
+        map: (message) => message,
+      })
+    })
+  }
+
+  async positions(): Promise<DataContextReader<readonly PositionResponseUnion[]>> {
+    return await this.#client().then(async (clientReader) => {
+      const clientKey = clientReader.value.ClientKey
+
+      return await this.#createSubscriptionReader({
+        key: `positions-${clientKey}`,
+        create: () =>
+          this.#availableStream.positions({
+            ClientKey: clientKey,
+          }),
+        map: (message) => message,
+      })
+    })
+  }
+
+  async closedPositions(): Promise<DataContextReader<readonly ClosedPositionResponseUnion[]>> {
+    return await this.#client().then(async (clientReader) => {
+      const clientKey = clientReader.value.ClientKey
+
+      return await this.#createSubscriptionReader({
+        key: `closed-positions-${clientKey}`,
+        create: () =>
+          this.#availableStream.closedPositions({
+            ClientKey: clientKey,
+          }),
+        map: (message) => message,
+      })
     })
   }
 
