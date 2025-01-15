@@ -1265,5 +1265,92 @@ describe('trade/orders', () => {
       }))
       expect(ordersAfterDeletingOrder).toHaveLength(1)
     })
+
+    test('Deleting orders for non-existing uics', async () => {
+      const { AccountKey } = await getFirstAccount()
+
+      const response = await app.trading.orders.delete({
+        AccountKey,
+        AssetType: 'FxSpot',
+        Uic: 21123123, // non-existing UIC
+      })
+
+      expect(response).toEqual({
+        ErrorInfo: {
+          ErrorCode: 'IllegalInstrumentId',
+          Message: 'Instrument ID is invalid',
+        },
+      })
+    })
+
+    test('Deleting non-existing order by id', async () => {
+      const { AccountKey } = await getFirstAccount()
+
+      const nonExistingOrderId = '123123' // must be numeric - otherwise, another different error ("OtherError") is returned
+
+      const response = await app.trading.orders.delete({
+        AccountKey,
+        OrderIds: [
+          nonExistingOrderId,
+        ],
+      })
+
+      expect(response).toEqual({
+        Orders: [
+          {
+            OrderId: nonExistingOrderId,
+            ErrorInfo: {
+              ErrorCode: 'OrderNotFound',
+              Message: 'Requested order ID was not found',
+            },
+          },
+        ],
+      })
+    })
+
+    test('Deleting a non-existing order by id alongside existing orders', async ({ step }) => {
+      const { AccountKey } = await getFirstAccount()
+
+      const instruments = findTradableInstruments({
+        assetType: 'Stock',
+        sessions: ['Closed'], // We don't want the order to be filled (we need to be able to cancel it)
+        limit: 1,
+      })
+
+      for await (const { instrument, quote } of instruments) {
+        await step(instrument.Description, async () => {
+          const placeOrderResponse = await placeFavourableOrder({
+            instrument,
+            quote,
+            buySell: 'Buy',
+            orderType: 'Limit',
+          })
+
+          const placedOrderId = placeOrderResponse.OrderId
+          const nonExistingOrderId = '123123' // must be numeric - otherwise, another different error ("OtherError") is returned
+
+          const response = await app.trading.orders.delete({
+            AccountKey,
+            OrderIds: [
+              placedOrderId,
+              nonExistingOrderId,
+            ],
+          })
+
+          expect(response).toEqual({
+            Orders: [
+              { OrderId: placedOrderId },
+              {
+                OrderId: nonExistingOrderId,
+                ErrorInfo: {
+                  ErrorCode: 'OrderNotFound',
+                  Message: 'Requested order ID was not found',
+                },
+              },
+            ],
+          })
+        })
+      }
+    })
   })
 })

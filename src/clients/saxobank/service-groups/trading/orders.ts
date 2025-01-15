@@ -1,5 +1,6 @@
 import {
   array,
+  assertReturn,
   type GuardType,
   optional,
   props,
@@ -8,13 +9,15 @@ import {
   union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
+import { HTTPClientError } from '../../../http-client.ts'
 import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import type { AssetType } from '../../types/derives/asset-type.ts'
 import type { BuySell } from '../../types/derives/buy-sell.ts'
+import { CancelOrdersByIdErrorCode } from '../../types/records/cancel-orders-by-id-error-code.ts'
+import { CancelOrdersByInstrumentErrorCode } from '../../types/records/cancel-orders-by-instrument-error-code.ts'
 import type { OrderDuration } from '../../types/records/order-duration.ts'
-import { Order } from '../../types/records/order.ts'
-import { StringErrorResponse } from '../../types/records/string-error-response.ts'
 
+// #region Order placement
 type OrderParametersByOrderType = {
   readonly OrderType: 'Market'
   readonly OrderPrice?: never
@@ -96,6 +99,7 @@ type UpdateOrderParametersBase =
     readonly OrderId: string
   }
   & OrderParametersByOrderType
+// #endregion
 
 // #region Order placement method 1
 export type PlaceOrderParametersEntryWithNoRelatedOrders =
@@ -325,14 +329,28 @@ export const PlaceOrderResponseEntryOCOOrders = props({
 export interface PlaceOrderResponseEntryOCOOrders extends GuardType<typeof PlaceOrderResponseEntryOCOOrders> {}
 // #endregion
 
+// #region Order placement union
+export type PlaceOrderParameters =
+  | PlaceOrderParametersEntryWithNoRelatedOrders
+  | PlaceOrderParametersEntryWithOneRelatedOrder
+  | PlaceOrderParametersEntryWithTwoRelatedOrders
+  | PlaceOrderParametersOneRelatedOrderForOrder
+  | PlaceOrderParametersTwoRelatedOrdersForOrder
+  | PlaceOrderParametersOneRelatedOrderForPosition
+  | PlaceOrderParametersTwoRelatedOrdersForPosition
+  | PlaceOrderParametersEntryOCOOrders
+// #endregion
+
 // #region Order placement response (union)
 const PlaceOrderResponse = union([
   PlaceOrderResponseEntryWithNoRelatedOrders,
   PlaceOrderResponseEntryWithOneRelatedOrder,
   PlaceOrderResponseEntryWithTwoRelatedOrders,
-  PlaceOrderResponseEntryOCOOrders,
   PlaceOrderResponseOneRelatedOrderForOrder,
   PlaceOrderResponseTwoRelatedOrdersForOrder,
+  PlaceOrderResponseOneRelatedOrderForPosition,
+  PlaceOrderResponseTwoRelatedOrdersForPosition,
+  PlaceOrderResponseEntryOCOOrders,
 ])
 
 export type PlaceOrderResponse = GuardType<typeof PlaceOrderResponse>
@@ -418,19 +436,43 @@ export type UpdateOrderResponse = GuardType<typeof UpdateOrderResponse>
 // #endregion
 
 // #region Order cancellation
-export const CancelSpecificOrdersResponse = props({
-  Orders: array(Order),
+
+export interface CancelOrdersByIdParameters {
+  readonly AccountKey: string
+  readonly OrderIds: readonly string[]
+}
+
+export const CancelOrdersByIdResponse = props({
+  Orders: array(props({
+    OrderId: string(),
+    ErrorInfo: optional(props({
+      ErrorCode: CancelOrdersByIdErrorCode,
+      Message: string(),
+    })),
+  })),
 })
 
-export interface CancelSpecificOrdersResponse extends GuardType<typeof CancelSpecificOrdersResponse> {}
+export interface CancelOrdersByIdResponse extends GuardType<typeof CancelOrdersByIdResponse> {}
 
-export const CancelMatchingOrdersResponse = optional(props({
-  ErrorInfo: StringErrorResponse,
+export interface CancelOrdersByInstrumentParameters {
+  readonly AccountKey: string
+  readonly AssetType: AssetType
+  readonly Uic: number
+}
+
+export const CancelOrdersByInstrumentResponse = optional(props({
+  ErrorInfo: props({
+    ErrorCode: CancelOrdersByInstrumentErrorCode,
+    Message: string(),
+  }),
 }))
 
-export type CancelMatchingOrdersResponse = GuardType<typeof CancelMatchingOrdersResponse>
+export type CancelOrdersByInstrumentResponse = GuardType<typeof CancelOrdersByInstrumentResponse>
 
-const CancelOrdersResponse = union([CancelMatchingOrdersResponse, CancelSpecificOrdersResponse])
+const CancelOrdersResponse = union([
+  CancelOrdersByInstrumentResponse,
+  CancelOrdersByIdResponse,
+])
 
 type CancelOrdersResponse = GuardType<typeof CancelOrdersResponse>
 // #endregion
@@ -542,26 +584,9 @@ export class Orders {
    * See also https://www.developer.saxo/openapi/learn/rate-limiting#RateLimiting-Preventingduplicateorderoperations
    */
   async post(
-    { RequestId, ...parameters }:
-      | PlaceOrderParametersEntryWithNoRelatedOrders
-      | PlaceOrderParametersEntryWithOneRelatedOrder
-      | PlaceOrderParametersEntryWithTwoRelatedOrders
-      | PlaceOrderParametersOneRelatedOrderForOrder
-      | PlaceOrderParametersTwoRelatedOrdersForOrder
-      | PlaceOrderParametersOneRelatedOrderForPosition
-      | PlaceOrderParametersTwoRelatedOrdersForPosition
-      | PlaceOrderParametersEntryOCOOrders,
+    { RequestId, ...parameters }: PlaceOrderParameters,
     options: { readonly timeout?: undefined | number } = {},
-  ): Promise<
-    | PlaceOrderResponseEntryWithNoRelatedOrders
-    | PlaceOrderResponseEntryWithOneRelatedOrder
-    | PlaceOrderResponseEntryWithTwoRelatedOrders
-    | PlaceOrderResponseOneRelatedOrderForOrder
-    | PlaceOrderResponseTwoRelatedOrdersForOrder
-    | PlaceOrderResponseOneRelatedOrderForPosition
-    | PlaceOrderResponseTwoRelatedOrdersForPosition
-    | PlaceOrderResponseEntryOCOOrders
-  > {
+  ): Promise<PlaceOrderResponse> {
     const hasRootExternalReference = 'ExternalReference' in parameters
     const relatedOrders = 'Orders' in parameters ? parameters.Orders.length : undefined
 
@@ -739,24 +764,17 @@ export class Orders {
    * Cancels all orders for requested instrument and account.
    */
   async delete(
-    parameters: {
-      readonly AccountKey: string
-      readonly AssetType: AssetType
-      readonly Uic: number
-    },
+    parameters: CancelOrdersByInstrumentParameters,
     options?: { readonly timeout?: undefined | number },
-  ): Promise<CancelMatchingOrdersResponse>
+  ): Promise<CancelOrdersByInstrumentResponse>
 
   /**
    * Cancels one or more orders.
    */
   async delete(
-    parameters: {
-      readonly AccountKey: string
-      readonly OrderIds: readonly string[]
-    },
+    parameters: CancelOrdersByIdParameters,
     options?: { readonly timeout?: undefined | number },
-  ): Promise<CancelSpecificOrdersResponse>
+  ): Promise<CancelOrdersByIdResponse>
 
   async delete(
     parameters: {
@@ -769,25 +787,43 @@ export class Orders {
     },
     options: { readonly timeout?: undefined | number } = {},
   ): Promise<CancelOrdersResponse> {
+    // If there is a uic in the parameters, we know that we are cancelling orders by instrument.
     if ('Uic' in parameters) {
-      return await this.#client.delete({
-        searchParams: {
-          AccountKey: parameters.AccountKey,
-          AssetType: parameters.AssetType,
-          Uic: parameters.Uic,
-        },
-        guard: CancelOrdersResponse,
-        timeout: options.timeout,
-      }).execute()
+      try {
+        return await this.#client.delete({
+          searchParams: {
+            AccountKey: parameters.AccountKey,
+            AssetType: parameters.AssetType,
+            Uic: parameters.Uic,
+          },
+          guard: CancelOrdersByInstrumentResponse,
+          timeout: options.timeout,
+        }).execute()
+      } catch (error) {
+        if (error instanceof HTTPClientError && [400, 404].includes(error.statusCode)) {
+          return assertReturn(CancelOrdersByInstrumentResponse, error.body)
+        }
+
+        throw error
+      }
     }
 
-    return await this.#client.delete({
-      path: parameters.OrderIds.join(','),
-      searchParams: {
-        AccountKey: parameters.AccountKey,
-      },
-      guard: CancelOrdersResponse,
-      timeout: options.timeout,
-    }).execute()
+    // Otherwise, there is no specific uic in the parameters, so we know that we are cancelling orders by id.
+    try {
+      return await this.#client.delete({
+        path: parameters.OrderIds.join(','),
+        searchParams: {
+          AccountKey: parameters.AccountKey,
+        },
+        guard: CancelOrdersByIdResponse,
+        timeout: options.timeout,
+      }).execute()
+    } catch (error) {
+      if (error instanceof HTTPClientError && [400, 404].includes(error.statusCode)) {
+        return assertReturn(CancelOrdersByIdResponse, error.body)
+      }
+
+      throw error
+    }
   }
 }
