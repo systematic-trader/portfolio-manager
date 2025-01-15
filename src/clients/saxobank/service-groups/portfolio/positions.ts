@@ -22,6 +22,7 @@ import {
   PositionResponseFxForwards,
   PositionResponseFxSpot,
   PositionResponseStock,
+  type PositionResponseUnion,
   PositionResponseUnknown,
 } from '../../types/records/position-response.ts'
 import type { PositionsRequest } from '../../types/records/positions-request.ts'
@@ -58,8 +59,8 @@ export class Positions {
       WatchlistId,
     }: ArgumentType<PositionsRequest>,
     options: { readonly timeout?: undefined | number } = {},
-  ): AsyncIterable<ClosedPositionResponseUnion, void, undefined> {
-    const positions = this.#client.getPaginated<ClosedPositionResponseUnion>({
+  ): AsyncIterable<PositionResponseUnion, void, undefined> {
+    const positions = this.#client.getPaginated<PositionResponseUnion>({
       searchParams: {
         AccountGroupKey,
         AccountKey,
@@ -88,8 +89,8 @@ export class Positions {
 }
 
 function assertReturnPositionResponse(
-  position: ClosedPositionResponseUnion,
-): ClosedPositionResponseUnion {
+  position: PositionResponseUnion,
+): PositionResponseUnion {
   switch (position.PositionBase.AssetType) {
     case 'Bond': {
       return assertReturn(PositionResponseBond, position)
