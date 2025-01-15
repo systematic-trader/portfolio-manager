@@ -5,8 +5,6 @@ import { SaxoBankApplication } from '../../../../saxobank-application.ts'
 import { TestingUtilities } from '../../../__tests__/testing-utilities.ts'
 import { SaxoBankRandom } from '../../../saxobank-random.ts'
 
-// todo add tests with related orders (e.g. take profit and stop loss orders)
-
 describe('portfolio/positions', () => {
   describe('live', () => {
     using appLive = new SaxoBankApplication({
