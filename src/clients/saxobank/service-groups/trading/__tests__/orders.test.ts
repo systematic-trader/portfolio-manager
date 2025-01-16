@@ -16,6 +16,8 @@ describe('trade/orders', () => {
     findTradableInstruments,
     calculateFavourableOrderPrice,
     placeFavourableOrder,
+    roundPriceToInstrumentSpecification,
+    waitForPortfolioState,
   } = new TestingUtilities({ app })
 
   // Some bonds are quite expensive, so we need to set a high balance to be able to place those orders
@@ -1346,6 +1348,353 @@ describe('trade/orders', () => {
                   ErrorCode: 'OrderNotFound',
                   Message: 'Requested order ID was not found',
                 },
+              },
+            ],
+          })
+        })
+      }
+    })
+
+    /**
+     * This test is a bit more complex, since it tests a few different scenarios
+     * Based on this test we learn:
+     * - Order cancellation happens in the order of the provided order ids
+     * - If one order fails to cancel (e.g. "ErrorInfo" is defined), the rest of the orders are not cancelled
+     * - This happens even if the order could be considered as "cancelled", e.g. by never existing
+     */
+    test('Deleting orders with related exit-orders should happen in the correct order', async ({ step }) => {
+      const { AccountKey } = await getFirstAccount()
+
+      const instruments = findTradableInstruments({
+        assetType: 'Stock',
+        sessions: ['Closed'], // We don't want the order to be filled (we need to be able to cancel it)
+        limit: 1,
+      })
+
+      for await (const { instrument, quote } of instruments) {
+        // deno-lint-ignore no-inner-declarations
+        async function placeTestOrders(): Promise<{
+          readonly placedEntryOrderId: string
+          readonly placedTakeProfitOrderId: string
+          readonly placedStopLossOrderId: string
+        }> {
+          const placeOrderResponse = await app.trading.orders.post({
+            RequestId: SaxoBankRandom.order.requestId(),
+            AssetType: instrument.AssetType,
+            Uic: instrument.Uic,
+            BuySell: 'Buy',
+            Amount: calculateMinimumTradeSize(instrument),
+            OrderType: 'Market',
+            ExternalReference: 'entry',
+            ManualOrder: false,
+            OrderDuration: { DurationType: 'DayOrder' },
+            Orders: [
+              // Take profit
+              {
+                AssetType: instrument.AssetType,
+                Uic: instrument.Uic,
+                BuySell: 'Sell',
+                Amount: calculateMinimumTradeSize(instrument),
+                OrderType: 'Limit',
+                OrderPrice: roundPriceToInstrumentSpecification({ instrument, price: quote.Mid * 1.05 }).price,
+                OrderDuration: { DurationType: 'GoodTillCancel' },
+                ExternalReference: 'take-profit',
+                ManualOrder: false,
+              },
+
+              // Stop loss
+              {
+                AssetType: instrument.AssetType,
+                Uic: instrument.Uic,
+                BuySell: 'Sell',
+                Amount: calculateMinimumTradeSize(instrument),
+                OrderType: 'StopIfTraded',
+                OrderPrice: roundPriceToInstrumentSpecification({ instrument, price: quote.Mid * 0.95 }).price,
+                OrderDuration: { DurationType: 'GoodTillCancel' },
+                ExternalReference: 'stop-loss',
+                ManualOrder: false,
+              },
+            ],
+          })
+
+          const placedEntryOrderId = placeOrderResponse.OrderId
+          const placedTakeProfitOrderId = placeOrderResponse.Orders[0].OrderId
+          const placedStopLossOrderId = placeOrderResponse.Orders[1].OrderId
+
+          return {
+            placedEntryOrderId,
+            placedTakeProfitOrderId,
+            placedStopLossOrderId,
+          }
+        }
+
+        await step(instrument.Description, async ({ step }) => {
+          const nonExistingOrderId = '123123' // must be numeric - otherwise, another different error ("OtherError") is returned
+
+          await step('Non existing -> Root -> Related', async () => {
+            await resetSimulationAccount()
+            const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
+
+            const response = await app.trading.orders.delete({
+              AccountKey,
+              OrderIds: [
+                nonExistingOrderId,
+                placedEntryOrderId,
+                placedTakeProfitOrderId,
+                placedStopLossOrderId,
+              ],
+            })
+
+            expect(response).toEqual({
+              Orders: [
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'OrderNotFound',
+                    Message: 'Requested order ID was not found',
+                  },
+                  OrderId: nonExistingOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: placedEntryOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: placedTakeProfitOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: placedStopLossOrderId,
+                },
+              ],
+            })
+          })
+
+          await step('Root -> Non existing -> Related', async () => {
+            await resetSimulationAccount()
+            const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
+
+            const response = await app.trading.orders.delete({
+              AccountKey,
+              OrderIds: [
+                placedEntryOrderId,
+                nonExistingOrderId,
+                placedTakeProfitOrderId,
+                placedStopLossOrderId,
+              ],
+            })
+
+            expect(response).toEqual({
+              Orders: [
+                {
+                  OrderId: placedEntryOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'OrderNotFound',
+                    Message: 'Requested order ID was not found',
+                  },
+                  OrderId: nonExistingOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: placedTakeProfitOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: placedStopLossOrderId,
+                },
+              ],
+            })
+          })
+
+          await step('Root -> Related -> Non existing', async () => {
+            await resetSimulationAccount()
+            const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
+
+            const response = await app.trading.orders.delete({
+              AccountKey,
+              OrderIds: [
+                placedEntryOrderId,
+                placedTakeProfitOrderId,
+                placedStopLossOrderId,
+                nonExistingOrderId,
+              ],
+            })
+
+            expect(response).toEqual({
+              Orders: [
+                {
+                  OrderId: placedEntryOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'TooLateToCancelOrder',
+                    Message: 'It is too late to cancel this order',
+                  },
+                  OrderId: placedTakeProfitOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: placedStopLossOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: nonExistingOrderId,
+                },
+              ],
+            })
+          })
+
+          await step('Related -> Root -> Non existing', async () => {
+            await resetSimulationAccount()
+            const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
+
+            const response = await app.trading.orders.delete({
+              AccountKey,
+              OrderIds: [
+                placedTakeProfitOrderId,
+                placedStopLossOrderId,
+                placedEntryOrderId,
+                nonExistingOrderId,
+              ],
+            })
+
+            expect(response).toEqual({
+              Orders: [
+                {
+                  OrderId: placedTakeProfitOrderId,
+                },
+                {
+                  OrderId: placedStopLossOrderId,
+                },
+                {
+                  OrderId: placedEntryOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'OrderNotFound',
+                    Message: 'Requested order ID was not found',
+                  },
+                  OrderId: nonExistingOrderId,
+                },
+              ],
+            })
+          })
+
+          await step('Non existing -> Related -> Root', async () => {
+            await resetSimulationAccount()
+            const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
+
+            const response = await app.trading.orders.delete({
+              AccountKey,
+              OrderIds: [
+                nonExistingOrderId,
+                placedTakeProfitOrderId,
+                placedStopLossOrderId,
+                placedEntryOrderId,
+              ],
+            })
+
+            expect(response).toEqual({
+              Orders: [
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'OrderNotFound',
+                    Message: 'Requested order ID was not found',
+                  },
+                  OrderId: nonExistingOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: placedTakeProfitOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: placedStopLossOrderId,
+                },
+                {
+                  ErrorInfo: {
+                    ErrorCode: 'None',
+                    Message: 'Cancellation of another order failed',
+                  },
+                  OrderId: placedEntryOrderId,
+                },
+              ],
+            })
+          })
+        })
+      }
+    })
+
+    test('Deleting an order right after it has been filled', async ({ step }) => {
+      const { AccountKey } = await getFirstAccount()
+
+      const instruments = findTradableInstruments({
+        assetType: 'FxSpot',
+        sessions: ['AutomatedTrading'], // We want the order to be filled
+        limit: 1,
+      })
+
+      for await (const { instrument, quote } of instruments) {
+        await step(instrument.Description, async () => {
+          await resetSimulationAccount()
+
+          const placeOrderResponse = await placeFavourableOrder({
+            instrument,
+            quote,
+            buySell: 'Buy',
+            orderType: 'Market',
+          })
+
+          const placedEntryOrderId = placeOrderResponse.OrderId
+
+          await waitForPortfolioState({
+            orders: ['=', 0],
+            positions: ['=', 1],
+            timeout: 5000,
+          })
+
+          const response = await app.trading.orders.delete({
+            AccountKey,
+            OrderIds: [placedEntryOrderId],
+          })
+
+          expect(response).toEqual({
+            Orders: [
+              {
+                ErrorInfo: {
+                  ErrorCode: 'OrderNotFound',
+                  Message: 'Requested order ID was not found',
+                },
+                OrderId: placedEntryOrderId,
               },
             ],
           })
