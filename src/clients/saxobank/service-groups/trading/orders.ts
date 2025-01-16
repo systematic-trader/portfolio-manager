@@ -153,9 +153,9 @@ export type PlaceOrderParametersEntryWithTwoRelatedOrders =
       & { readonly ExternalReference: string }
       & (PlaceOrderParametersBase & { readonly OrderType: 'Limit' }),
 
-      // Second order cannot be a limit order
+      // Second order cannot be a limit or market order
       & { readonly ExternalReference: string }
-      & Exclude<PlaceOrderParametersBase, { readonly OrderType: 'Limit' }>,
+      & Exclude<PlaceOrderParametersBase, { readonly OrderType: 'Limit' | 'Market' }>,
     ]
   }
 
@@ -216,9 +216,9 @@ export type PlaceOrderParametersTwoRelatedOrdersForOrder =
       & { readonly ExternalReference: string }
       & (PlaceOrderParametersBase & { readonly OrderType: 'Limit' }),
 
-      // Second order cannot be a limit order
+      // Second order cannot be a limit or market order
       & { readonly ExternalReference: string }
-      & Exclude<PlaceOrderParametersBase, { readonly OrderType: 'Limit' }>,
+      & Exclude<PlaceOrderParametersBase, { readonly OrderType: 'Limit' | 'Market' }>,
     ]
   }
 
@@ -277,9 +277,9 @@ export type PlaceOrderParametersTwoRelatedOrdersForPosition =
       & { readonly ExternalReference: string }
       & (PlaceOrderParametersBase & { readonly OrderType: 'Limit' }),
 
-      // Second order cannot be a limit order
+      // Second order cannot be a limit or market order
       & { readonly ExternalReference: string }
-      & Exclude<PlaceOrderParametersBase, { readonly OrderType: 'Limit' }>,
+      & Exclude<PlaceOrderParametersBase, { readonly OrderType: 'Limit' | 'Market' }>,
     ]
   }
 
@@ -308,7 +308,7 @@ export type PlaceOrderParametersEntryOCOOrders = {
     & { readonly ExternalReference: string }
     & (PlaceOrderParametersBase & { readonly OrderType: 'Limit' }),
 
-    // Second order cannot be a limit order
+    // Second order cannot be a limit or market order
     & { readonly ExternalReference: string }
     & Exclude<PlaceOrderParametersBase, { readonly OrderType: 'Limit' | 'Market' }>,
   ]
@@ -405,8 +405,8 @@ export type UpdateOrderParametersEntryWithTwoRelatedOrders =
       // First order must be a limit order
       (UpdateOrderParametersBase & { readonly OrderType: 'Limit' }),
 
-      // Second order cannot be a limit order
-      Exclude<UpdateOrderParametersBase, { readonly OrderType: 'Limit' }>,
+      // Second order cannot be a limit or market order
+      Exclude<UpdateOrderParametersBase, { readonly OrderType: 'Limit' | 'Market' }>,
     ]
   }
 
