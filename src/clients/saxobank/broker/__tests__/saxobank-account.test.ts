@@ -1,9 +1,12 @@
 import { is } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { Debug } from '../../../../utils/debug.ts'
 import { describe, expect, test } from '../../../../utils/testing.ts'
 import { Currency3 } from '../../types/derives/currency.ts'
 import { SaxoBankMarketClosedError } from '../errors.ts'
 import type { SaxoBankAccount } from '../saxobank-account.ts'
 import { SaxoBankBroker } from '../saxobank-broker.ts'
+
+const debug = Debug('test')
 
 test('account properties', async () => {
   const options = await SaxoBankBroker.options({ type: 'Live' })
@@ -74,8 +77,8 @@ describe('transfer', () => {
         throw new Error('Same account')
       }
 
-      console.log('account1:', account1.cash)
-      console.log('account2:', account2.cash)
+      debug('account1:', account1.cash)
+      debug('account2:', account2.cash)
 
       const amount = 1
 
@@ -163,11 +166,11 @@ describe('transfer', () => {
       expect(order.to.deposit).toBe(amount)
       expect(order.rate).toBeGreaterThan(0)
 
-      console.log('order:', order)
+      debug('order:', order)
 
       const result = await order.execute()
 
-      console.log('result:', result)
+      debug('result:', result)
     } finally {
       await broker.dispose()
     }
