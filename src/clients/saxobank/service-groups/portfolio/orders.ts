@@ -3,6 +3,7 @@ import {
   assertReturn,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { AssertionError } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/src/guards/errors.ts'
+import { Debug } from '../../../../utils/debug.ts'
 import type { ServiceGroupClient } from '../../service-group-client/service-group-client.ts'
 import type { OrderFieldGroup } from '../../types/derives/order-field-group.ts'
 import type { OpenOrdersRequest } from '../../types/records/open-orders-request.ts'
@@ -32,6 +33,8 @@ const FieldGroups: OrderFieldGroup[] = [
   // 'ExchangeInfo', // There is a bug on simulation where empty strings will be returned for exchanges when this field is included (exchange info still seems to get included if it is omitted though)
   'Greeks',
 ]
+
+const debug = Debug('service-group:portfolio:orders')
 
 export class Orders {
   readonly #client: ServiceGroupClient
@@ -76,11 +79,7 @@ export class Orders {
         yield assertReturnOrderResponse(order)
       } catch (error) {
         if (error instanceof AssertionError) {
-          // deno-lint-ignore no-console
-          console.log(error.input)
-
-          // deno-lint-ignore no-console
-          console.trace(error.invalidations)
+          debug(error)
         }
 
         throw error
