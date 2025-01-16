@@ -77,6 +77,9 @@ export class Orders {
       } catch (error) {
         if (error instanceof AssertionError) {
           // deno-lint-ignore no-console
+          console.log(error.input)
+
+          // deno-lint-ignore no-console
           console.trace(error.invalidations)
         }
 

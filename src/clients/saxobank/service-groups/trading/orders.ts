@@ -106,6 +106,7 @@ export type PlaceOrderParametersEntryWithNoRelatedOrders =
   & PlaceOrderParametersBase
   & {
     readonly RequestId?: undefined | string
+    readonly Orders?: undefined
   }
 
 export const PlaceOrderResponseEntryWithNoRelatedOrders = props({
@@ -309,7 +310,7 @@ export type PlaceOrderParametersEntryOCOOrders = {
 
     // Second order cannot be a limit order
     & { readonly ExternalReference: string }
-    & Exclude<PlaceOrderParametersBase, { readonly OrderType: 'Limit' }>,
+    & Exclude<PlaceOrderParametersBase, { readonly OrderType: 'Limit' | 'Market' }>,
   ]
 }
 
@@ -588,7 +589,7 @@ export class Orders {
     options: { readonly timeout?: undefined | number } = {},
   ): Promise<PlaceOrderResponse> {
     const hasRootExternalReference = 'ExternalReference' in parameters
-    const relatedOrders = 'Orders' in parameters ? parameters.Orders.length : undefined
+    const relatedOrders = parameters.Orders?.length
 
     const body = parameters
     const headers = RequestId === undefined ? undefined : {

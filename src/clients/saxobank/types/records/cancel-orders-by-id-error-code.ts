@@ -60,6 +60,9 @@ export const CancelOrdersByIdErrorCode = enums([
 
   /** Too late to cancel order */
   'TooLateToCancelOrder',
+
+  /** Not documented */
+  'None',
 ])
 
 export type CancelOrdersByIdErrorCode = GuardType<typeof CancelOrdersByIdErrorCode>

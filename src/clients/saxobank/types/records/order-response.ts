@@ -7,11 +7,13 @@ import {
   optional,
   props,
   string,
+  tuple,
   union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { AssetType } from '../derives/asset-type.ts'
 import { BuySell } from '../derives/buy-sell.ts'
 import { CalculationReliability } from '../derives/calculation-reliability.ts'
+import { DurationType } from '../derives/duration-type.ts'
 import { MarketState } from '../derives/market-state.ts'
 import { NonTradableReason } from '../derives/non-tradable-reason.ts'
 import { OpenOrderRelation } from '../derives/open-order-relation.ts'
@@ -25,10 +27,57 @@ import { InstrumentDisplayAndFormat } from './instrument-display-and-format.ts'
 import { InstrumentExchangeDetails } from './instrument-exchange-details.ts'
 import { OrderDuration } from './order-duration.ts'
 
+const RelatedOrder = union([
+  props({
+    OrderId: string(),
+    Amount: number(),
+    Duration: props({ DurationType }),
+    Status: OrderStatus,
+    OpenOrderType: OrderType.extract(['Market']),
+  }),
+
+  props({
+    OrderId: string(),
+    Amount: number(),
+    Duration: props({ DurationType }),
+    Status: OrderStatus,
+    OpenOrderType: OrderType.extract(['Stop', 'StopIfTraded', 'Limit']),
+    OrderPrice: number(),
+  }),
+
+  props({
+    OrderId: string(),
+    Amount: number(),
+    Duration: props({ DurationType }),
+    Status: OrderStatus,
+    OpenOrderType: OrderType.extract(['StopLimit']),
+    OrderPrice: number(),
+    StopLimitPrice: number(),
+  }),
+
+  props({
+    OrderId: string(),
+    Amount: number(),
+    Duration: props({ DurationType }),
+    Status: OrderStatus,
+    OpenOrderType: OrderType.extract(['TrailingStop', 'TrailingStopIfTraded']),
+    OrderPrice: number(),
+    TrailingStopDistanceToMarket: number(),
+    TrailingStopStep: number(),
+  }),
+])
+
+const RelatedOpenOrders = union([
+  optional(literal(undefined)),
+  tuple([RelatedOrder]),
+  tuple([RelatedOrder, RelatedOrder]),
+])
+
 // #region Bond
 const OrderResponseBondBase = props({
   AssetType: literal('Bond'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -94,6 +143,7 @@ export type OrderResponseBond = GuardType<typeof OrderResponseBond>
 const OrderResponseCfdOnEtcBase = props({
   AssetType: literal('CfdOnEtc'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -182,6 +232,7 @@ export type OrderResponseCfdOnEtc = GuardType<typeof OrderResponseCfdOnEtc>
 const OrderResponseCfdOnEtfBase = props({
   AssetType: literal('CfdOnEtf'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -270,6 +321,7 @@ export type OrderResponseCfdOnEtf = GuardType<typeof OrderResponseCfdOnEtf>
 const OrderResponseCfdOnEtnBase = props({
   AssetType: literal('CfdOnEtn'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -358,6 +410,7 @@ export type OrderResponseCfdOnEtn = GuardType<typeof OrderResponseCfdOnEtn>
 const OrderResponseCfdOnFundBase = props({
   AssetType: literal('CfdOnFund'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -446,6 +499,7 @@ export type OrderResponseCfdOnFund = GuardType<typeof OrderResponseCfdOnFund>
 const OrderResponseCfdOnFuturesBase = props({
   AssetType: literal('CfdOnFutures'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -535,6 +589,7 @@ export type OrderResponseCfdOnFutures = GuardType<typeof OrderResponseCfdOnFutur
 const OrderResponseCfdOnIndexBase = props({
   AssetType: literal('CfdOnIndex'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -621,6 +676,7 @@ export type OrderResponseCfdOnIndex = GuardType<typeof OrderResponseCfdOnIndex>
 const OrderResponseCfdOnStockBase = props({
   AssetType: literal('CfdOnStock'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -709,6 +765,7 @@ export type OrderResponseCfdOnStock = GuardType<typeof OrderResponseCfdOnStock>
 const OrderResponseContractFuturesBase = props({
   AssetType: literal('ContractFutures'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -800,6 +857,7 @@ export type OrderResponseContractFutures = GuardType<typeof OrderResponseContrac
 const OrderResponseEtcBase = props({
   AssetType: literal('Etc'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -885,6 +943,7 @@ export type OrderResponseEtc = GuardType<typeof OrderResponseEtc>
 const OrderResponseEtfBase = props({
   AssetType: literal('Etf'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -970,6 +1029,7 @@ export type OrderResponseEtf = GuardType<typeof OrderResponseEtf>
 const OrderResponseEtnBase = props({
   AssetType: literal('Etn'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -1055,6 +1115,7 @@ export type OrderResponseEtn = GuardType<typeof OrderResponseEtn>
 const OrderResponseFundBase = props({
   AssetType: literal('Fund'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -1141,6 +1202,7 @@ export type OrderResponseFund = GuardType<typeof OrderResponseFund>
 const OrderResponseFxForwardsBase = props({
   AssetType: literal('FxForwards'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -1199,6 +1261,7 @@ export type OrderResponseFxForwards = GuardType<typeof OrderResponseFxForwards>
 const OrderResponseFxSpotBase = props({
   AssetType: literal('FxSpot'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
@@ -1290,6 +1353,7 @@ export type OrderResponseFxSpot = GuardType<typeof OrderResponseFxSpot>
 const OrderResponseStockBase = props({
   AssetType: literal('Stock'),
   Uic: integer(),
+  RelatedOpenOrders,
 
   AccountId: string(),
   AccountKey: string(),
