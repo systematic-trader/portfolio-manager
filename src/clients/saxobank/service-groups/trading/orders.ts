@@ -540,9 +540,9 @@ export class Orders {
    * Note that this requires the client netting mode to be "end of day"
    */
   async post(
-    parameters: PlaceOrderParametersOneRelatedOrderForOrder,
+    parameters: PlaceOrderParametersOneRelatedOrderForPosition,
     options?: { readonly timeout?: undefined | number },
-  ): Promise<PlaceOrderResponseOneRelatedOrderForOrder>
+  ): Promise<PlaceOrderResponseOneRelatedOrderForPosition>
 
   /**
    * Method 7:
@@ -554,9 +554,9 @@ export class Orders {
    * Note that this requires the client netting mode to be "end of day"
    */
   async post(
-    parameters: PlaceOrderParametersTwoRelatedOrdersForOrder,
+    parameters: PlaceOrderParametersTwoRelatedOrdersForPosition,
     options?: { readonly timeout?: undefined | number },
-  ): Promise<PlaceOrderResponseTwoRelatedOrdersForOrder>
+  ): Promise<PlaceOrderResponseTwoRelatedOrdersForPosition>
 
   /**
    * Method 8:
