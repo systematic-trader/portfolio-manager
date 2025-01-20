@@ -1,3 +1,4 @@
+import type { PlaceOrderParametersEntryWithNoRelatedOrders } from '../service-groups/trading/orders.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
 
 export class SaxoBankBrokerOptionsError extends Error {
@@ -117,5 +118,12 @@ export class SaxoBankInstrumentSymbolAssetTypeMismatchError extends SaxoBankInst
     super(
       `SaxoBank "${expectedAssetType}" instrument with symbol "${symbol}" not found, but found "${actualAssetType}" instrument.`,
     )
+  }
+}
+
+export class SaxoBankOrderError extends Error {
+  constructor(errorCode: string, message: string, options: PlaceOrderParametersEntryWithNoRelatedOrders) {
+    super(`SaxoBank order error "${errorCode}" with message "${message}": ${JSON.stringify(options)}`)
+    this.name = this.constructor.name
   }
 }
