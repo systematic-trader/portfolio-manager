@@ -1,8 +1,5 @@
-import { HTTPClientError } from '../../http-client.ts'
 import { SaxoBankRandom } from '../saxobank-random.ts'
-import type { PlaceOrderParametersEntryWithNoRelatedOrders } from '../service-groups/trading/orders.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
-import type { OrderDuration } from '../types/records/order-duration.ts'
 import * as Stocks from './config/stocks.ts'
 import type { DataContext, DataContextReaderView, DataContextStock, DataContextStockSnapshot } from './data-context.ts'
 import type { MarketSession } from './market-session.ts'
@@ -103,44 +100,9 @@ export class SaxoBankStock<
     symbol: Options['symbol']
     order: Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptionsBase>
   }> {
-    // if (options.quantity < this.lot.minimum) {
-    //   throw new Error(`Quantity is below the minimum lot size: ${options.quantity} < ${this.lot.minimum}`)
-    // }
-
-    // if (
-    //   this.lot.maximum !== undefined &&
-    //   options.quantity > this.lot.maximum
-    // ) {
-    //   throw new Error(`Quantity is above the maximum lot size: ${options.quantity} > ${this.lot.maximum}`)
-    // }
-
-    // if (options.quantity % this.lot.increment !== 0) {
-    //   throw new Error(
-    //     `Quantity is not a multiple of the lot increment: ${options.quantity} % ${this.lot.increment} = ${
-    //       options.quantity % this.lot.increment
-    //     }`,
-    //   )
-    // }
-
     const roundedLimit = 'limit' in options && options.limit !== undefined
       ? this.#reader.value.roundPriceToTickSize(options.limit)
       : undefined
-
-    // const pricePerQuantity = 'limit' in options && roundedLimit !== undefined
-    //   ? roundedLimit
-    //   : this.snapshot.quote.ask.price
-
-    // const expectedSum = pricePerQuantity * options.quantity
-
-    // // TODO - søg efter et instrument (Stock) hvor minimum er sat og skab fejlen fra SaxoBank. Det er bedre at oversætte fejl fra service end nuværende assertion før ordren er lagt.
-    // if (this.sum.minimum !== undefined && expectedSum < this.sum.minimum) {
-    //   throw new Error(`Sum is below the minimum: ${expectedSum} < ${this.sum.minimum}`)
-    // }
-
-    // // TODO - søg efter et instrument (Stock) hvor maximum er sat og skab fejlen fra SaxoBank. Det er bedre at oversætte fejl fra service end nuværende assertion før ordren er lagt.
-    // if (this.sum.maximum !== undefined && expectedSum > this.sum.maximum) {
-    //   throw new Error(`Sum is above the maximum: ${expectedSum} > ${this.sum.maximum}`)
-    // }
 
     return new SaxoBankStockOrder<{
       account: Options['account']
@@ -149,7 +111,7 @@ export class SaxoBankStock<
       order: Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptionsBase>
     }>({
       context: this.#context,
-      config: { uic: this.#config.uic },
+      internal: { uic: this.#config.uic },
       account: this.account,
       symbol: this.symbol,
       type: 'Buy',
@@ -181,7 +143,7 @@ export class SaxoBankStock<
       order: Extract<{ -readonly [K in keyof SellOptions]: SellOptions[K] }, SaxoBankStockOrderOptionsBase>
     }>({
       context: this.#context,
-      config: { uic: this.#config.uic },
+      internal: { uic: this.#config.uic },
       account: this.account,
       symbol: this.symbol,
       type: 'Sell',
@@ -224,17 +186,6 @@ export class SaxoBankStock<
     throw new Error('Not implemented')
   }
 }
-
-// const stock = undefined as unknown as SaxoBankStock<{
-//   symbol: 'AAPL:XNAS'
-//   account: { accountID: '3432432INET'; currency: 'USD' }
-// }>
-
-// const order = stock.buy({
-//   type: 'Market',
-//   quantity: 100,
-//   duration: 'GoodTillCancel',
-// })
 
 type SaxoBankStockOrderOptionsBase = {
   readonly type: 'Limit'
@@ -331,8 +282,7 @@ export class SaxoBankStockOrder<
   },
 > {
   readonly #context: DataContext
-  readonly #config: { readonly uic: number }
-  readonly #saxobankOptions: PlaceOrderParametersEntryWithNoRelatedOrders
+  readonly internal: { readonly uic: number }
 
   readonly ID: string = SaxoBankRandom.orderID('stock')
   readonly symbol: Options['symbol']
@@ -342,136 +292,79 @@ export class SaxoBankStockOrder<
 
   constructor(options: {
     readonly context: DataContext
-    readonly config: { readonly uic: number }
+    readonly internal: { readonly uic: number }
     readonly type: Options['type']
     readonly symbol: Options['symbol']
     readonly account: SaxoBankAccount<Options['account']>
     readonly order: Options['order']
   }) {
     this.#context = options.context
-    this.#config = options.config
+    this.internal = options.internal
     this.symbol = options.symbol
     this.type = options.type
     this.account = options.account
     this.options = options.order
 
-    let OrderDuration: undefined | OrderDuration = undefined
+    // if (options.quantity < this.lot.minimum) {
+    //   throw new Error(`Quantity is below the minimum lot size: ${options.quantity} < ${this.lot.minimum}`)
+    // }
 
-    switch (options.order.duration) {
-      case 'Day': {
-        OrderDuration = { DurationType: 'DayOrder' }
-        break
-      }
+    // if (
+    //   this.lot.maximum !== undefined &&
+    //   options.quantity > this.lot.maximum
+    // ) {
+    //   throw new Error(`Quantity is above the maximum lot size: ${options.quantity} > ${this.lot.maximum}`)
+    // }
 
-      case 'GoodTillCancel':
-      case 'ImmediateOrCancel': {
-        OrderDuration = { DurationType: options.order.duration }
-        break
-      }
+    // if (options.quantity % this.lot.increment !== 0) {
+    //   throw new Error(
+    //     `Quantity is not a multiple of the lot increment: ${options.quantity} % ${this.lot.increment} = ${
+    //       options.quantity % this.lot.increment
+    //     }`,
+    //   )
+    // }
 
-      default: {
-        throw new Error(`Invalid duration: ${options.order.duration}`)
-      }
-    }
+    // const pricePerQuantity = 'limit' in options && roundedLimit !== undefined
+    //   ? roundedLimit
+    //   : this.snapshot.quote.ask.price
 
-    switch (options.order.type) {
-      case 'Market': {
-        this.#saxobankOptions = {
-          AssetType: 'Stock',
-          OrderType: 'Market',
-          BuySell: 'Buy',
-          Uic: this.#config.uic,
-          Amount: options.order.quantity,
-          ManualOrder: false,
-          ExternalReference: this.ID,
-          OrderDuration,
-        }
-        break
-      }
+    // const expectedSum = pricePerQuantity * options.quantity
 
-      case 'Limit': {
-        this.#saxobankOptions = {
-          AssetType: 'Stock',
-          OrderType: 'Limit',
-          BuySell: 'Buy',
-          Uic: this.#config.uic,
-          Amount: options.order.quantity,
-          ManualOrder: false,
-          ExternalReference: this.ID,
-          OrderPrice: options.order.limit,
-          OrderDuration,
-        }
+    // // TODO - søg efter et instrument (Stock) hvor minimum er sat og skab fejlen fra SaxoBank. Det er bedre at oversætte fejl fra service end nuværende assertion før ordren er lagt.
+    // if (this.sum.minimum !== undefined && expectedSum < this.sum.minimum) {
+    //   throw new Error(`Sum is below the minimum: ${expectedSum} < ${this.sum.minimum}`)
+    // }
 
-        break
-      }
-
-      case 'Stop':
-      case 'StopLimit':
-      case 'TrailingStop': {
-        throw new Error(`Not implemented: ${options.order.type}`)
-      }
-
-      default: {
-        throw new Error('Not supported')
-      }
-    }
+    // // TODO - søg efter et instrument (Stock) hvor maximum er sat og skab fejlen fra SaxoBank. Det er bedre at oversætte fejl fra service end nuværende assertion før ordren er lagt.
+    // if (this.sum.maximum !== undefined && expectedSum > this.sum.maximum) {
+    //   throw new Error(`Sum is above the maximum: ${expectedSum} > ${this.sum.maximum}`)
+    // }
   }
 
-  async cost(): Promise<number> {
-    return 0
+  async cost(): Promise<{
+    readonly isMinimum: boolean
+    readonly commission: {
+      readonly open: number
+      readonly turnover: number
+    }
+  }> {
+    return await this.#context.stockOrderCost(this)
   }
 
   async execute(): Promise<unknown> {
-    try {
-      const unknown = await this.#context.stockOrder(this.#saxobankOptions)
+    const unknown = await this.#context.stockOrder(this)
 
-      return unknown
-    } catch (error) {
-      const mappedError = mapErrorCode(error, this.options)
-
-      if (mappedError !== undefined) {
-        return mappedError // kast en fejl i stedet
-      }
-
-      throw error
-    }
-  }
-
-  async precheck(): Promise<{ status: 'invalid'; type: 'minimumSum' } | { status: 'valid' }> {
-    // this.#saxobankOptions skal mappes til precheck options
-
-    try {
-      const unknown = await this.#context.stockOrderPrecheck(this.#saxobankOptions)
-
-      // deno-lint-ignore no-explicit-any
-      return unknown as any
-    } catch (error) {
-      const mappedError = mapErrorCode(error, this.options)
-
-      if (mappedError !== undefined) {
-        // deno-lint-ignore no-explicit-any
-        return mappedError as any // kast en fejl i stedet
-      }
-
-      throw error
-    }
+    return unknown
   }
 }
 
-// deno-lint-ignore ban-types
-function mapErrorCode(error: unknown, _options: SaxoBankStockOrderOptionsBase): {} | undefined {
-  if (
-    error instanceof HTTPClientError &&
-    error.statusCode === 400 &&
-    typeof error.body === 'object' &&
-    error.body !== null && 'ErrorCode' in error.body
-  ) {
-    switch (error.body.ErrorCode) {
-      case 'LotInvalid': {
-        return { status: 'invalid', type: 'lot' }
-      }
-    }
-  }
+// const stock = undefined as unknown as SaxoBankStock<{
+//   symbol: 'AAPL:XNAS'
+//   account: { accountID: '3432432INET'; currency: 'USD' }
+// }>
 
-  return undefined
-}
+// const order = stock.buy({
+//   type: 'Market',
+//   quantity: 100,
+//   duration: 'GoodTillCancel',
+// })

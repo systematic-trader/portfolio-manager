@@ -51,7 +51,7 @@ export interface SaxoBankBroker<Options extends SaxoBankBrokerOptions> extends A
       /** Get the account by ID and currency. */
       get<AccountID extends string, Currency extends Currency3>(
         { ID, currency }: { readonly ID: AccountID; readonly currency: Currency },
-      ): Promise<undefined | SaxoBankAccount<{ accountID: string; currency: Currency3 }>>
+      ): Promise<undefined | SaxoBankAccount<{ accountID: string; currency: Currency }>>
     }
 
   readonly positions: {

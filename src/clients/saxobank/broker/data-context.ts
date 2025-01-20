@@ -1,12 +1,17 @@
-import type { GuardType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import {
+  type GuardType,
+  is,
+  props,
+  string,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { toArray } from '../../../utils/async-iterable.ts'
 import { ensureError } from '../../../utils/error.ts'
 import { Timeout } from '../../../utils/timeout.ts'
-import { HTTPClientRequestAbortError } from '../../http-client.ts'
+import { HTTPClientError, HTTPClientRequestAbortError } from '../../http-client.ts'
 import { SaxoBankApplication } from '../../saxobank-application.ts'
 import { SaxoBankStream } from '../../saxobank-stream.ts'
 import { SaxoBankRandom } from '../saxobank-random.ts'
-import { PlaceOrderParametersEntryWithNoRelatedOrders } from '../service-groups/trading/orders.ts'
+import type { PlaceOrderParametersEntryWithNoRelatedOrders } from '../service-groups/trading/orders.ts'
 import type { SaxoBankSubscription } from '../stream/saxobank-subscription.ts'
 import type {
   InfoPriceSubscriptionOptions,
@@ -21,6 +26,7 @@ import type { ClosedPositionResponseUnion } from '../types/records/closed-positi
 import type { ExchangeSession } from '../types/records/exchange-session.ts'
 import type { InstrumentDetails, InstrumentDetailsUnion } from '../types/records/instrument-details.ts'
 import type { InstrumentSummaryInfoType } from '../types/records/instrument-summary-info.ts'
+import type { OrderDuration } from '../types/records/order-duration.ts'
 import type { OrderResponseUnion } from '../types/records/order-response.ts'
 import type { PositionResponseUnion } from '../types/records/position-response.ts'
 import type { PriceResponse } from '../types/records/price-response.ts'
@@ -34,8 +40,10 @@ import {
   SaxoBankInstrumentUICAssetTypeMismatchError,
   SaxoBankInstrumentUICNotFoundError,
   SaxoBankInstrumentUICNotTradableError,
+  SaxoBankOrderError,
 } from './errors.ts'
 import { mapInstrumentSessions, type MarketSession } from './market-session.ts'
+import type { SaxoBankStockOrder } from './saxobank-stock.ts'
 
 type PriceResponse = { [K in keyof typeof PriceResponse]: GuardType<typeof PriceResponse[K]> }
 
@@ -240,6 +248,13 @@ export class DataContextError extends Error {
     this.name = this.constructor.name
   }
 }
+
+const isOrderErrorCodeBody = is(props({
+  ErrorInfo: props({
+    ErrorCode: string(),
+    Message: string(),
+  }, { extendable: true }),
+}, { extendable: true }))
 
 export class DataContext implements AsyncDisposable {
   readonly #controller: AbortController
@@ -1300,15 +1315,139 @@ export class DataContext implements AsyncDisposable {
     }
   }
 
-  async stockOrder(options: PlaceOrderParametersEntryWithNoRelatedOrders): Promise<unknown> {
-    const requestID = SaxoBankRandom.requestID()
-    const result = await this.app.trading.orders.post({ ...options, RequestId: requestID })
+  // deno-lint-ignore no-explicit-any
+  async stockOrderCost(order: SaxoBankStockOrder<any>): Promise<{
+    readonly isMinimum: boolean
+    readonly commission: {
+      readonly open: number
+      readonly turnover: number
+    }
+  }> {
+    const price = 'limit' in order.options && order.options.limit !== undefined
+      ? order.options.limit
+      : await this.stockSnapshot({ uic: order.internal.uic }).then((snapshot) => snapshot.quote.middle.price)
 
-    return result
+    console.log('price', price)
+
+    const cost = await this.app.clientServices.tradingConditions.cost.get({
+      AccountKey: order.account.key,
+      AssetType: 'Stock',
+      Uic: order.internal.uic,
+      Amount: order.options.quantity,
+      Price: price,
+    })
+
+    // cost.Cost.Long.TradingCost?.Commissions?.[0]?.Rule.MinCommission
+    const isMinimum = cost.Cost.Long.TradingCost?.Commissions === undefined
+      ? false
+      : cost.Cost.Long.TradingCost.Commissions.reduce((min, commission) => {
+        if ('MinCommission' in commission.Rule) {
+          return true
+        }
+
+        return min
+      }, false)
+
+    const commission = cost.Cost.Long.TradingCost?.Commissions === undefined
+      ? 0
+      : cost.Cost.Long.TradingCost.Commissions.reduce((sum, commission) => {
+        return sum + commission.Value
+      }, 0) / 2
+
+    return {
+      isMinimum,
+      commission: {
+        open: cost.Cost.Long.TotalCost - commission,
+        turnover: cost.Cost.Long.TotalCost,
+      },
+    }
   }
 
-  async stockOrderPrecheck(options: PlaceOrderParametersEntryWithNoRelatedOrders): Promise<unknown> {
-    throw new Error('Not implemented')
+  // deno-lint-ignore no-explicit-any
+  async stockOrder(order: SaxoBankStockOrder<any>): Promise<unknown> {
+    const requestID = SaxoBankRandom.requestID()
+
+    let options: undefined | PlaceOrderParametersEntryWithNoRelatedOrders = undefined
+
+    let OrderDuration: undefined | OrderDuration = undefined
+
+    switch (order.options.duration) {
+      case 'Day': {
+        OrderDuration = { DurationType: 'DayOrder' }
+        break
+      }
+
+      case 'GoodTillCancel':
+      case 'ImmediateOrCancel': {
+        OrderDuration = { DurationType: order.options.duration }
+        break
+      }
+
+      default: {
+        throw new Error(`Invalid duration: ${order.options.duration}`)
+      }
+    }
+
+    switch (order.options.type) {
+      case 'Market': {
+        options = {
+          AssetType: 'Stock',
+          OrderType: 'Market',
+          BuySell: order.type,
+          Uic: order.internal.uic,
+          Amount: order.options.quantity,
+          ManualOrder: false,
+          ExternalReference: order.ID,
+          OrderDuration,
+          RequestId: requestID,
+        }
+        break
+      }
+
+      case 'Limit': {
+        options = {
+          AssetType: 'Stock',
+          OrderType: 'Limit',
+          BuySell: order.type,
+          Uic: order.internal.uic,
+          Amount: order.options.quantity,
+          ManualOrder: false,
+          ExternalReference: order.ID,
+          OrderPrice: order.options.limit,
+          OrderDuration,
+          RequestId: requestID,
+        }
+        break
+      }
+
+      case 'Stop':
+      case 'StopLimit':
+      case 'TrailingStop': {
+        throw new Error(`Not implemented: ${order.options.type}`)
+      }
+
+      default: {
+        throw new Error('Not supported')
+      }
+    }
+
+    try {
+      const result = await this.app.trading.orders.post(options)
+
+      // TODO add to internal state for pending orders
+
+      return result
+    } catch (error) {
+      if (
+        error instanceof HTTPClientError &&
+        error.statusCode === 400 &&
+        isOrderErrorCodeBody(error.body)
+      ) {
+        throw new SaxoBankOrderError(error.body.ErrorInfo.ErrorCode, error.body.ErrorInfo.Message, options)
+      }
+
+      throw error
+    }
   }
 
   async fxspot({ uic }: { readonly uic: number }): Promise<DataContextReaderView<DataContextFXSpot>> {
