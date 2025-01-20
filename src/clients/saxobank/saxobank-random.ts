@@ -54,11 +54,9 @@ function createdInfixedId(prefix: string, ...infixes: ReadonlyArray<number | str
 
 export const SaxoBankRandom = {
   stream: {
-    contextId: createPrefixedId.bind(undefined, 'stream-ctx'),
-    referenceId: createdInfixedId.bind(undefined, 'stream-ref'),
+    contextID: createPrefixedId.bind(undefined, 'stream-ctx'),
+    referenceID: createdInfixedId.bind(undefined, 'stream-ref'),
   },
-  order: {
-    requestId: createdInfixedId.bind(undefined, 'order-req'),
-    referenceId: createdInfixedId.bind(undefined, 'order-ref'),
-  },
+  requestID: createdInfixedId.bind(undefined, 'request'),
+  orderID: createdInfixedId.bind(undefined, 'order'),
 }

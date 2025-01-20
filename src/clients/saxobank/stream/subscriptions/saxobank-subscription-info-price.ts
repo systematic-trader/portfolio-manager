@@ -99,7 +99,7 @@ const parse: SaxoBankSubscriptionParse<SaxoBankSubscriptionInfoPriceMessage> = (
 function createReferenceIdGenerator<AssetType extends keyof InfoPriceSubscriptionOptions>(
   { assetType, uic }: { readonly assetType: AssetType; readonly uic: number },
 ): SaxoBankSubscriptionCreateReferenceId {
-  return () => SaxoBankRandom.stream.referenceId(`info-price-${assetType}-${uic}`)
+  return () => SaxoBankRandom.stream.referenceID(`info-price-${assetType}-${uic}`)
 }
 
 function createSubscribe<AssetType extends keyof InfoPriceSubscriptionOptions>(

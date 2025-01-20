@@ -8,7 +8,7 @@ import type {
 } from '../service-groups/trading/orders.ts'
 import type { AssetType } from '../types/derives/asset-type.ts'
 import type { BuySell } from '../types/derives/buy-sell.ts'
-import type { InstrumentSessionState } from '../types/derives/instrument-session-state.ts'
+import type { ExchangeSessionState } from '../types/derives/exchange-session-state.ts'
 import type { PlaceableOrderType } from '../types/derives/placeable-order-type.ts'
 import type { AccountResponse } from '../types/records/account-response.ts'
 import type { ClientResponse } from '../types/records/client-response.ts'
@@ -32,7 +32,7 @@ class TestSubscriptionContext implements AsyncDisposable {
   readonly #app: SaxoBankApplication
 
   constructor(app: SaxoBankApplication) {
-    this.#id = SaxoBankRandom.stream.contextId()
+    this.#id = SaxoBankRandom.stream.contextID()
     this.#app = app
   }
 
@@ -261,7 +261,7 @@ export class TestingUtilities {
     readonly app?: undefined | SaxoBankApplication
     readonly assetType: AssetType
     readonly uics?: undefined | readonly number[]
-    readonly sessions?: undefined | readonly InstrumentSessionState[]
+    readonly sessions?: undefined | readonly ExchangeSessionState[]
     readonly limit?: undefined | number
     readonly supportedOrderTypes?: undefined | readonly PlaceableOrderType[]
     readonly supportedTradeDirections?: undefined | readonly ('Long' | 'Short')[]
@@ -287,7 +287,7 @@ export class TestingUtilities {
     readonly app?: undefined | SaxoBankApplication
     readonly assetType: AssetType & keyof InfoPriceResponse
     readonly uics?: undefined | readonly number[]
-    readonly sessions?: undefined | readonly InstrumentSessionState[]
+    readonly sessions?: undefined | readonly ExchangeSessionState[]
     readonly limit?: undefined | number
     readonly supportedOrderTypes?: undefined | readonly PlaceableOrderType[]
     readonly supportedTradeDirections?: undefined | readonly ('Long' | 'Short')[]
@@ -722,8 +722,8 @@ export class TestingUtilities {
     const app = appOverride ?? this.#app
 
     const amount = this.calculateMinimumTradeSize(instrument)
-    const referenceId = SaxoBankRandom.order.referenceId()
-    const requestId = SaxoBankRandom.order.requestId()
+    const referenceId = SaxoBankRandom.orderID()
+    const requestId = SaxoBankRandom.requestID()
 
     // Wait at least 1 second since the last order was placed.
     // Firstly, this is preventing rate limit errors (you can only place 1 order every second).

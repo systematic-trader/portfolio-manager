@@ -10,12 +10,13 @@ export class Exchanges {
 
   async *get(
     { exchangeId }: { exchangeId?: undefined | string } = {},
-    options: { readonly timeout?: undefined | number } = {},
+    options: { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
   ): AsyncGenerator<ExchangeDetails, void, undefined> {
     if (exchangeId === undefined) {
       return yield* this.#client.getPaginated({
         guard: ExchangeDetails,
         timeout: options.timeout,
+        signal: options.signal,
       }).execute()
     }
 

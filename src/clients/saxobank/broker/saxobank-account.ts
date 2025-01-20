@@ -1,6 +1,8 @@
 import type { Currency3 } from '../types/derives/currency.ts'
 import type { DataContext, DataContextAccount, DataContextReader } from './data-context.ts'
-import { mapInstrumentSessions, type MarketSessionOpened } from './market-session.ts'
+import { SaxoBankInstrumentSymbolsNotFoundError } from './errors.ts'
+import type { MarketSessionOpened } from './market-session.ts'
+import { SaxoBankStock, type SaxoBankStockSymbols } from './saxobank-stock.ts'
 import { SaxoBankTransferCashOrder } from './saxobank-transfer-cash-order.ts'
 
 const AlwaysOpenSession: MarketSessionOpened = {
@@ -134,19 +136,25 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       })
     }
 
-    const fxspot = await this.#context.instrumentFirstMatch({
+    const symbols = [`${this.currency}${to.currency}`, `${to.currency}${this.currency}`]
+
+    const [uic] = await this.#context.findInstrumentUICs({
       assetType: 'FxSpot',
       symbols: [`${this.currency}${to.currency}`, `${to.currency}${this.currency}`],
+      limit: 1,
     })
 
-    const quote = await this.#context.quoteSnapshot({
-      assetType: 'FxSpot',
-      uic: fxspot.value.Uic,
-    })
+    if (uic === undefined) {
+      throw new SaxoBankInstrumentSymbolsNotFoundError('FxSpot', symbols)
+    }
 
-    const middlePrice = (quote.ask.price + quote.bid.price) / 2
+    const fxspot = await this.#context.fxspot({ uic })
+    const { quote } = await this.#context.fxspotSnapshot({ uic })
 
-    const rate = this.currency === fxspot.value.Symbol.slice(0, this.currency.length) ? middlePrice : 1 / middlePrice
+    const rate = this.currency === fxspot.value.symbol.slice(0, this.currency.length)
+      ? quote.middle.price
+      : 1 / quote.middle.price
+    const commission = (this.currency === currency ? amount : amount * rate) * this.#currencyConversionFee
 
     return new SaxoBankTransferCashOrder<
       {
@@ -156,45 +164,60 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       }
     >({
       context: this.#context,
-      session: mapInstrumentSessions(fxspot.value),
+      session: fxspot.value.session,
       transfer: { currency, amount },
       from: {
         account: this,
-        withdraw: this.currency === currency ? amount : amount * rate,
-        commission: (this.currency === currency ? amount : amount * rate) * this.#currencyConversionFee,
+        withdraw: this.currency === currency ? amount : (amount / rate) + commission,
+        commission,
       },
       to: {
         account: to,
-        deposit: to.currency === currency ? amount : amount / rate,
+        deposit: to.currency === currency ? amount : (amount + commission) / rate,
       },
       rate,
     })
   }
 
-  // /**
-  //  * Get a stock available for the account.
-  //  * @param symbol - The symbol of the stock.
-  //  * @returns The stock.
-  //  */
-  // async stock<
-  //   Symbol extends StockSymbols<Options['currency']>,
-  // >(symbol: Symbol): Promise<
-  //   SaxoBankStock<{
-  //     symbol: Symbol
-  //     account: { accountID: Options['accountID']; currency: Options['currency'] }
-  //   }>
-  // > {
-  //   const uic = SaxoBankStock.uic(this.currency, symbol)
+  /**
+   * Get a stock available for the account.
+   * @param symbol - The symbol of the stock.
+   * @returns The stock.
+   */
+  async stock<
+    Symbol extends SaxoBankStockSymbols<Options['currency']>,
+  >(symbol: Symbol): Promise<
+    SaxoBankStock<{
+      symbol: Symbol
+      account: { accountID: Options['accountID']; currency: Options['currency'] }
+    }>
+  > {
+    const config = SaxoBankStock.config(this.currency, symbol)
 
-  //   const stock = new SaxoBankStock<{
-  //     symbol: Symbol
-  //     account: { accountID: Options['accountID']; currency: Options['currency'] }
-  //   }>({
-  //     context: this.#context,
-  //     account: this,
-  //     symbol,
-  //   })
+    const [stockReader, stockSnapshot] = await Promise.all([
+      this.#context.stock({ uic: config.uic }),
+      this.#context.stockSnapshot({ uic: config.uic }),
+    ])
 
-  //   return stock
-  // }
+    const stock = new SaxoBankStock<{
+      symbol: Symbol
+      account: { accountID: Options['accountID']; currency: Options['currency'] }
+    }>({
+      context: this.#context,
+      stock: stockReader,
+      account: this,
+      symbol,
+      config,
+      snapshot: stockSnapshot,
+    })
+
+    return stock
+  }
 }
+
+// const account = undefined as unknown as SaxoBankAccount<{
+//   accountID: '123444'
+//   currency: 'USD'
+// }>
+
+// const stock =  await account.stock('AMAT:XNAS')

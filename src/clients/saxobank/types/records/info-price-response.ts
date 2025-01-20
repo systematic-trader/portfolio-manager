@@ -628,6 +628,7 @@ export interface InfoPriceResponseFxSpot extends GuardType<typeof InfoPriceRespo
 export const InfoPriceResponseFxSwap = props({
   AssetType: literal('FxSwap'),
   Uic: integer(),
+  PriceInfoDetails: optional(literal(undefined)),
   DisplayAndFormat: optional(DisplayAndFormat),
   LastUpdated: string({ format: 'date-iso8601' }),
   MarketDepth: optional(MarketDepth),

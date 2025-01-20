@@ -65,7 +65,7 @@ function createReferenceIdGenerator({ assetType, uic }: {
   readonly assetType: keyof PriceRequest
   readonly uic: number
 }): SaxoBankSubscriptionCreateReferenceId {
-  return () => SaxoBankRandom.stream.referenceId(`price-${assetType}-${uic}`)
+  return () => SaxoBankRandom.stream.referenceID(`price-${assetType}-${uic}`)
 }
 
 function createSubscribe<AssetType extends keyof PriceRequest>(

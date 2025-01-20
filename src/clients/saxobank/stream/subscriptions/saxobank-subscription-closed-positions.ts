@@ -106,7 +106,7 @@ function createReferenceIdGenerator(
     .join('-')
     .replace(/[^a-zA-Z]/g, 'x')
 
-  return () => SaxoBankRandom.stream.referenceId(`closed-positions-${infix}`)
+  return () => SaxoBankRandom.stream.referenceID(`closed-positions-${infix}`)
 }
 
 function createSubscribe(

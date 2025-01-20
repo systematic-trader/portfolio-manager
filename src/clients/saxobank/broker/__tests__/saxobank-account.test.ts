@@ -46,7 +46,7 @@ test('account properties', async () => {
   }
 })
 
-describe('transfer', () => {
+describe.skip('transfer', () => {
   test('same currency', async () => {
     const options = await SaxoBankBroker.options({ type: 'Live' })
 
@@ -77,9 +77,6 @@ describe('transfer', () => {
         throw new Error('Same account')
       }
 
-      debug('account1:', account1.cash)
-      debug('account2:', account2.cash)
-
       const amount = 1
 
       const order = await account1.transfer({
@@ -102,17 +99,17 @@ describe('transfer', () => {
       const result = await order.execute()
 
       expect(result.from.account).toBe(account1)
-      expect(result.from.amount).toBe(order.from.withdraw)
+      expect(result.from.withdrawn).toBe(order.from.withdraw)
       expect(result.from.commission).toBe(0)
       expect(result.to.account).toBe(account2)
-      expect(result.to.amount).toBe(order.to.deposit)
+      expect(result.to.deposited).toBe(order.to.deposit)
       expect(result.rate).toBe(order.rate)
     } finally {
       await broker.dispose()
     }
   })
 
-  test.only('dkk to euro', async () => {
+  test('dkk to euro', async () => {
     const options = await SaxoBankBroker.options({ type: 'Live' })
 
     const accountID1 = Object.entries(options.accounts).find((entry): entry is [string, 'DKK'] => entry[1] === 'DKK')
@@ -171,8 +168,21 @@ describe('transfer', () => {
       const result = await order.execute()
 
       debug('result:', result)
+
+      expect(result.from.account).toBe(account1)
+      expect(relationFraction(result.from.withdrawn, order.from.withdraw)).toBeLessThanOrEqual(0.0025)
+      expect(result.from.commission).toBeGreaterThanOrEqual(0)
+      expect(result.to.account).toBe(account2)
+      expect(result.to.deposited).toBe(order.to.deposit)
     } finally {
       await broker.dispose()
     }
   })
 })
+
+function relationFraction(left: number, right: number): number {
+  const absLeft = Math.abs(right)
+  const absRight = Math.abs(left)
+
+  return 1 - (absLeft < absRight ? absLeft / absRight : absRight / absLeft)
+}

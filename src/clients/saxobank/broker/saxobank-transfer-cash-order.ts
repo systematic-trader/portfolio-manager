@@ -74,7 +74,7 @@ export class SaxoBankTransferCashOrder<
         readonly accountID: Options['from']['accountID']
         readonly currency: Options['from']['currency']
       }>
-      readonly amount: number
+      readonly withdrawn: number
       readonly commission: number
     }
     readonly to: {
@@ -82,7 +82,7 @@ export class SaxoBankTransferCashOrder<
         readonly accountID: Options['to']['accountID']
         readonly currency: Options['to']['currency']
       }>
-      readonly amount: number
+      readonly deposited: number
     }
     readonly rate: number
   }> {
@@ -94,17 +94,24 @@ export class SaxoBankTransferCashOrder<
         Amount: this.#amount,
       })
 
+      const rate = this.from.account.currency === this.#currency
+        ? response.ToAccountAmount / (response.FromAccountAmount + response.Commission)
+        : (response.ToAccountAmount - response.Commission) / response.FromAccountAmount
+      const commission = this.from.account.currency === this.#currency
+        ? response.Commission
+        : response.Commission * (1 / rate)
+
       return {
         from: {
           account: this.from.account,
-          amount: response.FromAccountAmount,
-          commission: response.Commission,
+          withdrawn: response.FromAccountAmount,
+          commission,
         },
         to: {
           account: this.to.account,
-          amount: response.ToAccountAmount,
+          deposited: response.ToAccountAmount,
         },
-        rate: response.ToAccountAmount / response.FromAccountAmount,
+        rate,
       }
     } catch (error) {
       //  API throws 403 Forbidden if the account is not allowed to transfer cash

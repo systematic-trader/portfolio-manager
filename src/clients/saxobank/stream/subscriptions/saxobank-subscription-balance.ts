@@ -67,7 +67,7 @@ function createReferenceIdGenerator(options: ArgumentType<BalanceRequest>): Saxo
     .join('-')
     .replace(/[^a-zA-Z]/g, 'x')
 
-  return () => SaxoBankRandom.stream.referenceId(`balance-${infix}`)
+  return () => SaxoBankRandom.stream.referenceID(`balance-${infix}`)
 }
 
 function createSubscribe(

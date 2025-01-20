@@ -102,7 +102,7 @@ function createReferenceIdGenerator(options: ArgumentType<OpenOrdersRequest>): S
     .join('-')
     .replace(/[^a-zA-Z]/g, 'x')
 
-  return () => SaxoBankRandom.stream.referenceId(`orders-${infix}`)
+  return () => SaxoBankRandom.stream.referenceID(`orders-${infix}`)
 }
 
 function createSubscribe(

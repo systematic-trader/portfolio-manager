@@ -77,7 +77,7 @@ describe('trading/prices/subscriptions', () => {
                     Uic: instrument.Uic,
                   },
                   ContextId: context.id,
-                  ReferenceId: SaxoBankRandom.stream.referenceId(),
+                  ReferenceId: SaxoBankRandom.stream.referenceID(),
                   Format: 'application/json',
                   RefreshRate: 1000,
                 })
@@ -105,7 +105,7 @@ describe('trading/prices/subscriptions', () => {
                     ForwardDate: earliestForwardStandardDate.Date,
                   },
                   ContextId: context.id,
-                  ReferenceId: SaxoBankRandom.stream.referenceId(),
+                  ReferenceId: SaxoBankRandom.stream.referenceID(),
                   Format: 'application/json',
                   RefreshRate: 1000,
                 })

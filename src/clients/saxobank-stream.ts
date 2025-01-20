@@ -77,7 +77,7 @@ export class SaxoBankStream extends EventSwitch<{
   readonly #websocket: WebSocketClient
   readonly #queueStream: PromiseQueue
   readonly #queueAccessToken: PromiseQueue
-  readonly #contextId = SaxoBankRandom.stream.contextId()
+  readonly #contextId = SaxoBankRandom.stream.contextID()
   readonly #controller = new AbortController()
   readonly #signal: AbortSignal
 

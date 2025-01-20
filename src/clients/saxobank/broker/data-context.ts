@@ -5,17 +5,20 @@ import { Timeout } from '../../../utils/timeout.ts'
 import { HTTPClientRequestAbortError } from '../../http-client.ts'
 import { SaxoBankApplication } from '../../saxobank-application.ts'
 import { SaxoBankStream } from '../../saxobank-stream.ts'
+import { SaxoBankRandom } from '../saxobank-random.ts'
+import { PlaceOrderParametersEntryWithNoRelatedOrders } from '../service-groups/trading/orders.ts'
 import type { SaxoBankSubscription } from '../stream/saxobank-subscription.ts'
 import type {
   InfoPriceSubscriptionOptions,
   SaxoBankSubscriptionInfoPriceMessage,
 } from '../stream/subscriptions/saxobank-subscription-info-price.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
+import type { ExchangeDetails } from '../types/derives/exchange-details.ts'
 import type { AccountResponse } from '../types/records/account-response.ts'
 import type { BalanceResponse } from '../types/records/balance-response.ts'
 import type { ClientResponse } from '../types/records/client-response.ts'
 import type { ClosedPositionResponseUnion } from '../types/records/closed-position-response.ts'
-import type { InfoPriceRequest } from '../types/records/info-price-request.ts'
+import type { ExchangeSession } from '../types/records/exchange-session.ts'
 import type { InstrumentDetails, InstrumentDetailsUnion } from '../types/records/instrument-details.ts'
 import type { InstrumentSummaryInfoType } from '../types/records/instrument-summary-info.ts'
 import type { OrderResponseUnion } from '../types/records/order-response.ts'
@@ -28,10 +31,6 @@ import {
   SaxoBankBrokerOptionsError,
   SaxoBankClientBalancePropertyUndefinedError,
   SaxoBankDefaultCurrencyMismatchError,
-  SaxoBankInstrumentNotFoundError,
-  SaxoBankInstrumentSymbolAssetTypeMismatchError,
-  SaxoBankInstrumentSymbolNotFoundError,
-  SaxoBankInstrumentSymbolsNotFoundError,
   SaxoBankInstrumentUICAssetTypeMismatchError,
   SaxoBankInstrumentUICNotFoundError,
   SaxoBankInstrumentUICNotTradableError,
@@ -50,25 +49,15 @@ export interface DataContextBalance {
   readonly total: number
 }
 
-export interface DataContextQuoteSnapshot {
-  /** Updated at timestamp. */
-  readonly updatedAt: string
-  /** The ask price and size of the stock. */
-  readonly ask: {
-    /** The ask price of the stock. */
-    readonly price: number
-    /** The ask size of the stock. */
-    readonly size: number
-  }
-  /** The bid price and size of the stock. */
-  readonly bid: {
-    /** The bid price of the stock. */
-    readonly price: number
-    /** The bid size of the stock. */
-    readonly size: number
-  }
-  /** Mid price calculated as (ask.amount + bid.amount) / 2. */
-  readonly midPrice: number
+export interface DataContextExchange {
+  /** Internal SaxoBank ID */
+  readonly ID: string
+  /** The name of the exchange. */
+  readonly name: string
+  /** Market Identifier Code */
+  readonly MIC: string
+  /** The current market sessions of the exchange. */
+  readonly sessions: readonly ExchangeSession[]
 }
 
 export interface DataContextStock {
@@ -85,6 +74,103 @@ export interface DataContextStock {
   }
   readonly session: MarketSession
   roundPriceToTickSize(price: number): number
+}
+
+export interface DataContextStockSnapshot {
+  /** Updated at timestamp. */
+  readonly updatedAt: string
+
+  /** The delay in seconds. */
+  readonly delayedBySeconds: number
+
+  /** The trade price and volume of the instrument. */
+  readonly trade: {
+    /** Last traded price of the instrument. */
+    readonly price: number
+    /** Last traded volume of the instrument. */
+    readonly size: number
+  }
+
+  /** The quote of the instrument. */
+  readonly quote: {
+    /** The ask price and size of the instrument. */
+    readonly ask: {
+      /** The ask price of the instrument. */
+      readonly price: number
+      /** The ask size of the instrument. */
+      readonly size: number
+    }
+    /** The bid price and size of the instrument. */
+    readonly bid: {
+      /** The bid price of the instrument. */
+      readonly price: number
+      /** The bid size of the instrument. */
+      readonly size: number
+    }
+
+    /** Calculated middle of ask and bid */
+    readonly middle: {
+      /** Middle price calculated as (ask.amount + bid.amount) / 2. */
+      readonly price: number
+    }
+  }
+}
+
+export interface DataContextFXSpot {
+  readonly symbol: string
+  readonly description: string
+  readonly lot: {
+    readonly minimum: number
+    readonly maximum: undefined | number
+    readonly increment: number
+  }
+  readonly sum: {
+    readonly minimum: undefined | number
+    readonly maximum: undefined | number
+  }
+  /** Session is of exchange "SBFX" named "Inter Bank" which do NOT exist as an real exchange at SaxoBank. */
+  readonly session: MarketSession
+  roundPriceToTickSize(price: number): number
+}
+
+export interface DataContextFXSpotSnapshot {
+  /** Updated at timestamp. */
+  readonly updatedAt: string
+
+  /** The delay in seconds. */
+  readonly delayedBySeconds: number
+
+  /** The trade price and volume of the instrument. */
+  readonly trade: {
+    /** Last traded price of the instrument. */
+    readonly price: number
+    /** Last traded volume of the instrument. */
+    readonly size: number
+  }
+
+  /** The quote of the instrument. */
+  readonly quote: {
+    /** The ask price and size of the instrument. */
+    readonly ask: {
+      /** The ask price of the instrument. */
+      readonly price: number
+      /** The ask size of the instrument. */
+      readonly size: number
+    }
+    /** The bid price and size of the instrument. */
+    readonly bid: {
+      /** The bid price of the instrument. */
+      readonly price: number
+      /** The bid size of the instrument. */
+      readonly size: number
+    }
+
+    /** Calculated middle of ask and bid */
+    readonly middle: {
+      /** Middle price calculated as (ask.amount + bid.amount) / 2. */
+      readonly price: number
+    }
+  }
 }
 
 export interface DataContextClient {
@@ -156,7 +242,6 @@ export class DataContextError extends Error {
 }
 
 export class DataContext implements AsyncDisposable {
-  readonly app: SaxoBankApplication
   readonly #controller: AbortController
   readonly #initializers = new Map<string, Promise<DataContextReader<unknown>>>()
   readonly #subscriptionReaders = new Map<string, DataContextReader<unknown>>()
@@ -165,6 +250,9 @@ export class DataContext implements AsyncDisposable {
   readonly #stream2: SaxoBankStream
   readonly #stream3: SaxoBankStream
   readonly #stream4: SaxoBankStream
+
+  #instruments = new Map<string, InstrumentDetailsUnion>()
+  #exchanges = new Map<string, ExchangeDetails>()
 
   #error: undefined | Error
 
@@ -188,6 +276,10 @@ export class DataContext implements AsyncDisposable {
     throw new Error('No available stream')
   }
 
+  readonly app: SaxoBankApplication
+
+  #nowTimestamp: number
+
   constructor({ type }: {
     /** Type of the application. */
     readonly type?: undefined | SaxoBankApplication['type']
@@ -207,6 +299,8 @@ export class DataContext implements AsyncDisposable {
     this.#stream4.addListener('disposed', disposeListener)
 
     this.#error = undefined
+
+    this.#nowTimestamp = Date.now()
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
@@ -275,6 +369,8 @@ export class DataContext implements AsyncDisposable {
     if (this.#controller.signal.aborted) {
       return
     }
+
+    this.#nowTimestamp = Date.now()
 
     const refreshPromises: Promise<void>[] = []
 
@@ -717,6 +813,8 @@ export class DataContext implements AsyncDisposable {
       this.#initializers.delete('client')
     })
 
+    this.#initializers.set('client', initializer)
+
     return initializer as ReaderPromise
   }
 
@@ -819,10 +917,56 @@ export class DataContext implements AsyncDisposable {
       this.#initializers.delete(key)
     })
 
+    this.#initializers.set(key, initializer)
+
     return initializer as ReaderPromise
   }
 
-  readonly #instruments = new Map<string, InstrumentDetailsUnion>()
+  async exchange({ ID }: { readonly ID: string }): Promise<DataContextReaderView<DataContextExchange>> {
+    const reader = await this.#createAppReader({
+      key: 'exchanges',
+      wait: 3 * 60 * 1000, // 3 minutes
+      read: async (signal): Promise<ReadonlyMap<string, ExchangeDetails>> => {
+        try {
+          const exchanges = await toArray(this.app.referenceData.exchanges.get({}, { signal }))
+
+          this.#exchanges = new Map()
+
+          for (const exchange of exchanges) {
+            this.#exchanges.set(exchange.ExchangeId, exchange)
+          }
+
+          return this.#exchanges
+        } catch (error) {
+          if (error instanceof HTTPClientRequestAbortError) {
+            return this.#exchanges
+          }
+
+          throw error
+        }
+      },
+      map: (value) => value,
+    })
+
+    return reader.view((exchanges) => {
+      const exchange = exchanges.get(ID)
+
+      if (exchange === undefined) {
+        throw new Error(`Exchange "${ID}" not found`)
+      }
+
+      if (exchange.ExchangeSessions === undefined) {
+        throw new Error(`Exchange ${exchange.Name} (MIC=${exchange.Mic} ID=${exchange.ExchangeId}) has no sessions`)
+      }
+
+      return {
+        ID: exchange.ExchangeId,
+        name: exchange.Name,
+        MIC: exchange.Mic,
+        sessions: exchange.ExchangeSessions,
+      }
+    })
+  }
 
   async preloadInstruments(
     options: ReadonlyArray<
@@ -878,82 +1022,82 @@ export class DataContext implements AsyncDisposable {
     }
   }
 
-  async preloadInstrumentsBySymbol(
-    options: ReadonlyArray<
-      { readonly assetType: InstrumentDetailsUnion['AssetType']; readonly symbols: readonly string[] }
-    >,
-  ): Promise<void> {
-    const preloadOptions: Array<
-      { readonly assetType: InstrumentDetailsUnion['AssetType']; readonly uics: readonly number[] }
-    > = []
+  // async preloadInstrumentsBySymbol(
+  //   options: ReadonlyArray<
+  //     { readonly assetType: InstrumentDetailsUnion['AssetType']; readonly symbols: readonly string[] }
+  //   >,
+  // ): Promise<void> {
+  //   const preloadOptions: Array<
+  //     { readonly assetType: InstrumentDetailsUnion['AssetType']; readonly uics: readonly number[] }
+  //   > = []
 
-    for (const { assetType, symbols } of options) {
-      if (symbols.length === 0) {
-        continue
-      }
+  //   for (const { assetType, symbols } of options) {
+  //     if (symbols.length === 0) {
+  //       continue
+  //     }
 
-      const unknownSymbols: string[] = []
+  //     const unknownSymbols: string[] = []
 
-      for (let symbol of symbols) {
-        symbol = symbol.toUpperCase()
-        let found = false
+  //     for (let symbol of symbols) {
+  //       symbol = symbol.toUpperCase()
+  //       let found = false
 
-        for (const instrument of this.#instruments.values()) {
-          if (instrument.Symbol === symbol) {
-            if (instrument.AssetType !== assetType) {
-              throw new SaxoBankInstrumentSymbolAssetTypeMismatchError(assetType, instrument.AssetType, symbol)
-            }
+  //       for (const instrument of this.#instruments.values()) {
+  //         if (instrument.Symbol === symbol) {
+  //           if (instrument.AssetType !== assetType) {
+  //             throw new SaxoBankInstrumentSymbolAssetTypeMismatchError(assetType, instrument.AssetType, symbol)
+  //           }
 
-            found = true
-            break
-          }
-        }
+  //           found = true
+  //           break
+  //         }
+  //       }
 
-        if (found) {
-          continue
-        }
+  //       if (found) {
+  //         continue
+  //       }
 
-        unknownSymbols.push(symbol)
-      }
+  //       unknownSymbols.push(symbol)
+  //     }
 
-      if (unknownSymbols.length === 0) {
-        continue
-      }
+  //     if (unknownSymbols.length === 0) {
+  //       continue
+  //     }
 
-      const instruments = await Promise.allSettled(
-        unknownSymbols.map(async (symbol) => {
-          const [instrument] = await toArray<InstrumentSummaryInfoType>(this.app.referenceData.instruments.get({
-            AssetTypes: [assetType],
-            Keywords: [symbol],
-            IncludeNonTradable: false,
-            limit: 1,
-          }))
+  //     const instruments = await Promise.allSettled(
+  //       unknownSymbols.map(async (symbol) => {
+  //         const [instrument] = await toArray<InstrumentSummaryInfoType>(this.app.referenceData.instruments.get({
+  //           AssetTypes: [assetType],
+  //           Keywords: [symbol],
+  //           IncludeNonTradable: false,
+  //           limit: 1,
+  //         }))
 
-          if (instrument === undefined) {
-            throw new SaxoBankInstrumentSymbolNotFoundError(assetType, symbol)
-          }
+  //         if (instrument === undefined) {
+  //           throw new SaxoBankInstrumentSymbolNotFoundError(assetType, symbol)
+  //         }
 
-          if (instrument.AssetType !== assetType) {
-            throw new SaxoBankInstrumentSymbolAssetTypeMismatchError(assetType, instrument.AssetType, symbol)
-          }
+  //         if (instrument.AssetType !== assetType) {
+  //           throw new SaxoBankInstrumentSymbolAssetTypeMismatchError(assetType, instrument.AssetType, symbol)
+  //         }
 
-          return instrument
-        }),
-      ).then((results) => {
-        return results.map<InstrumentSummaryInfoType>((result) => {
-          if (result.status === 'rejected') {
-            throw result.reason
-          }
+  //         return instrument
+  //       }),
+  //     ).then((results) => {
+  //       return results.map<InstrumentSummaryInfoType>((result) => {
+  //         if (result.status === 'rejected') {
+  //           throw result.reason
+  //         }
 
-          return result.value
-        })
-      })
+  //         return result.value
+  //       })
+  //     })
 
-      preloadOptions.push({ assetType, uics: instruments.map((i) => i.Identifier) })
-    }
+  //     preloadOptions.push({ assetType, uics: instruments.map((i) => i.Identifier) })
+  //   }
 
-    await this.preloadInstruments(preloadOptions)
-  }
+  //   await this.preloadInstruments(preloadOptions)
+  // }
 
   async instrument<T extends InstrumentDetailsUnion['AssetType']>(
     { assetType, uic }: { readonly assetType: T; readonly uic: number },
@@ -978,29 +1122,32 @@ export class DataContext implements AsyncDisposable {
             ),
           )
 
-          const instrumentsMap = new Map<string, InstrumentDetailsUnion>()
-
-          for (const instrument of instruments) {
-            if (isInstrumentTradable(instrument)) {
-              instrumentsMap.set(`${instrument.AssetType}:${instrument.Uic}`, instrument)
-            }
-          }
-
           if (signal !== undefined && signal.aborted) {
             return this.#instruments
           }
 
+          const instrumentsMap = new Map<string, InstrumentDetailsUnion>()
+
+          for (const downloaded of instruments) {
+            const instrumentKey = `${downloaded.AssetType}:${downloaded.Uic}`
+
+            // Make sure the instrument is still tradeable and is in the list of preloaded instruments
+            // - FX asset types use the same UIC for different instruments (FXSpot, FXForward, etc.)
+            if (this.#instruments.has(instrumentKey) && isInstrumentTradable(downloaded)) {
+              instrumentsMap.set(instrumentKey, downloaded)
+            }
+          }
+
           for (const instrument of this.#instruments.values()) {
             const instrumentKey = `${instrument.AssetType}:${instrument.Uic}`
-            const downloaded = instrumentsMap.get(instrumentKey)
 
-            if (downloaded === undefined) {
-              this.#instruments.delete(instrumentKey)
-              continue
+            // Check if the instrument was preloaded while fetching the instruments
+            if (instrumentsMap.has(instrumentKey) === false) {
+              instrumentsMap.set(instrumentKey, instrument)
             }
-
-            this.#instruments.set(instrumentKey, downloaded)
           }
+
+          this.#instruments = instrumentsMap
 
           return this.#instruments
         } catch (error) {
@@ -1031,124 +1178,90 @@ export class DataContext implements AsyncDisposable {
     })
   }
 
-  async instrumentBySymbol<T extends InstrumentDetailsUnion['AssetType']>({
-    assetType,
-    symbol,
-  }: {
-    readonly assetType: T
-    readonly symbol: string
-  }): Promise<DataContextReaderView<InstrumentDetails[T]>> {
-    await this.preloadInstrumentsBySymbol([{ assetType, symbols: [symbol] }])
-
-    symbol = symbol.toUpperCase()
-
-    let uic: undefined | number = undefined
-
-    for (const instrument of this.#instruments.values()) {
-      if (instrument.Symbol === symbol) {
-        if (instrument.AssetType !== assetType) {
-          throw new SaxoBankInstrumentSymbolAssetTypeMismatchError(assetType, instrument.AssetType, symbol)
-        }
-
-        uic = instrument.Uic
-        break
-      }
-    }
-
-    if (uic === undefined) {
-      throw new SaxoBankInstrumentSymbolNotFoundError(assetType, symbol)
-    }
-
-    return this.instrument({ assetType, uic })
-  }
-
-  async instrumentFirstMatch<T extends InstrumentDetailsUnion['AssetType']>({
+  async findInstrumentUICs<T extends InstrumentDetailsUnion['AssetType']>({
     assetType,
     symbols,
+    limit,
   }: {
     readonly assetType: T
     readonly symbols: readonly string[]
-  }): Promise<DataContextReaderView<InstrumentDetails[T]>> {
-    await this.preloadInstrumentsBySymbol([{ assetType, symbols }]).catch((error) => {
-      if (error instanceof SaxoBankInstrumentNotFoundError === false) {
-        throw error
+    readonly limit?: undefined | number
+  }): Promise<ReadonlyArray<number>> {
+    const symbolsSet = new Set<string>(symbols.map((s) => s.toUpperCase()))
+    const uics: number[] = []
+
+    if (symbolsSet.size > 0) {
+      for (const instrument of this.#instruments.values()) {
+        if (instrument.AssetType === assetType) {
+          if (symbolsSet.has(instrument.Symbol)) {
+            uics.push(instrument.Uic)
+            symbolsSet.delete(instrument.Symbol)
+
+            if (symbolsSet.size === 0 || (limit !== undefined && uics.length === limit)) {
+              break
+            }
+          }
+        }
       }
+    }
+
+    if (limit !== undefined && uics.length === limit) {
+      return uics
+    }
+
+    limit = limit !== undefined ? limit - uics.length : undefined
+
+    if (symbolsSet.size > 0) {
+      const instruments = await toArray<InstrumentSummaryInfoType>(
+        this.app.referenceData.instruments.get({
+          AssetTypes: [assetType],
+          Keywords: [...symbolsSet],
+          IncludeNonTradable: false,
+          limit,
+        }),
+      )
+
+      for (const instrument of instruments) {
+        if (instrument.AssetType === assetType && symbolsSet.has(instrument.Symbol.toUpperCase())) {
+          uics.push(instrument.Identifier)
+          symbolsSet.delete(instrument.Symbol)
+
+          if (symbolsSet.size === 0 || (limit !== undefined && uics.length === limit)) {
+            break
+          }
+        }
+      }
+    }
+
+    return uics
+  }
+
+  async stock({ uic }: { readonly uic: number }): Promise<DataContextReaderView<DataContextStock>> {
+    return await this.instrument({ assetType: 'Stock', uic }).then(async (instrumentReader) => {
+      if (instrumentReader.value.Exchange === undefined) {
+        throw new Error(
+          `Stock ${instrumentReader.value.Symbol} (UIC=${instrumentReader.value.Uic}) has no exchange defined.`,
+        )
+      }
+
+      const exchangeReader = await this.exchange({ ID: instrumentReader.value.Exchange.ExchangeId })
+
+      return exchangeReader.merge(instrumentReader).view(([exchange, instrument]) => {
+        return {
+          symbol: instrument.Symbol,
+          description: instrument.Description,
+          lot: calculateOrderLotSpecification(instrument),
+          sum: calculateOrderSumSpecification(instrument),
+          session: mapInstrumentSessions(this.#nowTimestamp, instrument, exchange.sessions),
+          roundPriceToTickSize: roundPriceToTickSize.bind(null, instrument),
+        }
+      })
     })
-
-    for (const symbol of symbols) {
-      try {
-        return await this.instrumentBySymbol({ assetType, symbol })
-      } catch (error) {
-        if (error instanceof SaxoBankInstrumentNotFoundError) {
-          continue
-        }
-
-        throw error
-      }
-    }
-
-    throw new SaxoBankInstrumentSymbolsNotFoundError(assetType, symbols)
   }
 
-  async tryInstrument<T extends InstrumentDetailsUnion['AssetType']>({
-    assetType,
-    uic,
-  }: {
-    readonly assetType: T
-    readonly uic: number
-  }): Promise<undefined | DataContextReaderView<InstrumentDetails[T]>> {
-    try {
-      return await this.instrument({ assetType, uic })
-    } catch (error) {
-      if (error instanceof SaxoBankInstrumentNotFoundError) {
-        return undefined
-      }
-
-      throw error
-    }
-  }
-
-  async tryInstrumentBySymbol<T extends InstrumentDetailsUnion['AssetType']>({
-    assetType,
-    symbol,
-  }: {
-    readonly assetType: T
-    readonly symbol: string
-  }): Promise<undefined | DataContextReaderView<InstrumentDetails[T]>> {
-    try {
-      return await this.instrumentBySymbol({ assetType, symbol })
-    } catch (error) {
-      if (error instanceof SaxoBankInstrumentNotFoundError) {
-        return undefined
-      }
-
-      throw error
-    }
-  }
-
-  async tryInstrumentFirstMatch<T extends InstrumentDetailsUnion['AssetType']>({
-    assetType,
-    symbols,
-  }: {
-    readonly assetType: T
-    readonly symbols: readonly string[]
-  }): Promise<undefined | DataContextReaderView<InstrumentDetails[T]>> {
-    try {
-      return await this.instrumentFirstMatch({ assetType, symbols })
-    } catch (error) {
-      if (error instanceof SaxoBankInstrumentSymbolsNotFoundError) {
-        return undefined
-      }
-
-      throw error
-    }
-  }
-
-  async quoteSnapshot<T extends keyof InfoPriceRequest>(
-    { assetType, uic }: { readonly assetType: T; readonly uic: number },
-  ): Promise<DataContextQuoteSnapshot> {
-    const { Quote, LastUpdated } = await this.app.trading.infoPrices.get({
-      AssetType: assetType,
+  async stockSnapshot({ uic }: { readonly uic: number }): Promise<DataContextStockSnapshot> {
+    const { Quote, LastUpdated, PriceInfoDetails } = await this.app.trading.infoPrices.get({
+      AssetType: 'Stock',
       Uic: uic,
     } as never)
 
@@ -1160,46 +1273,123 @@ export class DataContext implements AsyncDisposable {
       throw new Error('Bid is undefined')
     }
 
+    if (PriceInfoDetails === undefined) {
+      throw new Error('PriceInfoDetails is undefined')
+    }
+
     return {
       updatedAt: LastUpdated,
-      ask: {
-        price: Quote.Ask,
-        size: Quote.AskSize ?? 0,
+      delayedBySeconds: (Quote.DelayedByMinutes ?? 0) * 60,
+      trade: {
+        price: PriceInfoDetails.LastTraded,
+        size: PriceInfoDetails.LastTradedSize,
       },
-      bid: {
-        price: Quote.Bid,
-        size: Quote.BidSize ?? 0,
+      quote: {
+        ask: {
+          price: Quote.Ask,
+          size: Quote.AskSize ?? 0,
+        },
+        bid: {
+          price: Quote.Bid,
+          size: Quote.BidSize ?? 0,
+        },
+        middle: {
+          price: (Quote.Ask + Quote.Bid) / 2,
+        },
       },
-      midPrice: (Quote.Ask + Quote.Bid) / 2,
     }
   }
 
-  async stock({ uic }: { readonly uic: number }): Promise<DataContextReaderView<DataContextStock>> {
-    return await this.instrument({ assetType: 'Stock', uic }).then((reader) => {
+  async stockOrder(options: PlaceOrderParametersEntryWithNoRelatedOrders): Promise<unknown> {
+    const requestID = SaxoBankRandom.requestID()
+    const result = await this.app.trading.orders.post({ ...options, RequestId: requestID })
+
+    return result
+  }
+
+  async stockOrderPrecheck(options: PlaceOrderParametersEntryWithNoRelatedOrders): Promise<unknown> {
+    throw new Error('Not implemented')
+  }
+
+  async fxspot({ uic }: { readonly uic: number }): Promise<DataContextReaderView<DataContextFXSpot>> {
+    return await this.instrument({ assetType: 'FxSpot', uic }).then((reader) => {
       return reader.view((value) => {
         return {
           symbol: value.Symbol,
           description: value.Description,
           lot: calculateOrderLotSpecification(value),
           sum: calculateOrderSumSpecification(value),
-          session: mapInstrumentSessions(value),
+          session: mapInstrumentSessions(this.#nowTimestamp, value, value.TradingSessions.Sessions),
           roundPriceToTickSize: roundPriceToTickSize.bind(null, value),
         }
       })
     })
   }
+
+  async fxspotSnapshot({ uic }: { readonly uic: number }): Promise<DataContextFXSpotSnapshot> {
+    const { Quote, LastUpdated, PriceInfoDetails } = await this.app.trading.infoPrices.get({
+      AssetType: 'FxSpot',
+      Uic: uic,
+    } as never)
+
+    if (Quote.Ask === undefined) {
+      throw new Error('Ask is undefined')
+    }
+
+    if (Quote.Bid === undefined) {
+      throw new Error('Bid is undefined')
+    }
+
+    if (PriceInfoDetails === undefined) {
+      throw new Error('PriceInfoDetails is undefined')
+    }
+
+    return {
+      updatedAt: LastUpdated,
+      delayedBySeconds: (Quote.DelayedByMinutes ?? 0) * 60,
+      trade: {
+        price: PriceInfoDetails.LastClose,
+        size: PriceInfoDetails.Volume,
+      },
+      quote: {
+        ask: {
+          price: Quote.Ask,
+          size: Quote.AskSize ?? 0,
+        },
+        bid: {
+          price: Quote.Bid,
+          size: Quote.BidSize ?? 0,
+        },
+        middle: {
+          price: (Quote.Ask + Quote.Bid) / 2,
+        },
+      },
+    }
+  }
 }
 
 export class DataContextReader<T> {
-  readonly #dispose: () => Promise<void>
+  readonly #dispose: () => void | Promise<void>
   readonly #read: () => T
-  readonly #refresh: () => Promise<void>
+  readonly #refresh: () => void | Promise<void>
+
+  #version = 1
+
+  get version(): number {
+    return this.#version
+  }
 
   get value(): T {
     return this.#read()
   }
 
-  constructor({ dispose, read, refresh }: { dispose(): Promise<void>; read(): T; refresh(): Promise<void> }) {
+  constructor(
+    { dispose, read, refresh }: {
+      dispose(): void | Promise<void>
+      read(): T
+      refresh(): void | Promise<void>
+    },
+  ) {
     this.#read = read
 
     this.#dispose = dispose
@@ -1210,51 +1400,151 @@ export class DataContextReader<T> {
     await this.#dispose()
   }
 
-  refresh(): Promise<void> {
-    return this.#refresh()
+  async refresh(): Promise<void> {
+    await this.#refresh()
+
+    if (this.#version === Number.MAX_SAFE_INTEGER) {
+      this.#version = 1
+    }
+
+    this.#version++
   }
 
-  view<U>(map: (value: T) => U): DataContextReaderView<U> {
-    let value = this.#read()
-    let mapped = map(value)
+  merge<Args extends readonly unknown[]>(
+    ...args: { readonly [K in keyof Args]: DataContextReader<Args[K]> | DataContextReaderView<Args[K]> }
+  ): DataContextReaderView<readonly [T, ...Args]> {
+    const values: unknown[] = [this.#read()]
+
+    for (let i = 0; i < args.length; i++) {
+      values.push(args[i]!.value)
+    }
+
+    const versionSum = () => {
+      return this.version + args.reduce((acc, arg) => acc + arg.version, 0)
+    }
+
+    let currentVersionSum = versionSum()
+    let version = 1
 
     return new DataContextReaderView({
       read: () => {
-        if (value !== this.#read()) {
-          value = this.#read()
-          mapped = map(value)
+        const values = new Array<unknown>(args.length + 1)
+
+        values[0] = this.#read()
+
+        for (let i = 0; i < args.length; i++) {
+          values[i + 1] = args[i]!.value
         }
 
-        return mapped
+        return values as unknown as readonly [T, ...Args]
       },
+      version(): number {
+        if (currentVersionSum !== versionSum()) {
+          currentVersionSum = versionSum()
+          version++
+
+          if (version === Number.MAX_SAFE_INTEGER) {
+            version = 1
+          }
+        }
+
+        return version
+      },
+    })
+  }
+
+  view<U>(map: (value: T) => U): DataContextReaderView<U> {
+    return new DataContextReaderView({
+      read: () => {
+        return map(this.#read())
+      },
+      version: () => this.version,
     })
   }
 }
 
 export class DataContextReaderView<T> {
   readonly #read: () => T
+  readonly #sourceVersion: () => number
+
+  #value: T
+  #version: number
 
   get value(): T {
-    return this.#read()
+    if (this.#version !== this.#sourceVersion()) {
+      this.#value = this.#read()
+      this.#version = this.#sourceVersion()
+    }
+
+    return this.#value
   }
 
-  constructor({ read }: { read(): T }) {
+  get version(): number {
+    if (this.#version !== this.#sourceVersion()) {
+      this.#value = this.#read()
+      this.#version = this.#sourceVersion()
+    }
+
+    return this.#version
+  }
+
+  constructor({ read, version }: { read(): T; version(): number }) {
     this.#read = read
+    this.#sourceVersion = version
+
+    this.#value = read()
+    this.#version = version()
   }
 
-  view<U>(map: (value: T) => U): DataContextReaderView<U> {
-    let value = this.#read()
-    let mapped = map(value)
+  merge<Args extends readonly unknown[]>(
+    ...args: { readonly [K in keyof Args]: DataContextReader<Args[K]> | DataContextReaderView<Args[K]> }
+  ): DataContextReaderView<readonly [T, ...Args]> {
+    const values: unknown[] = [this.#read()]
+
+    for (let i = 0; i < args.length; i++) {
+      values.push(args[i]!.value)
+    }
+
+    const versionSum = () => {
+      return this.version + args.reduce((acc, arg) => acc + arg.version, 0)
+    }
+
+    let currentVersionSum = versionSum()
+    let version = 1
 
     return new DataContextReaderView({
       read: () => {
-        if (value !== this.#read()) {
-          value = this.#read()
-          mapped = map(value)
+        const values = new Array<unknown>(args.length + 1)
+
+        values[0] = this.#read()
+
+        for (let i = 0; i < args.length; i++) {
+          values[i + 1] = args[i]!.value
         }
 
-        return mapped
+        return values as unknown as readonly [T, ...Args]
       },
+      version(): number {
+        if (currentVersionSum !== versionSum()) {
+          currentVersionSum = versionSum()
+          version++
+
+          if (version === Number.MAX_SAFE_INTEGER) {
+            version = 1
+          }
+        }
+
+        return version
+      },
+    })
+  }
+
+  view<U>(map: (value: T) => U): DataContextReaderView<U> {
+    return new DataContextReaderView({
+      read: () => {
+        return map(this.#read())
+      },
+      version: () => this.version,
     })
   }
 }
@@ -1338,10 +1628,8 @@ function calculateOrderSumSpecification(
     )
   }
 
-  const minimum = instrument.OrderSetting?.MinOrderValue ?? instrument.MinimumOrderValue
-
   return {
-    minimum,
+    minimum: instrument.OrderSetting?.MinOrderValue ?? instrument.MinimumOrderValue,
     maximum: instrument.OrderSetting?.MaxOrderValue,
   }
 }

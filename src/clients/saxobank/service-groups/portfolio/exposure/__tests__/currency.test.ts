@@ -65,8 +65,8 @@ describe('portfolio/exposure/currency', () => {
         OrderDuration: { DurationType: 'DayOrder' },
         ManualOrder: false,
         Uic: 21, // EUR/USD
-        RequestId: SaxoBankRandom.order.requestId(),
-        ExternalReference: SaxoBankRandom.order.referenceId(),
+        RequestId: SaxoBankRandom.requestID(),
+        ExternalReference: SaxoBankRandom.orderID(),
       })
 
       await waitForPortfolioState({

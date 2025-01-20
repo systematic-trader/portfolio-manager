@@ -1,5 +1,5 @@
+import type { ExchangeSession } from '../types/records/exchange-session.ts'
 import type { InstrumentDetailsUnion } from '../types/records/instrument-details.ts'
-import type { InstrumentSession } from '../types/records/instrument-session.ts'
 
 export type MarketSession =
   | MarketSessionClosed
@@ -8,7 +8,7 @@ export type MarketSession =
   | MarketSessionOpened
   | MarketSessionSuspended
 
-type ISO8601 = `${number}-${number}-${number}T${number}:${number}:${number}.${number}Z`
+export type ISO8601 = `${number}-${number}-${number}T${number}:${number}:${number}.${number}Z`
 
 export interface MarketSessionClosed {
   readonly state: 'Closed'
@@ -86,16 +86,19 @@ export type NextMarketSession<T extends { readonly next: unknown }> =
   & { readonly next: undefined | NextMarketSession<T> }
 
 export function mapInstrumentSessions(
+  nowTimestamp: number,
   instrument: PickInstrumentDetails<
     InstrumentDetailsUnion,
-    'TradingSessions' | 'AssetType' | 'Symbol' | 'Uic' | 'IsExtendedTradingHoursEnabled'
+    'AssetType' | 'Symbol' | 'Uic' | 'IsExtendedTradingHoursEnabled'
   >,
+  exchangeSessions: readonly ExchangeSession[],
 ): MarketSession {
-  const sortedSessions = instrument.TradingSessions.Sessions
+  const sortedSessions = exchangeSessions
+    .filter((session) => nowTimestamp < new Date(session.EndTime).getTime())
     .toSorted((left, right) => new Date(left.StartTime).getTime() - new Date(right.StartTime).getTime())
 
   for (let i = 0; i < sortedSessions.length - 1; i++) {
-    const current = sortedSessions[i] as Writeable<InstrumentSession>
+    const current = sortedSessions[i] as Writeable<ExchangeSession>
     const next = sortedSessions[i + 1]
 
     if (next === undefined) {
