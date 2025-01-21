@@ -12,7 +12,7 @@ test('config', () => {
   expect(config).toBeDefined()
 })
 
-test.only('cost', async () => {
+test('cost', async () => {
   const options = await SaxoBankBroker.options({ type: 'Simulation' })
   await using broker = await SaxoBankBroker(options)
   const account = (await broker.accounts.get({ ID: Object.keys(options.accounts)[0]!, currency: 'EUR' }))!
@@ -26,7 +26,7 @@ test.only('cost', async () => {
 })
 
 describe('placing invalid orders', () => {
-  using app = new SaxoBankApplication({
+  using appSimulation = new SaxoBankApplication({
     type: 'Simulation',
   })
 
@@ -36,7 +36,7 @@ describe('placing invalid orders', () => {
     findTradableInstruments,
     calculateMinimumTradeSize,
     waitForPortfolioState,
-  } = new TestingUtilities({ app })
+  } = new TestingUtilities({ app: appSimulation })
 
   test('placing orders below minimum order value', async ({ step }) => {
     const instruments = findTradableInstruments({
@@ -80,7 +80,7 @@ describe('placing invalid orders', () => {
           const externalReference = SaxoBankRandom.orderID()
 
           try {
-            await app.trading.orders.post({
+            await appSimulation.trading.orders.post({
               RequestId: SaxoBankRandom.requestID(),
               AssetType: instrument.AssetType,
               Uic: instrument.Uic,
@@ -118,7 +118,7 @@ describe('placing invalid orders', () => {
           const exitExternalReference = SaxoBankRandom.orderID()
 
           // First we enter a position
-          await app.trading.orders.post({
+          await appSimulation.trading.orders.post({
             RequestId: SaxoBankRandom.requestID(),
             AssetType: instrument.AssetType,
             Uic: instrument.Uic,
@@ -139,7 +139,7 @@ describe('placing invalid orders', () => {
 
           // Then we try reducing the position, with an order below the minimum order value
           try {
-            await app.trading.orders.post({
+            await appSimulation.trading.orders.post({
               RequestId: SaxoBankRandom.requestID(),
               AssetType: instrument.AssetType,
               Uic: instrument.Uic,
@@ -176,6 +176,41 @@ describe('placing invalid orders', () => {
 
     if (count === 0) {
       throw new Error(`Could not find any instruments to base the test on`)
+    }
+  })
+
+  test('checking if there are any stocks with order settings', async ({ step }) => {
+    using appLive = new SaxoBankApplication({
+      type: 'Live',
+    })
+
+    for (const app of [appSimulation, appLive]) {
+      await step(app.type, async () => {
+        const instruments = appSimulation.referenceData.instruments.details.get({
+          AssetTypes: ['Stock'],
+        })
+
+        let count = 0
+        for await (const instrument of instruments) {
+          const settings = instrument.OrderSetting
+
+          if (settings === undefined) {
+            continue
+          }
+
+          const { MinOrderValue, MaxOrderValue, MaxOrderSize } = settings
+          if ([MinOrderValue, MaxOrderValue, MaxOrderSize].every((property) => property === undefined)) {
+            continue
+          }
+
+          await step(`${instrument.Description} (UIC ${instrument.Uic})`, () => {
+            count++
+            throw new Error('Found instrument with order settings for either min or max order value or max order size')
+          })
+        }
+
+        expect(count).toBe(0)
+      })
     }
   })
 })
