@@ -1,6 +1,8 @@
 import { describe, expect, test } from '../../../../utils/testing.ts'
+import { Timeout } from '../../../../utils/timeout.ts'
 import { HTTPClientError } from '../../../http-client.ts'
 import { SaxoBankApplication } from '../../../saxobank-application.ts'
+import { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { TestingUtilities } from '../../__tests__/testing-utilities.ts'
 import { SaxoBankRandom } from '../../saxobank-random.ts'
 import { SaxoBankBroker } from '../saxobank-broker.ts'
@@ -25,19 +27,21 @@ test('cost', async () => {
   expect(cost).toBeDefined()
 })
 
+using appSimulation = new SaxoBankApplication({
+  type: 'Simulation',
+})
+
+const {
+  getFirstClient,
+  roundPriceToInstrumentSpecification,
+  resetSimulationAccount,
+  findTradableInstruments,
+  calculateMinimumTradeSize,
+  waitForPortfolioState,
+  placeFavourableOrder,
+} = new TestingUtilities({ app: appSimulation })
+
 describe('placing invalid orders', () => {
-  using appSimulation = new SaxoBankApplication({
-    type: 'Simulation',
-  })
-
-  const {
-    roundPriceToInstrumentSpecification,
-    resetSimulationAccount,
-    findTradableInstruments,
-    calculateMinimumTradeSize,
-    waitForPortfolioState,
-  } = new TestingUtilities({ app: appSimulation })
-
   test('placing orders below minimum order value', async ({ step }) => {
     const instruments = findTradableInstruments({
       assetType: 'Stock',
@@ -212,5 +216,83 @@ describe('placing invalid orders', () => {
         expect(count).toBe(0)
       })
     }
+  })
+})
+
+describe('portfolio subscription', () => {
+  test('orders subscription is updated when order quantity is updated', async () => {
+    const { ClientKey } = await getFirstClient()
+
+    await resetSimulationAccount()
+
+    const instruments = findTradableInstruments({
+      assetType: 'Stock',
+      supportedOrderTypes: ['Limit'],
+      limit: 1,
+    })
+
+    await using stream = new SaxoBankStream({ app: appSimulation })
+
+    for await (const { instrument, quote } of instruments) {
+      await placeFavourableOrder({
+        instrument,
+        quote,
+        buySell: 'Buy',
+        orderType: 'Limit',
+      })
+    }
+
+    const orders = await stream.orders({ ClientKey })
+
+    expect(orders.message).toHaveLength(1) // We should only have 1 order
+
+    const initialOrder = orders.message[0]
+    expect(initialOrder).toBeDefined()
+    if (initialOrder === undefined) {
+      return
+    }
+
+    expect(initialOrder.AssetType).toBe('Stock')
+    if (initialOrder.AssetType !== 'Stock') {
+      return
+    }
+
+    expect(initialOrder.OpenOrderType).toBe('Limit')
+    if (initialOrder.OpenOrderType !== 'Limit') {
+      return
+    }
+
+    const initialOrderAmount = initialOrder.Amount
+    const updatedOrderAmount = initialOrderAmount * 2 // double up the order quantity (should be safe)
+
+    expect(initialOrderAmount).toBeLessThan(updatedOrderAmount)
+
+    await appSimulation.trading.orders.patch({
+      AccountKey: initialOrder.AccountKey,
+      AssetType: 'Stock',
+      OrderId: initialOrder.OrderId,
+      Amount: updatedOrderAmount,
+      OrderDuration: initialOrder.Duration,
+      OrderType: 'Limit',
+      OrderPrice: initialOrder.Price,
+    })
+
+    // Give the update a few seconds to propagate
+    await Timeout.wait(5000)
+
+    expect(orders.message).toHaveLength(1) // We should still only have 1 order
+
+    const updatedOrder = orders.message[0]
+    expect(updatedOrder).toBeDefined()
+    if (updatedOrder === undefined) {
+      return
+    }
+
+    expect(updatedOrder.AssetType).toBe('Stock')
+    if (updatedOrder.AssetType !== 'Stock') {
+      return
+    }
+
+    expect(updatedOrder.Amount).toBe(updatedOrderAmount)
   })
 })
