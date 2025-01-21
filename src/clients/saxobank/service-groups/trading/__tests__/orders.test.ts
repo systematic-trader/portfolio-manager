@@ -1379,7 +1379,7 @@ describe('trade/orders', () => {
           readonly placedStopLossOrderId: string
         }> {
           const placeOrderResponse = await app.trading.orders.post({
-            RequestId: SaxoBankRandom.order.requestId(),
+            RequestId: SaxoBankRandom.requestID(),
             AssetType: instrument.AssetType,
             Uic: instrument.Uic,
             BuySell: 'Buy',
