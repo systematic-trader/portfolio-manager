@@ -19,7 +19,7 @@ describe('client-services/trading-conditions/instrument', () => {
     const accounts = await toArray(app.portfolio.accounts.get())
 
     const assetTypeCandidates: readonly (keyof InstrumentTradingConditions)[] = [
-      // 'FxSpot',
+      'FxSpot',
       'Stock',
     ] as const
 
