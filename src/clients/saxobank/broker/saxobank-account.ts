@@ -1,6 +1,6 @@
 import type { Currency3 } from '../types/derives/currency.ts'
 import type { DataContext, DataContextAccount, DataContextReader } from './data-context.ts'
-import { SaxoBankInstrumentSymbolsNotFoundError } from './errors.ts'
+import { SaxoBankInstrumentSymbolNotFoundError, SaxoBankInstrumentSymbolsNotFoundError } from './errors.ts'
 import type { MarketSessionOpened } from './market-session.ts'
 import { SaxoBankStock, type SaxoBankStockSymbols } from './saxobank-stock.ts'
 import { SaxoBankTransferCashOrder } from './saxobank-transfer-cash-order.ts'
@@ -192,11 +192,20 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       account: { accountID: Options['accountID']; currency: Options['currency'] }
     }>
   > {
-    const config = SaxoBankStock.config(this.currency, symbol)
+    const [uic] = await this.#context.findInstrumentUICs({
+      assetType: 'Stock',
+      symbols: [symbol],
+      limit: 1,
+    })
 
-    const [stockReader, stockSnapshot] = await Promise.all([
-      this.#context.stock({ uic: config.uic }),
-      this.#context.stockSnapshot({ uic: config.uic }),
+    if (uic === undefined) {
+      throw new SaxoBankInstrumentSymbolNotFoundError('Stock', symbol)
+    }
+
+    const [stockReader, stockSnapshot, stockCost] = await Promise.all([
+      this.#context.stock({ uic }),
+      this.#context.stockSnapshot({ uic }),
+      this.#context.stockCost({ accountKey: this.key, uic }),
     ])
 
     const stock = new SaxoBankStock<{
@@ -207,7 +216,8 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
       stock: stockReader,
       account: this,
       symbol,
-      config,
+      uic,
+      cost: stockCost,
       snapshot: stockSnapshot,
     })
 
@@ -220,4 +230,4 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
 //   currency: 'USD'
 // }>
 
-// const stock =  await account.stock('AMAT:XNAS')
+// const stock = await account.stock('AAPL:XNAS')

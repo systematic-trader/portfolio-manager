@@ -68,6 +68,19 @@ export interface DataContextExchange {
   readonly sessions: readonly ExchangeSession[]
 }
 
+export interface DataContextCost {
+  /** Additional commission for a order. The value is added to the total cost of the order. */
+  readonly additionalCommission: number
+  /** The cost per share commission. */
+  readonly costPerShareCommission: number
+  /** The cost in percentage of the order value. */
+  readonly percentageCommission: number
+  /** The minimum cost of the commission. */
+  readonly minimum: number
+  /** The maximum cost of the commission. */
+  readonly maximum: undefined | number
+}
+
 export interface DataContextStock {
   readonly symbol: string
   readonly description: string
@@ -122,6 +135,13 @@ export interface DataContextStockSnapshot {
       readonly price: number
     }
   }
+}
+
+export interface DataContextStockCost {
+  /** The cost of the buy order. */
+  readonly buy: DataContextCost
+  /** The cost of the sell order. */
+  readonly sell: DataContextCost
 }
 
 export interface DataContextFXSpot {
@@ -1315,56 +1335,79 @@ export class DataContext implements AsyncDisposable {
     }
   }
 
-  // deno-lint-ignore no-explicit-any
-  async stockOrderCost(order: SaxoBankStockOrder<any>): Promise<{
-    readonly isMinimum: boolean
-    readonly commission: {
-      readonly open: number
-      readonly turnover: number
-    }
-  }> {
-    const price = 'limit' in order.options && order.options.limit !== undefined
-      ? order.options.limit
-      : await this.stockSnapshot({ uic: order.internal.uic }).then((snapshot) => snapshot.quote.middle.price)
-
-    console.log('price', price)
-
-    const cost = await this.app.clientServices.tradingConditions.cost.get({
-      AccountKey: order.account.key,
-      AssetType: 'Stock',
-      Uic: order.internal.uic,
-      Amount: order.options.quantity,
-      Price: price,
-    })
-
-    // cost.Cost.Long.TradingCost?.Commissions?.[0]?.Rule.MinCommission
-    const isMinimum = cost.Cost.Long.TradingCost?.Commissions === undefined
-      ? false
-      : cost.Cost.Long.TradingCost.Commissions.reduce((min, commission) => {
-        if ('MinCommission' in commission.Rule) {
-          return true
-        }
-
-        return min
-      }, false)
-
-    const commission = cost.Cost.Long.TradingCost?.Commissions === undefined
-      ? 0
-      : cost.Cost.Long.TradingCost.Commissions.reduce((sum, commission) => {
-        return sum + commission.Value
-      }, 0) / 2
-
+  async stockCost(
+    { accountKey, uic }: { readonly accountKey: string; readonly uic: number },
+  ): Promise<DataContextStockCost> {
     return {
-      isMinimum,
-      commission: {
-        open: cost.Cost.Long.TotalCost - commission,
-        turnover: cost.Cost.Long.TotalCost,
+      buy: {
+        additionalCommission: 0,
+        costPerShareCommission: 0,
+        percentageCommission: 0,
+        minimum: 0,
+        maximum: undefined,
+      },
+      sell: {
+        additionalCommission: 0,
+        costPerShareCommission: 0,
+        percentageCommission: 0,
+        minimum: 0,
+        maximum: undefined,
       },
     }
   }
 
-  // deno-lint-ignore no-explicit-any
-  async stockOrder(order: SaxoBankStockOrder<any>): Promise<unknown> {
+  // // deno-lint-ignore no-explicit-any
+  // async stockOrderCost(order: SaxoBankStockOrder<any>): Promise<{
+  //   readonly isMinimum: boolean
+  //   readonly commission: {
+  //     readonly open: number
+  //     readonly turnover: number
+  //   }
+  // }> {
+  //   const price = 'limit' in order.options && order.options.limit !== undefined
+  //     ? order.options.limit
+  //     : await this.stockSnapshot({ uic: order.internal.uic }).then((snapshot) => snapshot.quote.middle.price)
+
+  //   console.log('price', price)
+
+  //   const cost = await this.app.clientServices.tradingConditions.cost.get({
+  //     AccountKey: order.account.key,
+  //     AssetType: 'Stock',
+  //     Uic: order.internal.uic,
+  //     Amount: order.options.quantity,
+  //     Price: price,
+  //   })
+
+  //   // cost.Cost.Long.TradingCost?.Commissions?.[0]?.Rule.MinCommission
+  //   const isMinimum = cost.Cost.Long.TradingCost?.Commissions === undefined
+  //     ? false
+  //     : cost.Cost.Long.TradingCost.Commissions.reduce((min, commission) => {
+  //       if ('MinCommission' in commission.Rule) {
+  //         return true
+  //       }
+
+  //       return min
+  //     }, false)
+
+  //   const commission = cost.Cost.Long.TradingCost?.Commissions === undefined
+  //     ? 0
+  //     : cost.Cost.Long.TradingCost.Commissions.reduce((sum, commission) => {
+  //       return sum + commission.Value
+  //     }, 0) / 2
+
+  //   return {
+  //     isMinimum,
+  //     commission: {
+  //       open: cost.Cost.Long.TotalCost - commission,
+  //       turnover: cost.Cost.Long.TotalCost,
+  //     },
+  //   }
+  // }
+
+  async stockOrder(
+    // deno-lint-ignore no-explicit-any
+    { uic, order }: { readonly uic: number; readonly order: SaxoBankStockOrder<any> },
+  ): Promise<unknown> {
     const requestID = SaxoBankRandom.requestID()
 
     let options: undefined | PlaceOrderParametersEntryWithNoRelatedOrders = undefined
@@ -1394,7 +1437,7 @@ export class DataContext implements AsyncDisposable {
           AssetType: 'Stock',
           OrderType: 'Market',
           BuySell: order.type,
-          Uic: order.internal.uic,
+          Uic: uic,
           Amount: order.options.quantity,
           ManualOrder: false,
           ExternalReference: order.ID,
@@ -1409,7 +1452,7 @@ export class DataContext implements AsyncDisposable {
           AssetType: 'Stock',
           OrderType: 'Limit',
           BuySell: order.type,
-          Uic: order.internal.uic,
+          Uic: uic,
           Amount: order.options.quantity,
           ManualOrder: false,
           ExternalReference: order.ID,

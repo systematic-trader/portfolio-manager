@@ -1,25 +1,20 @@
 import { SaxoBankRandom } from '../saxobank-random.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
-import * as Stocks from './config/stocks.ts'
-import type { DataContext, DataContextReaderView, DataContextStock, DataContextStockSnapshot } from './data-context.ts'
+import type * as Stocks from './config/stocks.ts'
+import type {
+  DataContext,
+  DataContextReaderView,
+  DataContextStock,
+  DataContextStockCost,
+  DataContextStockSnapshot,
+} from './data-context.ts'
 import type { MarketSession } from './market-session.ts'
 import type { SaxoBankAccount } from './saxobank-account.ts'
 
 type StocksType = typeof Stocks
 type StockCurrencies = keyof StocksType
-type StockOrderTypes<Currency, Symbol> = InstanceType<StocksType[Currency & StockCurrencies]> extends infer C
-  ? C[Symbol & keyof C] extends new (...args: unknown[]) => {
-    readonly orderTypes: infer OrderTypes
-  } ? Extract<OrderTypes, Record<string, readonly string[]>>
-  : never
-  : never
 
-export type SaxoBankStockSymbols<Currency> = keyof InstanceType<StocksType[Currency & StockCurrencies]> & string
-
-export interface SaxoBankStockConfig<OrderTypes extends Record<string, readonly string[]>> {
-  readonly uic: number
-  readonly orderTypes: OrderTypes
-}
+export type SaxoBankStockSymbols<Currency> = InstanceType<StocksType[Currency & StockCurrencies]>['symbols'][number]
 
 export class SaxoBankStock<
   Options extends {
@@ -27,27 +22,9 @@ export class SaxoBankStock<
     readonly account: { readonly accountID: string; readonly currency: Currency3 }
   },
 > {
-  static config<Currency extends Currency3, Symbol extends string>(
-    currency: Currency,
-    symbol: Symbol,
-  ): SaxoBankStockConfig<StockOrderTypes<Currency, Symbol>> {
-    // deno-lint-ignore no-explicit-any
-    const stocksIndex = Stocks as Record<keyof any, any>
-
-    if (currency in stocksIndex) {
-      const symbolsIndex = new stocksIndex[currency]()
-
-      if (symbol in symbolsIndex) {
-        return new symbolsIndex[symbol]()
-      }
-    }
-
-    throw new Error(`Stock "${symbol}" config not found for currency "${currency}"`)
-  }
-
   readonly #context: DataContext
   readonly #reader: DataContextReaderView<DataContextStock>
-  readonly #config: { readonly uic: number; readonly orderTypes: Record<string, readonly string[]> }
+  readonly #uic: number
   readonly #snapshot: DataContextStockSnapshot
 
   /** The associated account of the stock. */
@@ -55,6 +32,8 @@ export class SaxoBankStock<
 
   /** The symbol of the stock. */
   readonly symbol: Options['symbol']
+
+  readonly cost: DataContextStockCost
 
   /** The current session of the stock. */
   get session(): MarketSession {
@@ -78,79 +57,108 @@ export class SaxoBankStock<
     readonly stock: DataContextReaderView<DataContextStock>
     readonly account: SaxoBankAccount<Options['account']>
     readonly symbol: Options['symbol']
-    readonly config: { readonly uic: number; readonly orderTypes: Record<string, readonly string[]> }
+    readonly uic: number
+    readonly cost: DataContextStockCost
     readonly snapshot: DataContextStockSnapshot
   }) {
     this.#context = options.context
     this.#reader = options.stock
-    this.#config = options.config
+    this.#uic = options.uic
+    this.cost = options.cost
     this.#snapshot = options.snapshot
 
     this.account = options.account
     this.symbol = options.symbol
   }
 
+  #calculateCost(type: 'buy' | 'sell', quantity: number, price: number): number {
+    // TODO "additionalCommission" might irrelevant for all exchanges
+    // If relevant, then we need to know where to add it
+    // 1. Should it be added as now
+    // 2. Should it be added AFTER "maximum" is calculated
+    // 3. ???
+
+    const cost = Math.max(
+      this.cost[type].minimum,
+      this.cost[type].additionalCommission +
+        this.cost[type].costPerShareCommission * quantity +
+        this.cost[type].percentageCommission * price * quantity,
+    )
+
+    if (this.cost[type].maximum !== undefined) {
+      return Math.min(cost, this.cost[type].maximum)
+    }
+
+    return cost
+  }
+
   buy<
-    const BuyOptions extends SaxoBankStockOrderOptions<
-      StockOrderTypes<Options['account']['currency'], Options['symbol']>
-    >,
+    const BuyOptions extends SaxoBankStockOrderOptions,
   >(options: BuyOptions): SaxoBankStockOrder<{
     account: Options['account']
     type: 'Buy'
     symbol: Options['symbol']
-    order: Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptionsBase>
+    order: Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptions>
   }> {
     const roundedLimit = 'limit' in options && options.limit !== undefined
       ? this.#reader.value.roundPriceToTickSize(options.limit)
       : undefined
+
+    const price = roundedLimit ?? this.#reader.value.roundPriceToTickSize(this.snapshot.quote.ask.price)
+    const cost = this.#calculateCost('buy', options.quantity, price)
+    const order = { ...options, limit: roundedLimit } as Extract<
+      { -readonly [K in keyof BuyOptions]: BuyOptions[K] },
+      SaxoBankStockOrderOptions
+    >
 
     return new SaxoBankStockOrder<{
       account: Options['account']
       type: 'Buy'
       symbol: Options['symbol']
-      order: Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptionsBase>
+      order: Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptions>
     }>({
       context: this.#context,
-      internal: { uic: this.#config.uic },
-      account: this.account,
+      stock: this,
+      uic: this.#uic,
       symbol: this.symbol,
       type: 'Buy',
-      order: { ...options, limit: roundedLimit } as Extract<
-        { -readonly [K in keyof BuyOptions]: BuyOptions[K] },
-        SaxoBankStockOrderOptionsBase
-      >,
+      cost,
+      order,
     })
   }
 
   sell<
-    const SellOptions extends SaxoBankStockOrderOptions<
-      StockOrderTypes<Options['account']['currency'], Options['symbol']>
-    >,
+    const SellOptions extends SaxoBankStockOrderOptions,
   >(options: SellOptions): SaxoBankStockOrder<{
     account: Options['account']
     type: 'Sell'
     symbol: Options['symbol']
-    order: Extract<{ -readonly [K in keyof SellOptions]: SellOptions[K] }, SaxoBankStockOrderOptionsBase>
+    order: Extract<{ -readonly [K in keyof SellOptions]: SellOptions[K] }, SaxoBankStockOrderOptions>
   }> {
     const roundedLimit = 'limit' in options && options.limit !== undefined
       ? this.#reader.value.roundPriceToTickSize(options.limit)
       : undefined
 
+    const price = roundedLimit ?? this.#reader.value.roundPriceToTickSize(this.snapshot.quote.bid.price)
+    const cost = this.#calculateCost('sell', options.quantity, price)
+    const order = { ...options, limit: roundedLimit } as Extract<
+      { -readonly [K in keyof SellOptions]: SellOptions[K] },
+      SaxoBankStockOrderOptions
+    >
+
     return new SaxoBankStockOrder<{
       account: Options['account']
       type: 'Sell'
       symbol: Options['symbol']
-      order: Extract<{ -readonly [K in keyof SellOptions]: SellOptions[K] }, SaxoBankStockOrderOptionsBase>
+      order: Extract<{ -readonly [K in keyof SellOptions]: SellOptions[K] }, SaxoBankStockOrderOptions>
     }>({
       context: this.#context,
-      internal: { uic: this.#config.uic },
-      account: this.account,
+      stock: this,
+      uic: this.#uic,
       symbol: this.symbol,
       type: 'Sell',
-      order: { ...options, limit: roundedLimit } as Extract<
-        { -readonly [K in keyof SellOptions]: SellOptions[K] },
-        SaxoBankStockOrderOptionsBase
-      >,
+      cost,
+      order,
     })
   }
 
@@ -187,7 +195,7 @@ export class SaxoBankStock<
   }
 }
 
-type SaxoBankStockOrderOptionsBase = {
+type SaxoBankStockOrderOptions = {
   readonly type: 'Limit'
   readonly quantity: number
   readonly limit: number
@@ -224,88 +232,49 @@ type SaxoBankStockOrderOptionsBase = {
   readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
 }
 
-type SaxoBankStockOrderOptions<OrderTypes extends Record<string, readonly string[]>> = {
-  [K in keyof OrderTypes]:
-    | (K extends 'Limit' ? {
-        readonly type: 'Limit'
-        readonly quantity: number
-        readonly limit: number
-        readonly stop?: undefined
-        readonly trailingOffset?: undefined
-        readonly duration: OrderTypes[K][number]
-      }
-      : never)
-    | (K extends 'Market' ? {
-        readonly type: 'Market'
-        readonly quantity: number
-        readonly limit?: undefined
-        readonly stop?: undefined
-        readonly trailingOffset?: undefined
-        readonly duration: OrderTypes[K][number]
-      }
-      : never)
-    | (K extends 'Stop' ? {
-        readonly type: 'Stop'
-        readonly quantity: number
-        readonly limit?: undefined
-        readonly stop: number
-        readonly trailingOffset?: undefined
-        readonly duration: OrderTypes[K][number]
-      }
-      : never)
-    | (K extends 'StopLimit' ? {
-        readonly type: 'StopLimit'
-        readonly quantity: number
-        readonly limit: number
-        readonly stop: number
-        readonly trailingOffset?: undefined
-        readonly duration: OrderTypes[K][number]
-      }
-      : never)
-    | (K extends 'TrailingStop' ? {
-        readonly type: 'TrailingStop'
-        readonly quantity: number
-        readonly limit?: undefined
-        readonly stop?: undefined
-        readonly trailingOffset: number
-        readonly duration: OrderTypes[K][number]
-      }
-      : never)
-}[keyof OrderTypes]
-
 export class SaxoBankStockOrder<
   Options extends {
     readonly account: { readonly accountID: string; readonly currency: Currency3 }
     readonly type: 'Buy' | 'Sell'
     readonly symbol: string
-    readonly order: SaxoBankStockOrderOptionsBase
+    readonly order: SaxoBankStockOrderOptions
   },
 > {
   readonly #context: DataContext
-  readonly internal: { readonly uic: number }
+  readonly #uic: number
+
+  readonly stock: SaxoBankStock<{
+    symbol: Options['symbol']
+    account: Options['account']
+  }>
 
   readonly ID: string = SaxoBankRandom.orderID('stock')
   readonly symbol: Options['symbol']
   readonly type: Options['type']
-  readonly account: SaxoBankAccount<Options['account']>
+  readonly cost: number
   readonly options: Options['order']
 
   constructor(options: {
     readonly context: DataContext
-    readonly internal: { readonly uic: number }
+    readonly stock: SaxoBankStock<{
+      symbol: Options['symbol']
+      account: Options['account']
+    }>
+    readonly uic: number
     readonly type: Options['type']
     readonly symbol: Options['symbol']
-    readonly account: SaxoBankAccount<Options['account']>
+    readonly cost: number
     readonly order: Options['order']
   }) {
     this.#context = options.context
-    this.internal = options.internal
+    this.stock = options.stock
+    this.#uic = options.uic
     this.symbol = options.symbol
     this.type = options.type
-    this.account = options.account
+    this.cost = options.cost
     this.options = options.order
 
-    // if (options.quantity < this.lot.minimum) {
+    // if (options.order.quantity < this.lot.minimum) {
     //   throw new Error(`Quantity is below the minimum lot size: ${options.quantity} < ${this.lot.minimum}`)
     // }
 
@@ -341,18 +310,8 @@ export class SaxoBankStockOrder<
     // }
   }
 
-  async cost(): Promise<{
-    readonly isMinimum: boolean
-    readonly commission: {
-      readonly open: number
-      readonly turnover: number
-    }
-  }> {
-    return await this.#context.stockOrderCost(this)
-  }
-
   async execute(): Promise<unknown> {
-    const unknown = await this.#context.stockOrder(this)
+    const unknown = await this.#context.stockOrder({ uic: this.#uic, order: this })
 
     return unknown
   }

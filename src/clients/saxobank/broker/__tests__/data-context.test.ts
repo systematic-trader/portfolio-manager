@@ -1,17 +1,20 @@
 import { describe, expect, test } from '../../../../utils/testing.ts'
 import { DataContext, DataContextReader, DataContextReaderView } from '../data-context.ts'
+import { SaxoBankBroker } from '../saxobank-broker.ts'
 
-test.only('stock', async () => {
-  const context = new DataContext({ type: 'Live' })
+test.only('stockCost', async () => {
+  const accountKey = await SaxoBankBroker.options({ type: 'Simulation' }).then((options) =>
+    Object.keys(options.accounts)[0]!
+  )
+  const context = new DataContext({ type: 'Simulation' })
 
   try {
-    const [uic] = await context.findInstrumentUICs({ assetType: 'Stock', symbols: ['AAPL:XNAS'] })
+    const cost = await context.stockCost({
+      accountKey,
+      uic: 15629, // NOVOB
+    })
 
-    console.log('uic:', uic)
-
-    const stock = await context.stock({ uic: uic! })
-
-    console.log(stock.value)
+    console.log('cost:', cost)
 
     // expect(stock.value.Uic).toBe(0)
   } finally {
