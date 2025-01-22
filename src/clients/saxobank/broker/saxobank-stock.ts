@@ -8,6 +8,7 @@ import type {
   DataContextStockCost,
   DataContextStockSnapshot,
 } from './data-context.ts'
+import { SaxoBankOrderUnsupportedOrderDurationError, SaxoBankOrderUnsupportedOrderTypeError } from './errors.ts'
 import type { MarketSession } from './market-session.ts'
 import type { SaxoBankAccount } from './saxobank-account.ts'
 
@@ -92,6 +93,29 @@ export class SaxoBankStock<
     return cost
   }
 
+  #assertOrderType(options: SaxoBankStockOrderOptions): void {
+    const durations = this.#reader.value.orderTypes[options.type]
+
+    if (durations === undefined) {
+      throw new SaxoBankOrderUnsupportedOrderTypeError(
+        this.symbol,
+        this.account.currency,
+        Object.keys(this.#reader.value.orderTypes),
+        options.type,
+      )
+    }
+
+    if (durations.includes(options.duration) === false) {
+      throw new SaxoBankOrderUnsupportedOrderDurationError(
+        this.symbol,
+        this.account.currency,
+        options.type,
+        durations,
+        options.duration,
+      )
+    }
+  }
+
   buy<
     const BuyOptions extends SaxoBankStockOrderOptions,
   >(options: BuyOptions): SaxoBankStockOrder<{
@@ -100,6 +124,8 @@ export class SaxoBankStock<
     symbol: Options['symbol']
     order: Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptions>
   }> {
+    this.#assertOrderType(options)
+
     const roundedLimit = 'limit' in options && options.limit !== undefined
       ? this.#reader.value.roundPriceToTickSize(options.limit)
       : undefined
@@ -135,6 +161,8 @@ export class SaxoBankStock<
     symbol: Options['symbol']
     order: Extract<{ -readonly [K in keyof SellOptions]: SellOptions[K] }, SaxoBankStockOrderOptions>
   }> {
+    this.#assertOrderType(options)
+
     const roundedLimit = 'limit' in options && options.limit !== undefined
       ? this.#reader.value.roundPriceToTickSize(options.limit)
       : undefined

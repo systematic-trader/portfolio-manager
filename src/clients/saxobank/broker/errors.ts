@@ -127,3 +127,29 @@ export class SaxoBankOrderError extends Error {
     this.name = this.constructor.name
   }
 }
+
+export class SaxoBankOrderUnsupportedOrderTypeError extends Error {
+  constructor(symbol: string, currency: string, supportedOrderTypes: readonly string[], actualOrderType: string) {
+    const supported = supportedOrderTypes.map((type) => `"${type}"`).join(', ')
+
+    super(`Stock "${symbol}" (${currency}) only supports order types ${supported}: "${actualOrderType}"`)
+    this.name = this.constructor.name
+  }
+}
+
+export class SaxoBankOrderUnsupportedOrderDurationError extends Error {
+  constructor(
+    symbol: string,
+    currency: string,
+    orderType: string,
+    supportedOrderDurations: readonly string[],
+    actualOrderDuration: string,
+  ) {
+    const supported = supportedOrderDurations.map((type) => `"${type}"`).join(', ')
+
+    super(
+      `Stock "${symbol}" (${currency}) order type "${orderType}" only supports durations ${supported}: "${actualOrderDuration}"`,
+    )
+    this.name = this.constructor.name
+  }
+}

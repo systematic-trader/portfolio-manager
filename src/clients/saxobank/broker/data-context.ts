@@ -25,6 +25,7 @@ import type { ClientResponse } from '../types/records/client-response.ts'
 import type { ClosedPositionResponseUnion } from '../types/records/closed-position-response.ts'
 import type { ExchangeSession } from '../types/records/exchange-session.ts'
 import type { InstrumentDetails, InstrumentDetailsUnion } from '../types/records/instrument-details.ts'
+import { InstrumentDetailsStock } from '../types/records/instrument-details.ts'
 import type { InstrumentSummaryInfoType } from '../types/records/instrument-summary-info.ts'
 import type { OrderDuration } from '../types/records/order-duration.ts'
 import type { OrderResponseUnion } from '../types/records/order-response.ts'
@@ -94,6 +95,21 @@ export interface DataContextStock {
     readonly maximum: undefined | number
   }
   readonly session: MarketSession
+  readonly orderTypes: Readonly<
+    Record<
+      | 'Limit'
+      | 'Market'
+      | 'Stop'
+      | 'StopLimit'
+      | 'TrailingStop',
+      ReadonlyArray<
+        | 'Day'
+        | 'GoodTillCancel'
+        | 'GoodTillDate'
+        | 'ImmediateOrCancel'
+      >
+    >
+  >
   roundPriceToTickSize(price: number): number
 }
 
@@ -1288,6 +1304,7 @@ export class DataContext implements AsyncDisposable {
           lot: calculateOrderLotSpecification(instrument),
           sum: calculateOrderSumSpecification(instrument),
           session: mapInstrumentSessions(this.#nowTimestamp, instrument, exchange.sessions),
+          orderTypes: mapStockOrderTypes(instrument),
           roundPriceToTickSize: roundPriceToTickSize.bind(null, instrument),
         }
       })
@@ -1856,4 +1873,21 @@ function roundPriceToTickSize(
 
   // Fix the precision to avoid floating-point artifacts
   return parseFloat(roundedPrice.toFixed(precision))
+}
+
+function mapStockOrderTypes(
+  instrument: InstrumentDetailsStock,
+): DataContextStock['orderTypes'] {
+  const entries = instrument.SupportedOrderTypeSettings.filter((setting) =>
+    setting.OrderType === 'Market' ||
+    setting.OrderType === 'Limit' ||
+    setting.OrderType === 'StopIfTraded' ||
+    setting.OrderType === 'StopLimit'
+  ).map((setting) => {
+    const durations = setting.DurationTypes.map((duration) => duration === 'DayOrder' ? 'Day' : duration)
+
+    return [setting.OrderType === 'StopIfTraded' ? 'Stop' : setting.OrderType, durations] as const
+  })
+
+  return Object.fromEntries(entries) as unknown as DataContextStock['orderTypes']
 }

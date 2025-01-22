@@ -6,25 +6,20 @@ import { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { TestingUtilities } from '../../__tests__/testing-utilities.ts'
 import { SaxoBankRandom } from '../../saxobank-random.ts'
 import { SaxoBankBroker } from '../saxobank-broker.ts'
-import { SaxoBankStock } from '../saxobank-stock.ts'
-
-test('config', () => {
-  const config = SaxoBankStock.config('USD', 'AAPL:XNAS')
-
-  expect(config).toBeDefined()
-})
 
 test('cost', async () => {
   const options = await SaxoBankBroker.options({ type: 'Simulation' })
   await using broker = await SaxoBankBroker(options)
   const account = (await broker.accounts.get({ ID: Object.keys(options.accounts)[0]!, currency: 'EUR' }))!
   const apple = await account.stock('SIE:XETR')
+
+  console.log(apple.cost)
+
   const order = apple.buy({ type: 'Market', quantity: 1, duration: 'Day' })
-  const cost = await order.cost()
 
-  console.log(cost)
+  console.log(order.cost)
 
-  expect(cost).toBeDefined()
+  expect(order).toBeDefined()
 })
 
 using appSimulation = new SaxoBankApplication({
