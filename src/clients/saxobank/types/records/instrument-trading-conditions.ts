@@ -6,6 +6,7 @@ import {
   number,
   optional,
   props,
+  tuple,
   unknown,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { Currency3 } from '../derives/currency.ts'
@@ -63,14 +64,14 @@ export const InstrumentTradingConditionsStock = props({
   AmountCurrency: Currency3,
   AssetType: literal('Stock'),
   CollateralValue: number(),
-  CommissionLimits: array(props({
+  CommissionLimits: tuple([props({
     Currency: Currency3,
     MaxCommission: optional(number()),
     MinCommission: number(),
-    OrderAction,
+    OrderAction: OrderAction.extract(['ExecuteOrder']),
     PerUnitRate: optional(number()),
     RateOnAmount: optional(number()),
-  })),
+  })]),
   CurrencyConversion: optional(CurrencyConversion),
   CurrentSpread: number(),
   ExchangeFeeRules: optional(array(TradingConditionExchangeFeeRule)),
@@ -79,10 +80,10 @@ export const InstrumentTradingConditionsStock = props({
   InstrumentCurrency: Currency3,
   InternalCosts: optional(props({
     IncidentalCost: props({
-      CostPct: number(),
+      CostPct: number({ minimum: 0, maximum: 0 }),
     }),
     PortfolioCost: props({
-      CostPct: number(),
+      CostPct: number({ minimum: 0, maximum: 0 }),
     }),
   })),
   IsSrdEligible: boolean(),
