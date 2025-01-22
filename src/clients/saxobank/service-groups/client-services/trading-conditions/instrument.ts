@@ -20,7 +20,7 @@ export class Instrument {
       readonly AccountKey: string
       readonly AssetType: AssetType
       readonly FieldGroups?: undefined | ScheduledTradingConditionsFieldGroup[]
-      readonly Uic: string
+      readonly Uic: number
     },
     options?: { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal },
   ): Promise<InstrumentTradingConditions[AssetType]>
@@ -30,7 +30,7 @@ export class Instrument {
       readonly AccountKey: string
       readonly AssetType: AssetType
       readonly FieldGroups?: undefined | ScheduledTradingConditionsFieldGroup[]
-      readonly Uic: string
+      readonly Uic: number
     },
     options: { readonly timeout?: undefined | number; readonly signal?: undefined | AbortSignal } = {},
   ): Promise<InstrumentTradingConditions[keyof InstrumentTradingConditions]> {

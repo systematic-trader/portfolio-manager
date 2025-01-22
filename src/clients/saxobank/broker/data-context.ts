@@ -24,8 +24,11 @@ import type { BalanceResponse } from '../types/records/balance-response.ts'
 import type { ClientResponse } from '../types/records/client-response.ts'
 import type { ClosedPositionResponseUnion } from '../types/records/closed-position-response.ts'
 import type { ExchangeSession } from '../types/records/exchange-session.ts'
-import type { InstrumentDetails, InstrumentDetailsUnion } from '../types/records/instrument-details.ts'
-import { InstrumentDetailsStock } from '../types/records/instrument-details.ts'
+import type {
+  InstrumentDetails,
+  InstrumentDetailsStock,
+  InstrumentDetailsUnion,
+} from '../types/records/instrument-details.ts'
 import type { InstrumentSummaryInfoType } from '../types/records/instrument-summary-info.ts'
 import type { OrderDuration } from '../types/records/order-duration.ts'
 import type { OrderResponseUnion } from '../types/records/order-response.ts'
@@ -44,7 +47,7 @@ import {
   SaxoBankOrderError,
 } from './errors.ts'
 import { mapInstrumentSessions, type MarketSession } from './market-session.ts'
-import type { SaxoBankStockOrder } from './saxobank-stock.ts'
+import type { SaxoBankStockOrder, SaxoBankStockOrderOptions } from './saxobank-stock.ts'
 
 type PriceResponse = { [K in keyof typeof PriceResponse]: GuardType<typeof PriceResponse[K]> }
 
@@ -1355,80 +1358,56 @@ export class DataContext implements AsyncDisposable {
   async stockCost(
     { accountKey, uic }: { readonly accountKey: string; readonly uic: number },
   ): Promise<DataContextStockCost> {
+    const conditions = await this.app.clientServices.tradingConditions.instrument.get({
+      AccountKey: accountKey,
+      AssetType: 'Stock',
+      Uic: uic,
+    })
+
+    const { AccountCurrency: accountCurrency } = conditions
+
+    if (accountCurrency !== conditions.AmountCurrency) {
+      throw new Error('Account currency and amount currency mismatch')
+    }
+
+    const executeOrder = conditions.CommissionLimits.find((commission) => commission.OrderAction === 'ExecuteOrder')
+
+    if (executeOrder === undefined) {
+      throw new Error('ExecuteOrder commission not found')
+    }
+
     return {
       buy: {
+        minimum: executeOrder.MinCommission,
+        maximum: executeOrder.MaxCommission,
         additionalCommission: 0,
-        costPerShareCommission: 0,
-        percentageCommission: 0,
-        minimum: 0,
-        maximum: undefined,
+        costPerShareCommission: executeOrder.PerUnitRate ?? 0,
+        percentageCommission: executeOrder.RateOnAmount ?? 0,
       },
       sell: {
+        minimum: executeOrder.MinCommission,
+        maximum: executeOrder.MaxCommission,
         additionalCommission: 0,
-        costPerShareCommission: 0,
-        percentageCommission: 0,
-        minimum: 0,
-        maximum: undefined,
+        costPerShareCommission: executeOrder.PerUnitRate ?? 0,
+        percentageCommission: executeOrder.RateOnAmount ?? 0,
       },
     }
   }
 
-  // // deno-lint-ignore no-explicit-any
-  // async stockOrderCost(order: SaxoBankStockOrder<any>): Promise<{
-  //   readonly isMinimum: boolean
-  //   readonly commission: {
-  //     readonly open: number
-  //     readonly turnover: number
-  //   }
-  // }> {
-  //   const price = 'limit' in order.options && order.options.limit !== undefined
-  //     ? order.options.limit
-  //     : await this.stockSnapshot({ uic: order.internal.uic }).then((snapshot) => snapshot.quote.middle.price)
-
-  //   console.log('price', price)
-
-  //   const cost = await this.app.clientServices.tradingConditions.cost.get({
-  //     AccountKey: order.account.key,
-  //     AssetType: 'Stock',
-  //     Uic: order.internal.uic,
-  //     Amount: order.options.quantity,
-  //     Price: price,
-  //   })
-
-  //   // cost.Cost.Long.TradingCost?.Commissions?.[0]?.Rule.MinCommission
-  //   const isMinimum = cost.Cost.Long.TradingCost?.Commissions === undefined
-  //     ? false
-  //     : cost.Cost.Long.TradingCost.Commissions.reduce((min, commission) => {
-  //       if ('MinCommission' in commission.Rule) {
-  //         return true
-  //       }
-
-  //       return min
-  //     }, false)
-
-  //   const commission = cost.Cost.Long.TradingCost?.Commissions === undefined
-  //     ? 0
-  //     : cost.Cost.Long.TradingCost.Commissions.reduce((sum, commission) => {
-  //       return sum + commission.Value
-  //     }, 0) / 2
-
-  //   return {
-  //     isMinimum,
-  //     commission: {
-  //       open: cost.Cost.Long.TotalCost - commission,
-  //       turnover: cost.Cost.Long.TotalCost,
-  //     },
-  //   }
-  // }
-
   async stockOrder(
-    // deno-lint-ignore no-explicit-any
-    { uic, order }: { readonly uic: number; readonly order: SaxoBankStockOrder<any> },
+    { uic, order }: {
+      readonly uic: number
+      readonly order: SaxoBankStockOrder<{
+        readonly account: { readonly accountID: string; readonly currency: Currency3 }
+        readonly type: 'Buy' | 'Sell'
+        readonly symbol: string
+        readonly order: SaxoBankStockOrderOptions
+      }>
+    },
   ): Promise<unknown> {
     const requestID = SaxoBankRandom.requestID()
 
     let options: undefined | PlaceOrderParametersEntryWithNoRelatedOrders = undefined
-
     let OrderDuration: undefined | OrderDuration = undefined
 
     switch (order.options.duration) {
@@ -1444,13 +1423,15 @@ export class DataContext implements AsyncDisposable {
       }
 
       default: {
-        throw new Error(`Invalid duration: ${order.options.duration}`)
+        throw new Error(`Invalid order type duration: ${order.options.duration}`)
       }
     }
 
     switch (order.options.type) {
       case 'Market': {
         options = {
+          AccountKey: order.stock.account.key,
+          RequestId: requestID,
           AssetType: 'Stock',
           OrderType: 'Market',
           BuySell: order.type,
@@ -1459,13 +1440,14 @@ export class DataContext implements AsyncDisposable {
           ManualOrder: false,
           ExternalReference: order.ID,
           OrderDuration,
-          RequestId: requestID,
         }
         break
       }
 
       case 'Limit': {
         options = {
+          AccountKey: order.stock.account.key,
+          RequestId: requestID,
           AssetType: 'Stock',
           OrderType: 'Limit',
           BuySell: order.type,
@@ -1475,19 +1457,64 @@ export class DataContext implements AsyncDisposable {
           ExternalReference: order.ID,
           OrderPrice: order.options.limit,
           OrderDuration,
-          RequestId: requestID,
         }
         break
       }
 
-      case 'Stop':
-      case 'StopLimit':
+      case 'Stop': {
+        options = {
+          AccountKey: order.stock.account.key,
+          RequestId: requestID,
+          AssetType: 'Stock',
+          OrderType: 'Stop',
+          BuySell: order.type,
+          Uic: uic,
+          Amount: order.options.quantity,
+          ManualOrder: false,
+          ExternalReference: order.ID,
+          OrderPrice: order.options.stop,
+          OrderDuration,
+        }
+        break
+      }
+      case 'StopLimit': {
+        options = {
+          AccountKey: order.stock.account.key,
+          RequestId: requestID,
+          AssetType: 'Stock',
+          OrderType: 'StopLimit',
+          BuySell: order.type,
+          Uic: uic,
+          Amount: order.options.quantity,
+          ManualOrder: false,
+          ExternalReference: order.ID,
+          OrderPrice: order.options.stop,
+          StopLimitPrice: order.options.limit,
+          OrderDuration,
+        }
+        break
+      }
       case 'TrailingStop': {
-        throw new Error(`Not implemented: ${order.options.type}`)
+        options = {
+          AccountKey: order.stock.account.key,
+          RequestId: requestID,
+          AssetType: 'Stock',
+          OrderType: 'TrailingStop',
+          BuySell: order.type,
+          Uic: uic,
+          Amount: order.options.quantity,
+          ManualOrder: false,
+          ExternalReference: order.ID,
+          OrderPrice: order.options.stop,
+          TrailingStopStep: order.options.stepAmount,
+          TrailingStopDistanceToMarket: order.options.marketOffset,
+          OrderDuration,
+        }
+        break
       }
 
       default: {
-        throw new Error('Not supported')
+        throw new Error('Not supported order type.')
       }
     }
 

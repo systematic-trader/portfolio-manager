@@ -126,13 +126,17 @@ export class SaxoBankStock<
   }> {
     this.#assertOrderType(options)
 
+    const roundedStop = 'stop' in options && options.stop !== undefined
+      ? this.#reader.value.roundPriceToTickSize(options.stop)
+      : undefined
+
     const roundedLimit = 'limit' in options && options.limit !== undefined
       ? this.#reader.value.roundPriceToTickSize(options.limit)
       : undefined
 
-    const price = roundedLimit ?? this.#reader.value.roundPriceToTickSize(this.snapshot.quote.ask.price)
+    const price = roundedStop ?? roundedLimit ?? this.#reader.value.roundPriceToTickSize(this.snapshot.quote.ask.price)
     const cost = this.#calculateCost('buy', options.quantity, price)
-    const order = { ...options, limit: roundedLimit } as Extract<
+    const order = { ...options, limit: roundedLimit, stop: roundedStop } as Extract<
       { -readonly [K in keyof BuyOptions]: BuyOptions[K] },
       SaxoBankStockOrderOptions
     >
@@ -163,13 +167,17 @@ export class SaxoBankStock<
   }> {
     this.#assertOrderType(options)
 
+    const roundedStop = 'stop' in options && options.stop !== undefined
+      ? this.#reader.value.roundPriceToTickSize(options.stop)
+      : undefined
+
     const roundedLimit = 'limit' in options && options.limit !== undefined
       ? this.#reader.value.roundPriceToTickSize(options.limit)
       : undefined
 
-    const price = roundedLimit ?? this.#reader.value.roundPriceToTickSize(this.snapshot.quote.bid.price)
-    const cost = this.#calculateCost('sell', options.quantity, price)
-    const order = { ...options, limit: roundedLimit } as Extract<
+    const price = roundedStop ?? roundedLimit ?? this.#reader.value.roundPriceToTickSize(this.snapshot.quote.bid.price)
+    const cost = this.#calculateCost('buy', options.quantity, price)
+    const order = { ...options, limit: roundedLimit, stop: roundedStop } as Extract<
       { -readonly [K in keyof SellOptions]: SellOptions[K] },
       SaxoBankStockOrderOptions
     >
@@ -223,40 +231,45 @@ export class SaxoBankStock<
   }
 }
 
-type SaxoBankStockOrderOptions = {
+export type SaxoBankStockOrderOptions = {
   readonly type: 'Limit'
   readonly quantity: number
   readonly limit: number
   readonly stop?: undefined
-  readonly trailingOffset?: undefined
+  readonly marketOffset?: undefined
+  readonly stepAmount?: undefined
   readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
 } | {
   readonly type: 'Market'
   readonly quantity: number
   readonly limit?: undefined
   readonly stop?: undefined
-  readonly trailingOffset?: undefined
+  readonly marketOffset?: undefined
+  readonly stepAmount?: undefined
   readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
 } | {
   readonly type: 'Stop'
   readonly quantity: number
   readonly limit?: undefined
   readonly stop: number
-  readonly trailingOffset?: undefined
+  readonly marketOffset?: undefined
+  readonly stepAmount?: undefined
   readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
 } | {
   readonly type: 'StopLimit'
   readonly quantity: number
   readonly limit: number
   readonly stop: number
-  readonly trailingOffset?: undefined
+  readonly marketOffset?: undefined
+  readonly stepAmount?: undefined
   readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
 } | {
   readonly type: 'TrailingStop'
   readonly quantity: number
   readonly limit?: undefined
-  readonly stop?: undefined
-  readonly trailingOffset: number
+  readonly stop: number
+  readonly marketOffset: number
+  readonly stepAmount: number
   readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
 }
 
@@ -302,40 +315,44 @@ export class SaxoBankStockOrder<
     this.cost = options.cost
     this.options = options.order
 
-    // if (options.order.quantity < this.lot.minimum) {
-    //   throw new Error(`Quantity is below the minimum lot size: ${options.quantity} < ${this.lot.minimum}`)
-    // }
+    if (options.order.quantity < options.stock.lot.minimum) {
+      throw new Error(`Quantity is below the minimum lot size: ${options.order} < ${options.stock.lot.minimum}`)
+    }
 
-    // if (
-    //   this.lot.maximum !== undefined &&
-    //   options.quantity > this.lot.maximum
-    // ) {
-    //   throw new Error(`Quantity is above the maximum lot size: ${options.quantity} > ${this.lot.maximum}`)
-    // }
+    if (
+      options.stock.lot.maximum !== undefined &&
+      options.order.quantity > options.stock.lot.maximum
+    ) {
+      throw new Error(
+        `Quantity is above the maximum lot size: ${options.order.quantity} > ${options.stock.lot.maximum}`,
+      )
+    }
 
-    // if (options.quantity % this.lot.increment !== 0) {
-    //   throw new Error(
-    //     `Quantity is not a multiple of the lot increment: ${options.quantity} % ${this.lot.increment} = ${
-    //       options.quantity % this.lot.increment
-    //     }`,
-    //   )
-    // }
+    if (options.order.quantity % options.stock.lot.increment !== 0) {
+      throw new Error(
+        `Quantity is not a multiple of the lot increment: ${options.order.quantity} % ${options.stock.lot.increment} = ${
+          options.order.quantity % options.stock.lot.increment
+        }`,
+      )
+    }
 
-    // const pricePerQuantity = 'limit' in options && roundedLimit !== undefined
-    //   ? roundedLimit
-    //   : this.snapshot.quote.ask.price
+    const pricePerQuantity = 'stop' in options.order && options.order.stop !== undefined
+      ? options.order.stop
+      : 'limit' in options.order && options.order.limit !== undefined
+      ? options.order.limit
+      : options.type === 'Buy'
+      ? options.stock.snapshot.quote.ask.price
+      : options.stock.snapshot.quote.bid.price
 
-    // const expectedSum = pricePerQuantity * options.quantity
+    const expectedSum = pricePerQuantity * options.order.quantity
 
-    // // TODO - søg efter et instrument (Stock) hvor minimum er sat og skab fejlen fra SaxoBank. Det er bedre at oversætte fejl fra service end nuværende assertion før ordren er lagt.
-    // if (this.sum.minimum !== undefined && expectedSum < this.sum.minimum) {
-    //   throw new Error(`Sum is below the minimum: ${expectedSum} < ${this.sum.minimum}`)
-    // }
+    if (options.stock.sum.minimum !== undefined && expectedSum < options.stock.sum.minimum) {
+      throw new Error(`Sum is below the minimum: ${expectedSum} < ${options.stock.sum.minimum}`)
+    }
 
-    // // TODO - søg efter et instrument (Stock) hvor maximum er sat og skab fejlen fra SaxoBank. Det er bedre at oversætte fejl fra service end nuværende assertion før ordren er lagt.
-    // if (this.sum.maximum !== undefined && expectedSum > this.sum.maximum) {
-    //   throw new Error(`Sum is above the maximum: ${expectedSum} > ${this.sum.maximum}`)
-    // }
+    if (options.stock.sum.maximum !== undefined && expectedSum > options.stock.sum.maximum) {
+      throw new Error(`Sum is above the maximum: ${expectedSum} > ${options.stock.sum.maximum}`)
+    }
   }
 
   async execute(): Promise<unknown> {

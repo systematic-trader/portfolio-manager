@@ -231,3 +231,9 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
 // }>
 
 // const stock = await account.stock('AAPL:XNAS')
+
+// const order = stock.buy({
+//   type: 'Market',
+//   quantity: 1,
+//   duration: 'Day',
+// })

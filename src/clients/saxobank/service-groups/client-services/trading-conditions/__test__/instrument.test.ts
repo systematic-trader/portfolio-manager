@@ -48,7 +48,7 @@ describe('client-services/trading-conditions/instrument', () => {
                 const response = await app.clientServices.tradingConditions.instrument.get({
                   AccountKey: account.AccountKey,
                   AssetType: assetType,
-                  Uic: String(instrument.Uic),
+                  Uic: instrument.Uic,
                 })
 
                 expect(response).toBeDefined()
