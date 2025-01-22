@@ -80,10 +80,10 @@ export const InstrumentTradingConditionsStock = props({
   InstrumentCurrency: Currency3,
   InternalCosts: optional(props({
     IncidentalCost: props({
-      CostPct: number({ minimum: 0, maximum: 0 }),
+      CostPct: number(),
     }),
     PortfolioCost: props({
-      CostPct: number({ minimum: 0, maximum: 0 }),
+      CostPct: number(),
     }),
   })),
   IsSrdEligible: boolean(),
