@@ -708,12 +708,14 @@ export class TestingUtilities {
 
   async placeFavourableOrder({
     app: appOverride,
+    accountKey: accountKeyOverride,
     instrument,
     orderType,
     buySell,
     quote,
   }: {
     readonly app?: undefined | SaxoBankApplication
+    readonly accountKey?: undefined | string
     readonly instrument: InstrumentDetailsUnion
     readonly orderType: SupportedPlacableOrderTypes
     readonly buySell: BuySell
@@ -724,6 +726,8 @@ export class TestingUtilities {
     const amount = this.calculateMinimumTradeSize(instrument)
     const referenceId = SaxoBankRandom.orderID()
     const requestId = SaxoBankRandom.requestID()
+
+    const accountKey = accountKeyOverride ?? (await this.getFirstAccount()).AccountKey
 
     // Wait at least 1 second since the last order was placed.
     // Firstly, this is preventing rate limit errors (you can only place 1 order every second).
@@ -757,6 +761,7 @@ export class TestingUtilities {
           case 'Market': {
             resolve(
               await app.trading.orders.post({
+                AccountKey: accountKey,
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
@@ -783,6 +788,7 @@ export class TestingUtilities {
 
             resolve(
               await app.trading.orders.post({
+                AccountKey: accountKey,
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
@@ -809,6 +815,7 @@ export class TestingUtilities {
 
             resolve(
               await app.trading.orders.post({
+                AccountKey: accountKey,
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
@@ -836,6 +843,7 @@ export class TestingUtilities {
 
             resolve(
               await app.trading.orders.post({
+                AccountKey: accountKey,
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
@@ -879,6 +887,7 @@ export class TestingUtilities {
           case 'Market': {
             resolve(
               await app.trading.orders.post({
+                AccountKey: accountKey,
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
@@ -906,6 +915,7 @@ export class TestingUtilities {
 
             resolve(
               await app.trading.orders.post({
+                AccountKey: accountKey,
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
@@ -933,6 +943,7 @@ export class TestingUtilities {
 
             resolve(
               await app.trading.orders.post({
+                AccountKey: accountKey,
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,
@@ -961,6 +972,7 @@ export class TestingUtilities {
 
             resolve(
               await app.trading.orders.post({
+                AccountKey: accountKey,
                 Amount: amount,
                 AssetType: instrument.AssetType,
                 BuySell: buySell,

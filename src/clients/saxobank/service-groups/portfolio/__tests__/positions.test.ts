@@ -43,24 +43,26 @@ describe('portfolio/positions', () => {
     afterAll(resetSimulationAccount)
 
     test('response passes guard, with no orders or positions', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const positions = await toArray(appSimulation.portfolio.positions.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
       expect(positions).toBeDefined()
     })
 
     test('response passes guard, with an open FxSpot position', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
+      const account = await getFirstAccount()
 
       const initialPositions = await toArray(appSimulation.portfolio.positions.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
       expect(initialPositions).toBeDefined()
       expect(initialPositions).toHaveLength(0)
 
       await appSimulation.trading.orders.post({
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         BuySell: 'Buy',
         Amount: 50_000,
@@ -77,7 +79,7 @@ describe('portfolio/positions', () => {
       })
 
       const updatedPositions = await toArray(appSimulation.portfolio.positions.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
       expect(updatedPositions).toBeDefined()
       expect(updatedPositions).toHaveLength(1)
