@@ -31,17 +31,19 @@ describe('portfolio/orders', () => {
     afterAll(resetSimulationAccount)
 
     test('response passes guard with no orders', async () => {
-      const { ClientKey } = await getFirstAccount()
+      const client = await getFirstAccount()
 
       const orders = await toArray(appSimulation.portfolio.orders.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
+
       expect(orders).toBeDefined()
       expect(orders).toHaveLength(0)
     })
 
     test('response passes guard for different order types', async ({ step }) => {
-      const { ClientKey } = await getFirstAccount()
+      const client = await getFirstAccount()
+
       const limit = 5
 
       const assetTypes = {
@@ -104,7 +106,7 @@ describe('portfolio/orders', () => {
 
                       // After the order has been placed, we should be able to find it
                       const orders = await toArray(appSimulation.portfolio.orders.get({
-                        ClientKey,
+                        ClientKey: client.ClientKey,
                       }))
 
                       expect(orders).toBeDefined()
@@ -113,6 +115,7 @@ describe('portfolio/orders', () => {
                       const orderMatchingExternalReference = orders.find((candidate) =>
                         candidate.ExternalReference === externalReference
                       )
+
                       expect(orderMatchingExternalReference).toBeDefined()
                       expect(orderMatchingExternalReference?.AssetType).toStrictEqual(instrument.AssetType)
                     })

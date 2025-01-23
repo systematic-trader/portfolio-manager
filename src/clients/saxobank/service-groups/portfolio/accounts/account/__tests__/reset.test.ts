@@ -9,10 +9,11 @@ describe('portfolio/accounts/account/reset', () => {
     })
 
     const { getFirstAccount } = new TestingUtilities({ app })
-    const { AccountKey } = await getFirstAccount()
+
+    const account = await getFirstAccount()
 
     await app.portfolio.accounts.account.reset.put({
-      AccountKey,
+      AccountKey: account.AccountKey,
       NewBalance: 50000, // in euro
     })
   })

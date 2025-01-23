@@ -26,7 +26,7 @@ describe('portfolio/closed-positions/subscriptions', () => {
   test('Opening a single stock-position, then closing it', async ({ step }) => {
     const instrumentLimit = 1
 
-    const { ClientKey } = await getFirstClient()
+    const client = await getFirstClient()
 
     const instruments = findTradableInstruments({
       assetType: 'Stock',
@@ -46,7 +46,7 @@ describe('portfolio/closed-positions/subscriptions', () => {
         await using stream = new SaxoBankStream({ app })
 
         const closedPositionsSubscription = await stream.closedPositions({
-          ClientKey,
+          ClientKey: client.ClientKey,
         })
 
         let firstMessage: unknown = undefined

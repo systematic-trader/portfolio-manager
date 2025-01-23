@@ -12,11 +12,12 @@ describe('portfolio/account-groups', () => {
     const { getFirstClient } = new TestingUtilities({ app: appLive })
 
     test('response passes guard', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const [me] = await toArray(appLive.portfolio.accountGroups.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
+
       expect(me).toBeDefined()
     })
   })
@@ -29,11 +30,12 @@ describe('portfolio/account-groups', () => {
     const { getFirstClient } = new TestingUtilities({ app: appSimulation })
 
     test('response passes guard', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const accountGroups = await toArray(appSimulation.portfolio.accountGroups.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
+
       expect(accountGroups).toStrictEqual([]) // there are no account groups in simulation
     })
   })

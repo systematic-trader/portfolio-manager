@@ -27,8 +27,8 @@ describe('portfolio/orders/subscriptions', () => {
   test('Placing a single limit-order, then updating it to a market-order', async ({ step }) => {
     const instrumentLimit = 1
 
-    const { ClientKey } = await getFirstClient()
-    const { AccountKey } = await getFirstAccount()
+    const client = await getFirstClient()
+    const account = await getFirstAccount()
 
     const instruments = findTradableInstruments({
       assetType: 'Stock',
@@ -48,7 +48,7 @@ describe('portfolio/orders/subscriptions', () => {
         await using stream = new SaxoBankStream({ app })
 
         const ordersSubscription = await stream.orders({
-          ClientKey,
+          ClientKey: client.ClientKey,
         })
 
         let firstMessage: unknown = undefined
@@ -80,7 +80,7 @@ describe('portfolio/orders/subscriptions', () => {
         await Timeout.wait(5000)
 
         await app.trading.orders.patch({
-          AccountKey,
+          AccountKey: account.AccountKey,
           AssetType: instrument.AssetType,
           OrderId: order.OrderId,
           OrderDuration: {

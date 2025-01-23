@@ -120,10 +120,10 @@ export class TestingUtilities {
   } = {}): Promise<void> {
     const app = appOverride ?? this.#app
 
-    const { AccountKey } = await this.getFirstAccount()
+    const account = await this.getFirstAccount()
 
     await app.portfolio.accounts.account.reset.put({
-      AccountKey,
+      AccountKey: account.AccountKey,
       NewBalance: balance,
     })
   }

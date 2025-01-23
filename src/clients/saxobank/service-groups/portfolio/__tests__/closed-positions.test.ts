@@ -13,11 +13,12 @@ describe('portfolio/closed-positions', () => {
     const { getFirstClient } = new TestingUtilities({ app: appLive })
 
     test('response passes guard', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const closedPositions = await toArray(appLive.portfolio.closedPositions.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
+
       expect(closedPositions).toBeDefined()
     })
   })
@@ -42,16 +43,18 @@ describe('portfolio/closed-positions', () => {
     afterAll(resetSimulationAccount)
 
     test('response passes guard, with no closed positions', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const positions = await toArray(appSimulation.portfolio.closedPositions.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
+
       expect(positions).toBeDefined()
     })
 
     test('response passes guard for different order types', async ({ step }) => {
-      const { ClientKey } = await getFirstAccount()
+      const client = await getFirstAccount()
+
       const limit = 20
 
       const assetTypes = {
@@ -125,7 +128,7 @@ describe('portfolio/closed-positions', () => {
 
                   // After the position has been closed, we should be able to find it
                   const closedPositions = await toArray(appSimulation.portfolio.closedPositions.get({
-                    ClientKey,
+                    ClientKey: client.ClientKey,
                   }))
 
                   expect(closedPositions).toBeDefined()

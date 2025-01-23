@@ -13,11 +13,12 @@ describe('portfolio/exposure/instruments', () => {
     const { getFirstClient } = new TestingUtilities({ app: appLive })
 
     test('response passes guard', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const exposure = await toArray(appLive.portfolio.exposure.instruments.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
+
       expect(exposure).toBeDefined()
     })
   })

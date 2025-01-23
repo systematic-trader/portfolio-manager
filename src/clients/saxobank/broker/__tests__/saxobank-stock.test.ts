@@ -222,7 +222,7 @@ describe('placing invalid orders', () => {
 
 describe('portfolio subscription', () => {
   test('orders subscription is updated when order quantity is updated', async () => {
-    const { ClientKey } = await getFirstClient()
+    const client = await getFirstClient()
 
     await resetSimulationAccount()
 
@@ -243,7 +243,9 @@ describe('portfolio subscription', () => {
       })
     }
 
-    const orders = await stream.orders({ ClientKey })
+    const orders = await stream.orders({
+      ClientKey: client.ClientKey,
+    })
 
     expect(orders.message).toHaveLength(1) // We should only have 1 order
 

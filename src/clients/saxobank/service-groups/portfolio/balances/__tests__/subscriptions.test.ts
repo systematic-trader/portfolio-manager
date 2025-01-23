@@ -27,7 +27,7 @@ describe('portfolio/balances/subscriptions', () => {
     const messageLimit = 20
     const instrumentLimit = 30
 
-    const { ClientKey } = await getFirstClient()
+    const client = await getFirstClient()
 
     const instruments = findTradableInstruments({
       assetType: 'Stock',
@@ -56,7 +56,7 @@ describe('portfolio/balances/subscriptions', () => {
         await using stream = new SaxoBankStream({ app })
 
         const balanceSubscription = await stream.balance({
-          ClientKey,
+          ClientKey: client.ClientKey,
         })
 
         let firstMessage: unknown = undefined
