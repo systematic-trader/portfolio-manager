@@ -64,6 +64,7 @@ export const InstrumentTradingConditionsStock = props({
   AmountCurrency: Currency3,
   AssetType: literal('Stock'),
   CollateralValue: number(),
+  CollateralUtilizationLimit: optional(unknown()), // seems to be only specified on sim
   CommissionLimits: tuple([props({
     Currency: Currency3,
     MaxCommission: optional(number()),
@@ -96,7 +97,7 @@ export const InstrumentTradingConditionsStock = props({
   Rules: optional(array(TradingConditionRule)),
   ScheduledTradingConditions: optional(unknown()),
   Uic: number(),
-  VatOnCustodyFeePct: number(),
+  VatOnCustodyFeePct: optional(number()), // Only undefined on sim
 })
 
 export interface InstrumentTradingConditionsStock extends GuardType<typeof InstrumentTradingConditionsStock> {}
