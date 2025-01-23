@@ -77,7 +77,6 @@ type OrderParametersByAssetType =
 type PlaceOrderParametersBase =
   & OrderParametersByAssetType
   & {
-    readonly AccountKey?: undefined | string
     readonly Amount: number
     readonly BuySell: BuySell
     readonly CancelOrders?: undefined | boolean
@@ -93,7 +92,7 @@ type PlaceOrderParametersBase =
 type UpdateOrderParametersBase =
   & OrderParametersByAssetType
   & {
-    readonly AccountKey?: undefined | string
+    readonly AccountKey: string
     readonly Amount?: undefined | number
     readonly IsForceOpen?: undefined | boolean
     readonly OrderId: string
@@ -105,6 +104,7 @@ type UpdateOrderParametersBase =
 export type PlaceOrderParametersEntryWithNoRelatedOrders =
   & PlaceOrderParametersBase
   & {
+    readonly AccountKey: string
     readonly RequestId?: undefined | string
     readonly Orders?: undefined
   }
@@ -122,6 +122,7 @@ export interface PlaceOrderResponseEntryWithNoRelatedOrders
 export type PlaceOrderParametersEntryWithOneRelatedOrder =
   & PlaceOrderParametersBase
   & {
+    readonly AccountKey: string
     readonly RequestId?: undefined | string
     readonly Orders: readonly [
       PlaceOrderParametersBase,
@@ -147,6 +148,7 @@ export interface PlaceOrderResponseEntryWithOneRelatedOrder
 export type PlaceOrderParametersEntryWithTwoRelatedOrders =
   & PlaceOrderParametersBase
   & {
+    readonly AccountKey: string
     readonly RequestId?: undefined | string
     readonly Orders: readonly [
       // First order must be a limit order
@@ -181,6 +183,7 @@ export interface PlaceOrderResponseEntryWithTwoRelatedOrders
 // #region Order placement method 4
 export type PlaceOrderParametersOneRelatedOrderForOrder =
   & {
+    readonly AccountKey: string
     readonly RequestId?: undefined | string
     readonly OrderId: string
   }
@@ -207,6 +210,7 @@ export interface PlaceOrderResponseOneRelatedOrderForOrder
 // #region Order placement method 5
 export type PlaceOrderParametersTwoRelatedOrdersForOrder =
   & {
+    readonly AccountKey: string
     readonly RequestId?: undefined | string
     readonly OrderId: string
   }
@@ -243,6 +247,7 @@ export interface PlaceOrderResponseTwoRelatedOrdersForOrder
 // #region Order placement method 6
 export type PlaceOrderParametersOneRelatedOrderForPosition =
   & {
+    readonly AccountKey: string
     readonly RequestId?: undefined | string
     readonly PositionId: string
   }
@@ -268,6 +273,7 @@ export interface PlaceOrderResponseOneRelatedOrderForPosition
 // #region Order placement method 7
 export type PlaceOrderParametersTwoRelatedOrdersForPosition =
   & {
+    readonly AccountKey: string
     readonly RequestId?: undefined | string
     readonly PositionId: string
   }
@@ -302,6 +308,7 @@ export interface PlaceOrderResponseTwoRelatedOrdersForPosition
 
 // #region Order placement method 8
 export type PlaceOrderParametersEntryOCOOrders = {
+  readonly AccountKey: string
   readonly RequestId?: undefined | string
   readonly Orders: readonly [
     // First order must be a limit order
@@ -585,13 +592,13 @@ export class Orders {
    * See also https://www.developer.saxo/openapi/learn/rate-limiting#RateLimiting-Preventingduplicateorderoperations
    */
   async post(
-    { RequestId, ...parameters }: PlaceOrderParameters,
+    { AccountKey, RequestId, ...parameters }: PlaceOrderParameters,
     options: { readonly timeout?: undefined | number } = {},
   ): Promise<PlaceOrderResponse> {
     const hasRootExternalReference = 'ExternalReference' in parameters
     const relatedOrders = parameters.Orders?.length
 
-    const body = parameters
+    const body = { ...parameters, Orders: parameters.Orders?.map((order) => ({ AccountKey, ...order })) }
     const headers = RequestId === undefined ? undefined : {
       'x-request-id': RequestId,
     }
@@ -599,7 +606,7 @@ export class Orders {
     // Method 1
     if (hasRootExternalReference && relatedOrders === undefined) {
       return await this.#client.post({
-        body,
+        body: parameters,
         headers,
         guard: PlaceOrderResponseEntryWithNoRelatedOrders,
         timeout: options.timeout,

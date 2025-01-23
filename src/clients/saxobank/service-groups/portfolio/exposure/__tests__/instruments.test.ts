@@ -29,6 +29,7 @@ describe('portfolio/exposure/instruments', () => {
 
     const {
       getFirstClient,
+      getFirstAccount,
       resetSimulationAccount,
       waitForPortfolioState,
     } = new TestingUtilities({ app: appSimulation })
@@ -37,24 +38,26 @@ describe('portfolio/exposure/instruments', () => {
     afterAll(resetSimulationAccount)
 
     test('response passes guard, with no orders or positions', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const exposure = await toArray(appSimulation.portfolio.exposure.instruments.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
       expect(exposure).toBeDefined()
     })
 
     test('response passes guard, with an open FxSpot position', async () => {
-      const { ClientKey } = await getFirstClient()
+      const account = await getFirstAccount()
+      const client = await getFirstClient()
 
       const initialExposure = await toArray(appSimulation.portfolio.exposure.instruments.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
       expect(initialExposure).toBeDefined()
       expect(initialExposure).toHaveLength(0)
 
       await appSimulation.trading.orders.post({
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         BuySell: 'Buy',
         Amount: 50_000,
@@ -71,7 +74,7 @@ describe('portfolio/exposure/instruments', () => {
       })
 
       const updatedExposure = await toArray(appSimulation.portfolio.exposure.instruments.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
 
       expect(updatedExposure).toBeDefined()

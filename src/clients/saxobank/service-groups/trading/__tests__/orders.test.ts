@@ -26,9 +26,12 @@ describe('trade/orders', () => {
 
   describe('placing orders using different methods', () => {
     test('Method 1: Placing a single order, with no related orders', async () => {
+      const account = await getFirstAccount()
+
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         Uic: 21,
         BuySell: 'Buy',
@@ -45,6 +48,8 @@ describe('trade/orders', () => {
     })
 
     test('Method 2: Placing a single order, with one related order', async () => {
+      const account = await getFirstAccount()
+
       const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
         uics: [21],
@@ -68,6 +73,7 @@ describe('trade/orders', () => {
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         Uic: instrument.Uic,
         BuySell: 'Buy',
@@ -98,6 +104,8 @@ describe('trade/orders', () => {
     })
 
     test('Method 3: Placing a single order, with two related orders', async () => {
+      const account = await getFirstAccount()
+
       const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
         uics: [21],
@@ -128,6 +136,7 @@ describe('trade/orders', () => {
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         Uic: instrument.Uic,
         BuySell: 'Buy',
@@ -170,6 +179,8 @@ describe('trade/orders', () => {
     })
 
     test('Method 4: Placing a single related order to an existing order', async () => {
+      const account = await getFirstAccount()
+
       const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
         uics: [21],
@@ -200,6 +211,7 @@ describe('trade/orders', () => {
       const entryOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         Uic: 21,
         BuySell: 'Buy',
@@ -219,6 +231,7 @@ describe('trade/orders', () => {
       const relatedOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         OrderId: entryOrderResponse.OrderId,
 
         Orders: [{
@@ -240,6 +253,8 @@ describe('trade/orders', () => {
     })
 
     test('Method 5: Placing two related orders to an existing order', async () => {
+      const account = await getFirstAccount()
+
       const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
         uics: [21],
@@ -278,6 +293,7 @@ describe('trade/orders', () => {
       const entryOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         AssetType: instrument.AssetType,
         Uic: instrument.Uic,
         BuySell: 'Buy',
@@ -297,6 +313,7 @@ describe('trade/orders', () => {
       const relatedOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         OrderId: entryOrderResponse.OrderId,
 
         Orders: [{
@@ -338,6 +355,8 @@ describe('trade/orders', () => {
     })
 
     test('Method 8: Placing two orders that are OCO (One Cancels Other) orders.', async () => {
+      const account = await getFirstAccount()
+
       const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
         uics: [21],
@@ -366,6 +385,8 @@ describe('trade/orders', () => {
 
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
+
+        AccountKey: account.AccountKey,
 
         Orders: [{
           AssetType: instrument.AssetType,
@@ -408,6 +429,8 @@ describe('trade/orders', () => {
     })
 
     test('DayOrder', async () => {
+      const account = await getFirstAccount()
+
       const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
         uics: [21],
@@ -429,6 +452,7 @@ describe('trade/orders', () => {
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         AssetType: instrument.AssetType,
         Uic: instrument.Uic,
         BuySell: 'Buy',
@@ -446,6 +470,8 @@ describe('trade/orders', () => {
     })
 
     test('FillOrKill', async () => {
+      const account = await getFirstAccount()
+
       const [record] = await toArray(findTradableInstruments({
         assetType: 'Bond',
         limit: 1,
@@ -460,6 +486,7 @@ describe('trade/orders', () => {
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         AssetType: instrument.AssetType,
         Uic: instrument.Uic,
         BuySell: 'Buy',
@@ -480,6 +507,8 @@ describe('trade/orders', () => {
     })
 
     test('GoodTillCancel', async () => {
+      const account = await getFirstAccount()
+
       const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
         uics: [21],
@@ -501,6 +530,7 @@ describe('trade/orders', () => {
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         AssetType: instrument.AssetType,
         Uic: instrument.Uic,
         BuySell: 'Buy',
@@ -518,6 +548,8 @@ describe('trade/orders', () => {
     })
 
     test('GoodTillDate', async ({ step }) => {
+      const account = await getFirstAccount()
+
       const today = new Date()
       const nextYear = today.getFullYear() + 1
 
@@ -564,6 +596,7 @@ describe('trade/orders', () => {
             const placeOrderResponse = await app.trading.orders.post({
               RequestId: SaxoBankRandom.requestID(),
 
+              AccountKey: account.AccountKey,
               AssetType: instrument.AssetType,
               Uic: instrument.Uic,
               BuySell: 'Buy',
@@ -589,9 +622,12 @@ describe('trade/orders', () => {
     })
 
     test('ImmediateOrCancel', async () => {
+      const account = await getFirstAccount()
+
       const placeOrderResponse = await app.trading.orders.post({
         RequestId: SaxoBankRandom.requestID(),
 
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         Uic: 21,
         BuySell: 'Buy',
@@ -608,7 +644,7 @@ describe('trade/orders', () => {
     })
   })
 
-  describe('placing orders for different asset types', () => {
+  describe.only('placing orders for different asset types', () => {
     const assetTypesToTest = [
       'Bond',
       'CfdOnEtc',
@@ -754,7 +790,7 @@ describe('trade/orders', () => {
     })
 
     test('Method 2: Updating a single order, with 1 related order', async ({ step }) => {
-      const { AccountKey } = await getFirstAccount()
+      const account = await getFirstAccount()
 
       const instruments = findTradableInstruments({
         assetType: 'FxSpot',
@@ -782,6 +818,7 @@ describe('trade/orders', () => {
         const placeOrderResponse = await app.trading.orders.post({
           RequestId: SaxoBankRandom.requestID(),
 
+          AccountKey: account.AccountKey,
           AssetType: 'FxSpot',
           Uic: instrument.Uic,
           BuySell: 'Buy',
@@ -818,7 +855,7 @@ describe('trade/orders', () => {
           get RequestId() {
             return SaxoBankRandom.requestID()
           },
-          AccountKey,
+          AccountKey: account.AccountKey,
           AssetType: 'FxSpot',
           OrderId: baseOrderId,
           OrderType: 'Limit',
@@ -829,7 +866,7 @@ describe('trade/orders', () => {
         } as const
 
         const takeProfitOrderUpdate = {
-          AccountKey,
+          AccountKey: account.AccountKey,
           OrderId: takeProfitOrderId,
           AssetType: 'FxSpot',
           OrderType: 'Limit',
@@ -920,7 +957,7 @@ describe('trade/orders', () => {
     })
 
     test('Method 3: Updating a single order, with 2 related order', async ({ step }) => {
-      const { AccountKey } = await getFirstAccount()
+      const account = await getFirstAccount()
 
       const instruments = findTradableInstruments({
         assetType: 'FxSpot',
@@ -956,6 +993,7 @@ describe('trade/orders', () => {
         const placeOrderResponse = await app.trading.orders.post({
           RequestId: SaxoBankRandom.requestID(),
 
+          AccountKey: account.AccountKey,
           AssetType: 'FxSpot',
           Uic: instrument.Uic,
           BuySell: 'Buy',
@@ -1004,7 +1042,7 @@ describe('trade/orders', () => {
           get RequestId() {
             return SaxoBankRandom.requestID()
           },
-          AccountKey,
+          AccountKey: account.AccountKey,
           AssetType: 'FxSpot',
           OrderId: baseOrderId,
           OrderType: 'Limit',
@@ -1015,7 +1053,7 @@ describe('trade/orders', () => {
         } as const
 
         const takeProfitOrderUpdate = {
-          AccountKey,
+          AccountKey: account.AccountKey,
           OrderId: takeProfitOrderId,
           AssetType: 'FxSpot',
           OrderType: 'Limit',
@@ -1026,7 +1064,7 @@ describe('trade/orders', () => {
         } as const
 
         const stopLossOrderUpdate = {
-          AccountKey,
+          AccountKey: account.AccountKey,
           OrderId: takeProfitOrderId,
           AssetType: 'FxSpot',
           OrderType: 'Limit',
@@ -1133,7 +1171,7 @@ describe('trade/orders', () => {
 
   describe('cancelling orders', () => {
     test('Deleting order by order id', async () => {
-      const { AccountKey } = await getFirstAccount()
+      const account = await getFirstAccount()
 
       const [record] = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
@@ -1154,6 +1192,7 @@ describe('trade/orders', () => {
       })
 
       const placeOrderResponse = await app.trading.orders.post({
+        AccountKey: account.AccountKey,
         ManualOrder: false,
         AssetType: 'FxSpot',
         Uic: instrument.Uic,
@@ -1168,7 +1207,7 @@ describe('trade/orders', () => {
       expect(placeOrderResponse).toBeDefined()
 
       const deleteOrderResponse = await app.trading.orders.delete({
-        AccountKey,
+        AccountKey: account.AccountKey,
         OrderIds: [placeOrderResponse.OrderId],
       })
 
@@ -1179,10 +1218,7 @@ describe('trade/orders', () => {
     })
 
     test('Deleting orders by asset type', async () => {
-      const [account] = await toArray(app.portfolio.accounts.get())
-      if (account === undefined) {
-        throw new Error(`Could not determine account for simulation user`)
-      }
+      const account = await getFirstAccount()
 
       const records = await toArray(findTradableInstruments({
         assetType: 'FxSpot',
@@ -1214,6 +1250,7 @@ describe('trade/orders', () => {
       })
 
       const placeEURUSDOrderResponse = await app.trading.orders.post({
+        AccountKey: account.AccountKey,
         ManualOrder: false,
         AssetType: 'FxSpot',
         Uic: eurusdRecord.instrument.Uic,
@@ -1231,6 +1268,7 @@ describe('trade/orders', () => {
       })
 
       const placeEURDKKOrderResponse = await app.trading.orders.post({
+        AccountKey: account.AccountKey,
         ManualOrder: false,
         AssetType: 'FxSpot',
         Uic: eurdkkRecord.instrument.Uic,
@@ -1363,7 +1401,7 @@ describe('trade/orders', () => {
      * - This happens even if the order could be considered as "cancelled", e.g. by never existing
      */
     test('Deleting orders with related exit-orders should happen in the correct order', async ({ step }) => {
-      const { AccountKey } = await getFirstAccount()
+      const account = await getFirstAccount()
 
       const instruments = findTradableInstruments({
         assetType: 'Stock',
@@ -1380,6 +1418,7 @@ describe('trade/orders', () => {
         }> {
           const placeOrderResponse = await app.trading.orders.post({
             RequestId: SaxoBankRandom.requestID(),
+            AccountKey: account.AccountKey,
             AssetType: instrument.AssetType,
             Uic: instrument.Uic,
             BuySell: 'Buy',
@@ -1436,7 +1475,7 @@ describe('trade/orders', () => {
             const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
 
             const response = await app.trading.orders.delete({
-              AccountKey,
+              AccountKey: account.AccountKey,
               OrderIds: [
                 nonExistingOrderId,
                 placedEntryOrderId,
@@ -1484,7 +1523,7 @@ describe('trade/orders', () => {
             const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
 
             const response = await app.trading.orders.delete({
-              AccountKey,
+              AccountKey: account.AccountKey,
               OrderIds: [
                 placedEntryOrderId,
                 nonExistingOrderId,
@@ -1528,7 +1567,7 @@ describe('trade/orders', () => {
             const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
 
             const response = await app.trading.orders.delete({
-              AccountKey,
+              AccountKey: account.AccountKey,
               OrderIds: [
                 placedEntryOrderId,
                 placedTakeProfitOrderId,
@@ -1572,7 +1611,7 @@ describe('trade/orders', () => {
             const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
 
             const response = await app.trading.orders.delete({
-              AccountKey,
+              AccountKey: account.AccountKey,
               OrderIds: [
                 placedTakeProfitOrderId,
                 placedStopLossOrderId,
@@ -1608,7 +1647,7 @@ describe('trade/orders', () => {
             const { placedEntryOrderId, placedStopLossOrderId, placedTakeProfitOrderId } = await placeTestOrders()
 
             const response = await app.trading.orders.delete({
-              AccountKey,
+              AccountKey: account.AccountKey,
               OrderIds: [
                 nonExistingOrderId,
                 placedTakeProfitOrderId,

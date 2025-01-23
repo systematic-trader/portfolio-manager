@@ -12,10 +12,10 @@ describe('portfolio/balances', () => {
     const { getFirstClient } = new TestingUtilities({ app: appLive })
 
     test('response passes guard', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const balance = await appLive.portfolio.balances.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       })
       expect(balance).toBeDefined()
     })
@@ -30,29 +30,32 @@ describe('portfolio/balances', () => {
       getFirstClient,
       resetSimulationAccount,
       waitForPortfolioState,
+      getFirstAccount,
     } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
     afterAll(resetSimulationAccount)
 
     test('response passes guard, with no orders or positions', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const balance = await appSimulation.portfolio.balances.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       })
       expect(balance).toBeDefined()
     })
 
     test('response passes guard, with an open FxSpot position', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
+      const account = await getFirstAccount()
 
       const initialBalance = await appSimulation.portfolio.balances.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       })
       expect(initialBalance).toBeDefined()
 
       await appSimulation.trading.orders.post({
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         BuySell: 'Buy',
         Amount: 50_000,
@@ -69,7 +72,7 @@ describe('portfolio/balances', () => {
       })
 
       const updatedBalance = await appSimulation.portfolio.balances.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       })
       expect(updatedBalance).toBeDefined()
       expect(updatedBalance.TotalValue).toBeLessThan(initialBalance.TotalValue)

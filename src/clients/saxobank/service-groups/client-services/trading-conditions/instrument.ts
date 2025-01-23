@@ -5,7 +5,7 @@ import type { AssetType } from '../../../types/derives/asset-type.ts'
 import {
   type ScheduledTradingConditionsFieldGroup,
   ScheduledTradingConditionsFieldGroupValues,
-} from '../../../types/derives/trading-condition-field-group copy.ts'
+} from '../../../types/derives/scheduled-trading-conditions-field-group.ts'
 import { InstrumentTradingConditions } from '../../../types/records/instrument-trading-conditions.ts'
 
 export class Instrument {

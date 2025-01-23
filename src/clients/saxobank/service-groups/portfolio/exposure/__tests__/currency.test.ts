@@ -13,10 +13,10 @@ describe('portfolio/exposure/currency', () => {
     const { getFirstClient } = new TestingUtilities({ app: appLive })
 
     test('response passes guard', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const exposure = await toArray(appLive.portfolio.exposure.currency.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
       expect(exposure).toBeDefined()
     })
@@ -31,25 +31,27 @@ describe('portfolio/exposure/currency', () => {
       getFirstClient,
       resetSimulationAccount,
       waitForPortfolioState,
+      getFirstAccount,
     } = new TestingUtilities({ app: appSimulation })
 
     beforeEach(resetSimulationAccount)
     afterAll(resetSimulationAccount)
 
     test('response passes guard, with no orders or positions', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const exposure = await toArray(appSimulation.portfolio.exposure.currency.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
       expect(exposure).toBeDefined()
     })
 
     test('response passes guard, with an open FxSpot position', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
+      const account = await getFirstAccount()
 
       const initialExposure = await toArray(appSimulation.portfolio.exposure.currency.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
       expect(initialExposure).toBeDefined()
 
@@ -58,6 +60,7 @@ describe('portfolio/exposure/currency', () => {
       expect(initialCurrencyExposure).toContain('EUR')
 
       await appSimulation.trading.orders.post({
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         BuySell: 'Buy',
         Amount: 50_000,
@@ -74,7 +77,7 @@ describe('portfolio/exposure/currency', () => {
       })
 
       const updatedExposure = await toArray(appSimulation.portfolio.exposure.currency.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
       expect(updatedExposure).toBeDefined()
 

@@ -132,7 +132,8 @@ describe('portfolio/orders', () => {
     })
 
     test('response passes guard for multiple and related orders - even after initial order has been filled', async ({ step }) => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
+      const account = await getFirstAccount()
 
       const instruments = findTradableInstruments({
         assetType: 'Stock',
@@ -156,6 +157,7 @@ describe('portfolio/orders', () => {
           // After the first order has been placed, we place another order
           // This time we remember the order id, so we can look for it specifically
           const placeOrderResponse = await appSimulation.trading.orders.post({
+            AccountKey: account.AccountKey,
             AssetType: instrument.AssetType,
             Uic: instrument.Uic,
             BuySell: 'Buy',
@@ -194,7 +196,7 @@ describe('portfolio/orders', () => {
           const placedOrderId = placeOrderResponse.OrderId
 
           const firstOrderResponse = await toArray(appSimulation.portfolio.orders.get({
-            ClientKey,
+            ClientKey: client.ClientKey,
             OrderId: placedOrderId,
             Status: 'All',
           }))
@@ -229,7 +231,7 @@ describe('portfolio/orders', () => {
           })
 
           const secondOrderResponse = await toArray(appSimulation.portfolio.orders.get({
-            ClientKey,
+            ClientKey: client.ClientKey,
             Status: 'All',
           }))
 
@@ -239,7 +241,8 @@ describe('portfolio/orders', () => {
     })
 
     test('response passes guard for two orders in oco relation: limit and stop', async ({ step }) => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
+      const account = await getFirstAccount()
 
       const instruments = findTradableInstruments({
         assetType: 'Stock',
@@ -252,6 +255,7 @@ describe('portfolio/orders', () => {
           await resetSimulationAccount()
 
           const placeOrderResponse = await appSimulation.trading.orders.post({
+            AccountKey: account.AccountKey,
             Orders: [
               {
                 AssetType: instrument.AssetType,
@@ -282,7 +286,7 @@ describe('portfolio/orders', () => {
           expect(placeOrderResponse.Orders).toHaveLength(2)
 
           const orders = await toArray(appSimulation.portfolio.orders.get({
-            ClientKey,
+            ClientKey: client.ClientKey,
             Status: 'All',
           }))
 
@@ -299,7 +303,8 @@ describe('portfolio/orders', () => {
     })
 
     test('response passes guard for two orders in oco relation: limit and stop-limit', async ({ step }) => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
+      const account = await getFirstAccount()
 
       const instruments = findTradableInstruments({
         assetType: 'Stock',
@@ -312,6 +317,7 @@ describe('portfolio/orders', () => {
           await resetSimulationAccount()
 
           const placeOrderResponse = await appSimulation.trading.orders.post({
+            AccountKey: account.AccountKey,
             Orders: [
               {
                 AssetType: instrument.AssetType,
@@ -343,7 +349,7 @@ describe('portfolio/orders', () => {
           expect(placeOrderResponse.Orders).toHaveLength(2)
 
           const orders = await toArray(appSimulation.portfolio.orders.get({
-            ClientKey,
+            ClientKey: client.ClientKey,
             Status: 'All',
           }))
 

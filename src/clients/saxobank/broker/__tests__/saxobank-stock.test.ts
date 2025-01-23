@@ -28,6 +28,7 @@ using appSimulation = new SaxoBankApplication({
 
 const {
   getFirstClient,
+  getFirstAccount,
   roundPriceToInstrumentSpecification,
   resetSimulationAccount,
   findTradableInstruments,
@@ -38,6 +39,8 @@ const {
 
 describe('placing invalid orders', () => {
   test('placing orders below minimum order value', async ({ step }) => {
+    const account = await getFirstAccount()
+
     const instruments = findTradableInstruments({
       assetType: 'Stock',
       sessions: ['AutomatedTrading'], // We need our entry orders to be filled to test if we can exit a position below the minimum order size
@@ -81,6 +84,7 @@ describe('placing invalid orders', () => {
           try {
             await appSimulation.trading.orders.post({
               RequestId: SaxoBankRandom.requestID(),
+              AccountKey: account.AccountKey,
               AssetType: instrument.AssetType,
               Uic: instrument.Uic,
               BuySell: 'Buy',
@@ -119,6 +123,7 @@ describe('placing invalid orders', () => {
           // First we enter a position
           await appSimulation.trading.orders.post({
             RequestId: SaxoBankRandom.requestID(),
+            AccountKey: account.AccountKey,
             AssetType: instrument.AssetType,
             Uic: instrument.Uic,
             BuySell: 'Buy',
@@ -140,6 +145,7 @@ describe('placing invalid orders', () => {
           try {
             await appSimulation.trading.orders.post({
               RequestId: SaxoBankRandom.requestID(),
+              AccountKey: account.AccountKey,
               AssetType: instrument.AssetType,
               Uic: instrument.Uic,
               BuySell: 'Buy',
