@@ -149,9 +149,9 @@ export interface DataContextStockSnapshot {
 
 export interface DataContextStockCost {
   /** The cost of the buy order. */
-  readonly buy: DataContextCost
+  readonly Buy: DataContextCost
   /** The cost of the sell order. */
-  readonly sell: DataContextCost
+  readonly Sell: DataContextCost
 }
 
 export interface DataContextFXSpot {
@@ -336,7 +336,13 @@ export class DataContext implements AsyncDisposable {
     this.#stream3 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
     this.#stream4 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
 
-    const disposeListener = this[Symbol.asyncDispose].bind(this)
+    const disposeListener = (error: undefined | Error) => {
+      if (error !== undefined && this.#error === undefined) {
+        this.#error = error
+      }
+
+      this[Symbol.asyncDispose]()
+    }
 
     this.#stream1.addListener('disposed', disposeListener)
     this.#stream2.addListener('disposed', disposeListener)
@@ -1368,14 +1374,14 @@ export class DataContext implements AsyncDisposable {
     }
 
     return {
-      buy: {
+      Buy: {
         minimum: executeOrder.MinCommission,
         maximum: executeOrder.MaxCommission,
         additionalCommission: 0,
         costPerShareCommission: executeOrder.PerUnitRate ?? 0,
         percentageCommission: executeOrder.RateOnAmount ?? 0,
       },
-      sell: {
+      Sell: {
         minimum: executeOrder.MinCommission,
         maximum: executeOrder.MaxCommission,
         additionalCommission: 0,

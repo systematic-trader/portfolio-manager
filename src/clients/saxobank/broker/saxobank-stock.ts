@@ -72,50 +72,6 @@ export class SaxoBankStock<
     this.symbol = options.symbol
   }
 
-  #calculateCost(type: 'buy' | 'sell', quantity: number, price: number): number {
-    // TODO "additionalCommission" might irrelevant for all exchanges
-    // If relevant, then we need to know where to add it
-    // 1. Should it be added as now
-    // 2. Should it be added AFTER "maximum" is calculated
-    // 3. ???
-
-    const cost = Math.max(
-      this.cost[type].minimum,
-      this.cost[type].additionalCommission +
-        this.cost[type].costPerShareCommission * quantity +
-        this.cost[type].percentageCommission * price * quantity,
-    )
-
-    if (this.cost[type].maximum !== undefined) {
-      return Math.min(cost, this.cost[type].maximum)
-    }
-
-    return cost
-  }
-
-  #assertOrderType(options: SaxoBankStockOrderOptions): void {
-    const durations = this.#reader.value.orderTypes[options.type]
-
-    if (durations === undefined) {
-      throw new SaxoBankOrderUnsupportedOrderTypeError(
-        this.symbol,
-        this.account.currency,
-        Object.keys(this.#reader.value.orderTypes),
-        options.type,
-      )
-    }
-
-    if (durations.includes(options.duration) === false) {
-      throw new SaxoBankOrderUnsupportedOrderDurationError(
-        this.symbol,
-        this.account.currency,
-        options.type,
-        durations,
-        options.duration,
-      )
-    }
-  }
-
   buy<
     const BuyOptions extends SaxoBankStockOrderOptions,
   >(options: BuyOptions): SaxoBankStockOrder<{
@@ -124,23 +80,6 @@ export class SaxoBankStock<
     symbol: Options['symbol']
     order: Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptions>
   }> {
-    this.#assertOrderType(options)
-
-    const roundedStop = 'stop' in options && options.stop !== undefined
-      ? this.#reader.value.roundPriceToTickSize(options.stop)
-      : undefined
-
-    const roundedLimit = 'limit' in options && options.limit !== undefined
-      ? this.#reader.value.roundPriceToTickSize(options.limit)
-      : undefined
-
-    const price = roundedStop ?? roundedLimit ?? this.#reader.value.roundPriceToTickSize(this.snapshot.quote.ask.price)
-    const cost = this.#calculateCost('buy', options.quantity, price)
-    const order = { ...options, limit: roundedLimit, stop: roundedStop } as Extract<
-      { -readonly [K in keyof BuyOptions]: BuyOptions[K] },
-      SaxoBankStockOrderOptions
-    >
-
     return new SaxoBankStockOrder<{
       account: Options['account']
       type: 'Buy'
@@ -148,12 +87,11 @@ export class SaxoBankStock<
       order: Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptions>
     }>({
       context: this.#context,
+      reader: this.#reader,
       stock: this,
       uic: this.#uic,
-      symbol: this.symbol,
       type: 'Buy',
-      cost,
-      order,
+      order: options as Extract<{ -readonly [K in keyof BuyOptions]: BuyOptions[K] }, SaxoBankStockOrderOptions>,
     })
   }
 
@@ -165,23 +103,6 @@ export class SaxoBankStock<
     symbol: Options['symbol']
     order: Extract<{ -readonly [K in keyof SellOptions]: SellOptions[K] }, SaxoBankStockOrderOptions>
   }> {
-    this.#assertOrderType(options)
-
-    const roundedStop = 'stop' in options && options.stop !== undefined
-      ? this.#reader.value.roundPriceToTickSize(options.stop)
-      : undefined
-
-    const roundedLimit = 'limit' in options && options.limit !== undefined
-      ? this.#reader.value.roundPriceToTickSize(options.limit)
-      : undefined
-
-    const price = roundedStop ?? roundedLimit ?? this.#reader.value.roundPriceToTickSize(this.snapshot.quote.bid.price)
-    const cost = this.#calculateCost('buy', options.quantity, price)
-    const order = { ...options, limit: roundedLimit, stop: roundedStop } as Extract<
-      { -readonly [K in keyof SellOptions]: SellOptions[K] },
-      SaxoBankStockOrderOptions
-    >
-
     return new SaxoBankStockOrder<{
       account: Options['account']
       type: 'Sell'
@@ -189,12 +110,11 @@ export class SaxoBankStock<
       order: Extract<{ -readonly [K in keyof SellOptions]: SellOptions[K] }, SaxoBankStockOrderOptions>
     }>({
       context: this.#context,
+      reader: this.#reader,
       stock: this,
       uic: this.#uic,
-      symbol: this.symbol,
       type: 'Sell',
-      cost,
-      order,
+      order: options as Extract<{ -readonly [K in keyof SellOptions]: SellOptions[K] }, SaxoBankStockOrderOptions>,
     })
   }
 
@@ -238,7 +158,7 @@ export type SaxoBankStockOrderOptions = {
   readonly stop?: undefined
   readonly marketOffset?: undefined
   readonly stepAmount?: undefined
-  readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
+  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
 } | {
   readonly type: 'Market'
   readonly quantity: number
@@ -246,7 +166,7 @@ export type SaxoBankStockOrderOptions = {
   readonly stop?: undefined
   readonly marketOffset?: undefined
   readonly stepAmount?: undefined
-  readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
+  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
 } | {
   readonly type: 'Stop'
   readonly quantity: number
@@ -254,7 +174,7 @@ export type SaxoBankStockOrderOptions = {
   readonly stop: number
   readonly marketOffset?: undefined
   readonly stepAmount?: undefined
-  readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
+  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
 } | {
   readonly type: 'StopLimit'
   readonly quantity: number
@@ -262,7 +182,7 @@ export type SaxoBankStockOrderOptions = {
   readonly stop: number
   readonly marketOffset?: undefined
   readonly stepAmount?: undefined
-  readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
+  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
 } | {
   readonly type: 'TrailingStop'
   readonly quantity: number
@@ -270,7 +190,7 @@ export type SaxoBankStockOrderOptions = {
   readonly stop: number
   readonly marketOffset: number
   readonly stepAmount: number
-  readonly duration: 'Day' | 'GoodTillCancel' | 'GoodTillDate' | 'ImmediateOrCancel'
+  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
 }
 
 export class SaxoBankStockOrder<
@@ -282,38 +202,54 @@ export class SaxoBankStockOrder<
   },
 > {
   readonly #context: DataContext
+  readonly #reader: DataContextReaderView<DataContextStock>
   readonly #uic: number
 
-  readonly stock: SaxoBankStock<{
-    symbol: Options['symbol']
-    account: Options['account']
-  }>
-
-  readonly ID: string = SaxoBankRandom.orderID('stock')
-  readonly symbol: Options['symbol']
+  readonly stock: SaxoBankStock<{ symbol: Options['symbol']; account: Options['account'] }>
+  readonly ID: string
   readonly type: Options['type']
-  readonly cost: number
   readonly options: Options['order']
+  readonly cost: number
 
   constructor(options: {
     readonly context: DataContext
+    readonly reader: DataContextReaderView<DataContextStock>
     readonly stock: SaxoBankStock<{
       symbol: Options['symbol']
       account: Options['account']
     }>
     readonly uic: number
     readonly type: Options['type']
-    readonly symbol: Options['symbol']
-    readonly cost: number
     readonly order: Options['order']
   }) {
     this.#context = options.context
-    this.stock = options.stock
+    this.#reader = options.reader
     this.#uic = options.uic
-    this.symbol = options.symbol
+    this.stock = options.stock
+    this.ID = SaxoBankRandom.orderID('stock')
     this.type = options.type
-    this.cost = options.cost
     this.options = options.order
+
+    const durations = this.#reader.value.orderTypes[options.order.type]
+
+    if (durations === undefined) {
+      throw new SaxoBankOrderUnsupportedOrderTypeError(
+        this.stock.symbol,
+        this.stock.account.currency,
+        Object.keys(this.#reader.value.orderTypes),
+        options.type,
+      )
+    }
+
+    if (durations.includes(options.order.duration) === false) {
+      throw new SaxoBankOrderUnsupportedOrderDurationError(
+        this.stock.symbol,
+        this.stock.account.currency,
+        options.type,
+        durations,
+        options.order.duration,
+      )
+    }
 
     if (options.order.quantity < options.stock.lot.minimum) {
       throw new Error(`Quantity is below the minimum lot size: ${options.order} < ${options.stock.lot.minimum}`)
@@ -336,10 +272,20 @@ export class SaxoBankStockOrder<
       )
     }
 
-    const pricePerQuantity = 'stop' in options.order && options.order.stop !== undefined
-      ? options.order.stop
-      : 'limit' in options.order && options.order.limit !== undefined
-      ? options.order.limit
+    const roundedStop = 'stop' in this.options && this.options.stop !== undefined
+      ? this.#reader.value.roundPriceToTickSize(this.options.stop)
+      : undefined
+
+    const roundedLimit = 'limit' in this.options && this.options.limit !== undefined
+      ? this.#reader.value.roundPriceToTickSize(this.options.limit)
+      : undefined
+
+    this.options = { ...this.options, limit: roundedLimit, stop: roundedStop }
+
+    const pricePerQuantity = roundedStop !== undefined
+      ? roundedStop
+      : roundedLimit !== undefined
+      ? roundedLimit
       : options.type === 'Buy'
       ? options.stock.snapshot.quote.ask.price
       : options.stock.snapshot.quote.bid.price
@@ -352,6 +298,25 @@ export class SaxoBankStockOrder<
 
     if (options.stock.sum.maximum !== undefined && expectedSum > options.stock.sum.maximum) {
       throw new Error(`Sum is above the maximum: ${expectedSum} > ${options.stock.sum.maximum}`)
+    }
+
+    // TODO "additionalCommission" might irrelevant for all exchanges
+    // If relevant, then we need to know where to add it
+    // 1. Should it be added as now
+    // 2. Should it be added AFTER "maximum" is calculated
+    // 3. ???
+
+    this.cost = Math.max(
+      this.stock.cost[options.type].minimum,
+      this.stock.cost[options.type].additionalCommission +
+        this.stock.cost[options.type].costPerShareCommission * options.order.quantity +
+        this.stock.cost[options.type].percentageCommission * pricePerQuantity * options.order.quantity,
+    )
+
+    const costMaximum = this.stock.cost[options.type].maximum
+
+    if (costMaximum !== undefined) {
+      this.cost = Math.min(this.cost, costMaximum)
     }
   }
 
