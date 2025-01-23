@@ -36,7 +36,7 @@ describe('client-services/trading-conditions/cost', () => {
   const { getFirstAccount } = new TestingUtilities({ app })
 
   test('Getting costs for asset type', async ({ step }) => {
-    const { AccountKey } = await getFirstAccount()
+    const account = await getFirstAccount()
 
     const assetTypeCandidates: CostParameters['AssetType'][] = [
       'Bond',
@@ -117,7 +117,7 @@ describe('client-services/trading-conditions/cost', () => {
                   case 'Rights':
                   case 'Stock': {
                     const cost = await app.clientServices.tradingConditions.cost.get({
-                      AccountKey,
+                      AccountKey: account.AccountKey,
                       Amount: 80,
                       AssetType: instrument.AssetType,
                       Price: 58,
@@ -149,7 +149,7 @@ describe('client-services/trading-conditions/cost', () => {
                     }
 
                     const cost = await app.clientServices.tradingConditions.cost.get({
-                      AccountKey,
+                      AccountKey: account.AccountKey,
                       Amount: 80,
                       AssetType: instrument.AssetType,
                       Price: 58,

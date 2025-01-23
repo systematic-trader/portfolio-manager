@@ -13,11 +13,12 @@ describe('portfolio/net-positions', () => {
     const { getFirstClient } = new TestingUtilities({ app: appLive })
 
     test('response passes guard', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const netPositions = await toArray(appLive.portfolio.netPositions.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
+
       expect(netPositions).toBeDefined()
     })
   })
@@ -42,16 +43,18 @@ describe('portfolio/net-positions', () => {
     afterAll(resetSimulationAccount)
 
     test('response passes guard, with no positions', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const netPositions = await toArray(appSimulation.portfolio.netPositions.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
+
       expect(netPositions).toBeDefined()
     })
 
     test('response passes guard for positions in different asset types', async ({ step }) => {
-      const { ClientKey } = await getFirstAccount()
+      const client = await getFirstAccount()
+
       const limit = 100
 
       const assetTypes = {
@@ -112,8 +115,9 @@ describe('portfolio/net-positions', () => {
                       })
 
                       const netPositionsAfterFirstPosition = await toArray(appSimulation.portfolio.netPositions.get({
-                        ClientKey,
+                        ClientKey: client.ClientKey,
                       }))
+
                       expect(netPositionsAfterFirstPosition).toBeDefined()
                       expect(netPositionsAfterFirstPosition).toHaveLength(1) // We always expect only to get 1 net position, since we only have positions for the same instrument
                     })

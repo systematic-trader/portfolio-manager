@@ -14,11 +14,12 @@ describe('portfolio/positions', () => {
     const { getFirstClient } = new TestingUtilities({ app: appLive })
 
     test('response passes guard', async () => {
-      const { ClientKey } = await getFirstClient()
+      const client = await getFirstClient()
 
       const positions = await toArray(appLive.portfolio.positions.get({
-        ClientKey,
+        ClientKey: client.ClientKey,
       }))
+
       expect(positions).toBeDefined()
     })
   })
@@ -86,7 +87,8 @@ describe('portfolio/positions', () => {
     })
 
     test('response passes guard for different order types', async ({ step }) => {
-      const { ClientKey } = await getFirstAccount()
+      const client = await getFirstAccount()
+
       const limit = 50
 
       const assetTypes = {
@@ -150,7 +152,7 @@ describe('portfolio/positions', () => {
 
                   // After the order has been placed, we should be able to find it
                   const positions = await toArray(appSimulation.portfolio.positions.get({
-                    ClientKey,
+                    ClientKey: client.ClientKey,
                   }))
 
                   expect(positions).toBeDefined()
@@ -159,6 +161,7 @@ describe('portfolio/positions', () => {
                   const positionMatching = positions.find((candidate) =>
                     candidate.PositionBase.ExternalReference === externalReference
                   )
+
                   expect(positionMatching).toBeDefined()
                   expect(positionMatching?.PositionBase.AssetType).toStrictEqual(instrument.AssetType)
                 })

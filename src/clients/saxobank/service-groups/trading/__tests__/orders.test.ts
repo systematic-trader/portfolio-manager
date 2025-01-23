@@ -644,7 +644,7 @@ describe('trade/orders', () => {
     })
   })
 
-  describe.only('placing orders for different asset types', () => {
+  describe('placing orders for different asset types', () => {
     const assetTypesToTest = [
       'Bond',
       'CfdOnEtc',
@@ -691,7 +691,7 @@ describe('trade/orders', () => {
 
   describe('updating orders', () => {
     test('Method 1: Updating a single order, with no related orders', async ({ step }) => {
-      const { AccountKey } = await getFirstAccount()
+      const account = await getFirstAccount()
 
       const instruments = findTradableInstruments({
         assetType: 'FxSpot',
@@ -710,7 +710,7 @@ describe('trade/orders', () => {
 
         const placeOrderResponse = await app.trading.orders.post({
           RequestId: SaxoBankRandom.requestID(),
-          AccountKey,
+          AccountKey: account.AccountKey,
           AssetType: 'FxSpot',
           Uic: instrument.Uic,
           BuySell: 'Buy',
@@ -730,7 +730,7 @@ describe('trade/orders', () => {
           get RequestId() {
             return SaxoBankRandom.requestID()
           },
-          AccountKey,
+          AccountKey: account.AccountKey,
           AssetType: 'FxSpot',
           OrderId: placeOrderResponse.OrderId,
           OrderType: 'Limit',
@@ -1307,10 +1307,10 @@ describe('trade/orders', () => {
     })
 
     test('Deleting orders for non-existing uics', async () => {
-      const { AccountKey } = await getFirstAccount()
+      const account = await getFirstAccount()
 
       const response = await app.trading.orders.delete({
-        AccountKey,
+        AccountKey: account.AccountKey,
         AssetType: 'FxSpot',
         Uic: 21123123, // non-existing UIC
       })
@@ -1324,12 +1324,12 @@ describe('trade/orders', () => {
     })
 
     test('Deleting non-existing order by id', async () => {
-      const { AccountKey } = await getFirstAccount()
+      const account = await getFirstAccount()
 
       const nonExistingOrderId = '123123' // must be numeric - otherwise, another different error ("OtherError") is returned
 
       const response = await app.trading.orders.delete({
-        AccountKey,
+        AccountKey: account.AccountKey,
         OrderIds: [
           nonExistingOrderId,
         ],
@@ -1349,7 +1349,7 @@ describe('trade/orders', () => {
     })
 
     test('Deleting a non-existing order by id alongside existing orders', async ({ step }) => {
-      const { AccountKey } = await getFirstAccount()
+      const account = await getFirstAccount()
 
       const instruments = findTradableInstruments({
         assetType: 'Stock',
@@ -1370,7 +1370,7 @@ describe('trade/orders', () => {
           const nonExistingOrderId = '123123' // must be numeric - otherwise, another different error ("OtherError") is returned
 
           const response = await app.trading.orders.delete({
-            AccountKey,
+            AccountKey: account.AccountKey,
             OrderIds: [
               placedOrderId,
               nonExistingOrderId,
@@ -1694,7 +1694,7 @@ describe('trade/orders', () => {
     })
 
     test('Deleting an order right after it has been filled', async ({ step }) => {
-      const { AccountKey } = await getFirstAccount()
+      const account = await getFirstAccount()
 
       const instruments = findTradableInstruments({
         assetType: 'FxSpot',
@@ -1722,7 +1722,7 @@ describe('trade/orders', () => {
           })
 
           const response = await app.trading.orders.delete({
-            AccountKey,
+            AccountKey: account.AccountKey,
             OrderIds: [placedEntryOrderId],
           })
 

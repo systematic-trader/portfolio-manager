@@ -7,7 +7,8 @@ test('reference-data/standard-dates/forward-tenor', async ({ step }) => {
   using app = new SaxoBankApplication()
 
   const { getFirstAccount } = new TestingUtilities({ app })
-  const { AccountKey } = await getFirstAccount()
+
+  const account = await getFirstAccount()
 
   const instruments = await toArray(app.referenceData.instruments.get({
     AssetTypes: ['FxSpot'],
@@ -23,7 +24,7 @@ test('reference-data/standard-dates/forward-tenor', async ({ step }) => {
       `${++count} / ${instruments.length}: Uic=${instrument.Identifier} Symbol=${instrument.Symbol}, ${instrument.Description}`,
       async () => {
         const dates = await toArray(app.referenceData.standarddates.forwardTenor.get({
-          AccountKey,
+          AccountKey: account.AccountKey,
           Uic: instrument.Identifier,
         }))
         expect(dates.length).not.toBe(0)
