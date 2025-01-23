@@ -100,17 +100,8 @@ export interface DataContextStock {
   readonly session: MarketSession
   readonly orderTypes: Readonly<
     Record<
-      | 'Limit'
-      | 'Market'
-      | 'Stop'
-      | 'StopLimit'
-      | 'TrailingStop',
-      ReadonlyArray<
-        | 'Day'
-        | 'GoodTillCancel'
-        | 'GoodTillDate'
-        | 'ImmediateOrCancel'
-      >
+      keyof typeof StockOrderTypes,
+      ReadonlyArray<keyof typeof StockOrderDurationTypes>
     >
   >
   roundPriceToTickSize(price: number): number
@@ -1408,24 +1399,14 @@ export class DataContext implements AsyncDisposable {
     const requestID = SaxoBankRandom.requestID()
 
     let options: undefined | PlaceOrderParametersEntryWithNoRelatedOrders = undefined
-    let OrderDuration: undefined | OrderDuration = undefined
 
-    switch (order.options.duration) {
-      case 'Day': {
-        OrderDuration = { DurationType: 'DayOrder' }
-        break
-      }
+    if (order.options.duration in StockOrderDurationTypes === false) {
+      const supported = Object.keys(StockOrderDurationTypes).map((key) => `"${key}"`).join(', ')
 
-      case 'GoodTillCancel':
-      case 'ImmediateOrCancel': {
-        OrderDuration = { DurationType: order.options.duration }
-        break
-      }
-
-      default: {
-        throw new Error(`Invalid order type duration: ${order.options.duration}`)
-      }
+      throw new Error(`Order "duration" supports ${supported}: ${order.options.duration}`)
     }
+
+    const OrderDuration: OrderDuration = { DurationType: StockOrderDurationTypes[order.options.duration] }
 
     switch (order.options.type) {
       case 'Market': {
@@ -1433,7 +1414,7 @@ export class DataContext implements AsyncDisposable {
           AccountKey: order.stock.account.key,
           RequestId: requestID,
           AssetType: 'Stock',
-          OrderType: 'Market',
+          OrderType: StockOrderTypes[order.options.type],
           BuySell: order.type,
           Uic: uic,
           Amount: order.options.quantity,
@@ -1449,7 +1430,7 @@ export class DataContext implements AsyncDisposable {
           AccountKey: order.stock.account.key,
           RequestId: requestID,
           AssetType: 'Stock',
-          OrderType: 'Limit',
+          OrderType: StockOrderTypes[order.options.type],
           BuySell: order.type,
           Uic: uic,
           Amount: order.options.quantity,
@@ -1466,7 +1447,7 @@ export class DataContext implements AsyncDisposable {
           AccountKey: order.stock.account.key,
           RequestId: requestID,
           AssetType: 'Stock',
-          OrderType: 'Stop',
+          OrderType: StockOrderTypes[order.options.type],
           BuySell: order.type,
           Uic: uic,
           Amount: order.options.quantity,
@@ -1483,7 +1464,7 @@ export class DataContext implements AsyncDisposable {
           AccountKey: order.stock.account.key,
           RequestId: requestID,
           AssetType: 'Stock',
-          OrderType: 'StopLimit',
+          OrderType: StockOrderTypes[order.options.type],
           BuySell: order.type,
           Uic: uic,
           Amount: order.options.quantity,
@@ -1501,7 +1482,7 @@ export class DataContext implements AsyncDisposable {
           AccountKey: order.stock.account.key,
           RequestId: requestID,
           AssetType: 'Stock',
-          OrderType: 'TrailingStop',
+          OrderType: StockOrderTypes[order.options.type],
           BuySell: order.type,
           Uic: uic,
           Amount: order.options.quantity,
@@ -1919,37 +1900,49 @@ function roundPriceToTickSize(
   return parseFloat(roundedPrice.toFixed(precision))
 }
 
+const StockOrderTypes = {
+  Limit: 'Limit',
+  Market: 'Market',
+  Stop: 'StopIfTraded',
+  StopLimit: 'StopLimit',
+  TrailingStop: 'TrailingStopIfTraded',
+} as const
+
+const StockOrderDurationTypes = {
+  Day: 'DayOrder',
+  GoodTillCancel: 'GoodTillCancel',
+  ImmediateOrCancel: 'ImmediateOrCancel',
+} as const
+
+const StockOrderTypesReverse = Object.fromEntries(
+  Object.entries(StockOrderTypes).map(([key, value]) => [value, key]),
+) as {
+  readonly [K in keyof typeof StockOrderTypes as typeof StockOrderTypes[K]]: K
+}
+
+const StockOrderDurationTypesReverse = Object.fromEntries(
+  Object.entries(StockOrderDurationTypes).map(([key, value]) => [value, key]),
+) as {
+  readonly [K in keyof typeof StockOrderDurationTypes as typeof StockOrderDurationTypes[K]]: K
+}
+
 function mapStockOrderTypes(
   instrument: InstrumentDetailsStock,
 ): DataContextStock['orderTypes'] {
-  const entries = instrument.SupportedOrderTypeSettings.filter((setting) =>
-    setting.OrderType === 'Limit' ||
-    setting.OrderType === 'Market' ||
-    setting.OrderType === 'StopIfTraded' ||
-    setting.OrderType === 'StopLimit' ||
-    setting.OrderType === 'TrailingStopIfTraded'
-  ).map((setting) => {
-    const durations = setting.DurationTypes.map((duration) => duration === 'DayOrder' ? 'Day' : duration)
+  const entries = instrument.SupportedOrderTypeSettings.filter((setting) => {
+    const settingOrderType = setting.OrderType as keyof typeof StockOrderTypesReverse
 
-    switch (setting.OrderType) {
-      case 'Market':
-      case 'Limit':
-      case 'StopLimit': {
-        return [setting.OrderType, durations] as const
-      }
+    return settingOrderType in StockOrderTypesReverse
+  }).map((setting) => {
+    const settingOrderType = setting.OrderType as keyof typeof StockOrderTypesReverse
+    const type = StockOrderTypesReverse[settingOrderType]
+    const durations = setting.DurationTypes.filter(
+      (duration): duration is keyof typeof StockOrderDurationTypesReverse => {
+        return duration in StockOrderDurationTypesReverse
+      },
+    ).map((duration) => StockOrderDurationTypesReverse[duration])
 
-      case 'StopIfTraded': {
-        return ['Stop', durations] as const
-      }
-
-      case 'TrailingStopIfTraded': {
-        return ['TrailingStop', durations] as const
-      }
-
-      default: {
-        throw new Error(`Unsupported order type: ${setting.OrderType}`)
-      }
-    }
+    return [type, durations] as const
   })
 
   return Object.fromEntries(entries) as unknown as DataContextStock['orderTypes']
