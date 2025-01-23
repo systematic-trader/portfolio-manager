@@ -8,6 +8,7 @@ import { mergeDeltaContent } from '../../../../utils/merge-delta-content.ts'
 import type { PromiseQueue } from '../../../../utils/promise-queue.ts'
 import type { SaxoBankStream } from '../../../saxobank-stream.ts'
 import { SaxoBankRandom } from '../../saxobank-random.ts'
+import { sanitizeSaxobankValue } from '../../service-group-client/sanitize-saxobank-value.ts'
 import type { BalanceRequest } from '../../types/records/balance-request.ts'
 import { BalanceResponse } from '../../types/records/balance-response.ts'
 import {
@@ -49,7 +50,9 @@ export class SaxoBankSubscriptionBalance extends SaxoBankSubscription<BalanceRes
   }
 }
 
-const parse: SaxoBankSubscriptionParse<BalanceResponse> = (previous, payload) => {
+const parse: SaxoBankSubscriptionParse<BalanceResponse> = (previous, rawPayload) => {
+  const payload = sanitizeSaxobankValue(rawPayload)
+
   const merged = mergeDeltaContent(previous, payload)
 
   assert(BalanceResponse, merged)
