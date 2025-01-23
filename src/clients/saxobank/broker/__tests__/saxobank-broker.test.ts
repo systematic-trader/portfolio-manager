@@ -1,6 +1,11 @@
-import { expect, test } from '../../../../utils/testing.ts'
+import { toArray } from '../../../../utils/async-iterable.ts'
+import { afterAll, beforeEach, describe, expect, test } from '../../../../utils/testing.ts'
+import { SaxoBankApplication } from '../../../saxobank-application.ts'
+import { TestingUtilities } from '../../__tests__/testing-utilities.ts'
+import { QuoteKnown } from '../../types/records/quote.ts'
 import { SaxoBankAccountCurrencyMismatchError, SaxoBankDefaultCurrencyMismatchError } from '../errors.ts'
 import { SaxoBankBroker } from '../saxobank-broker.ts'
+import type { SaxoBankStockOrderOptions } from '../saxobank-stock.ts'
 
 test('broker properties', async () => {
   const options = await SaxoBankBroker.options({ type: 'Live' })
@@ -58,4 +63,170 @@ test('Invalid account currency', async () => {
 
   await expect(SaxoBankBroker({ ...options, accounts: acccountsWithInvalidCurrency })).rejects
     .toThrow(new SaxoBankAccountCurrencyMismatchError(accountID, expectedCurrency, actualCurrency))
+})
+
+describe('placing stock orders', () => {
+  using app = new SaxoBankApplication({ type: 'Simulation' })
+
+  const {
+    getFirstAccount,
+    resetSimulationAccount,
+    calculateFavourableOrderPrice,
+  } = new TestingUtilities({ app })
+
+  beforeEach(resetSimulationAccount)
+  afterAll(resetSimulationAccount)
+
+  const orderTypes: SaxoBankStockOrderOptions['type'][] = [
+    'Market',
+    'Limit',
+    'Stop',
+    'StopLimit',
+    'TrailingStop',
+  ]
+
+  test('of different order types', async ({ step }) => {
+    for (const orderType of orderTypes) {
+      const options = await SaxoBankBroker.options({ type: 'Simulation' })
+
+      const saxoAccount = await getFirstAccount()
+
+      const tesla = { symbol: 'TL0:XETR', uic: 692462 } as const
+
+      const [teslaSaxoInstrument] = await toArray(app.referenceData.instruments.details.get({
+        AssetTypes: ['Stock'],
+        Uics: [tesla.uic],
+      }))
+
+      expect(teslaSaxoInstrument).toBeDefined()
+      if (teslaSaxoInstrument === undefined) {
+        return
+      }
+
+      const { Quote: quote } = await app.trading.infoPrices.get({
+        AssetType: teslaSaxoInstrument.AssetType,
+        Uic: teslaSaxoInstrument.Uic,
+      })
+
+      if (QuoteKnown.accept(quote) === false) {
+        throw new Error('Unknown quote')
+      }
+
+      await step(orderType, async () => {
+        await resetSimulationAccount()
+
+        await using broker = await SaxoBankBroker(options)
+        const account = await broker.accounts.get({ ID: saxoAccount.AccountId, currency: 'EUR' })
+
+        expect(account).toBeDefined()
+        if (account === undefined) {
+          return
+        }
+
+        const teslaStock = await account.stock(tesla.symbol)
+
+        switch (orderType) {
+          case 'Market': {
+            const order = teslaStock.buy({
+              type: 'Market',
+              quantity: 1,
+              duration: 'Day',
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+
+          case 'Limit': {
+            const { orderPrice: limit } = calculateFavourableOrderPrice({
+              buySell: 'Buy',
+              orderType: 'Limit',
+              instrument: teslaSaxoInstrument,
+              quote,
+            })
+
+            const order = teslaStock.buy({
+              type: 'Limit',
+              quantity: 1,
+              duration: 'Day',
+              limit,
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+
+          case 'Stop': {
+            const { orderPrice: stop } = calculateFavourableOrderPrice({
+              buySell: 'Buy',
+              orderType: 'Stop',
+              instrument: teslaSaxoInstrument,
+              quote,
+            })
+
+            const order = teslaStock.buy({
+              type: 'Stop',
+              quantity: 1,
+              duration: 'Day',
+              stop,
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+
+          case 'StopLimit': {
+            const { orderPrice: stop, stopLimitPrice: limit } = calculateFavourableOrderPrice({
+              buySell: 'Buy',
+              orderType: 'StopLimit',
+              instrument: teslaSaxoInstrument,
+              quote,
+            })
+
+            const order = teslaStock.buy({
+              type: 'StopLimit',
+              quantity: 1,
+              duration: 'Day',
+              stop,
+              limit,
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+
+          case 'TrailingStop': {
+            const { orderPrice: stop } = calculateFavourableOrderPrice({
+              buySell: 'Buy',
+              orderType: 'TrailingStop',
+              instrument: teslaSaxoInstrument,
+              quote,
+            })
+
+            const order = teslaStock.buy({
+              type: 'TrailingStop',
+              quantity: 1,
+              duration: 'Day',
+              stop,
+              marketOffset: 10,
+              stepAmount: 1,
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+        }
+      })
+    }
+  })
 })
