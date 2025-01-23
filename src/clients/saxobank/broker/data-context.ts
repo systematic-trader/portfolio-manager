@@ -1921,14 +1921,33 @@ function mapStockOrderTypes(
   instrument: InstrumentDetailsStock,
 ): DataContextStock['orderTypes'] {
   const entries = instrument.SupportedOrderTypeSettings.filter((setting) =>
-    setting.OrderType === 'Market' ||
     setting.OrderType === 'Limit' ||
+    setting.OrderType === 'Market' ||
     setting.OrderType === 'StopIfTraded' ||
-    setting.OrderType === 'StopLimit'
+    setting.OrderType === 'StopLimit' ||
+    setting.OrderType === 'TrailingStopIfTraded'
   ).map((setting) => {
     const durations = setting.DurationTypes.map((duration) => duration === 'DayOrder' ? 'Day' : duration)
 
-    return [setting.OrderType === 'StopIfTraded' ? 'Stop' : setting.OrderType, durations] as const
+    switch (setting.OrderType) {
+      case 'Market':
+      case 'Limit':
+      case 'StopLimit': {
+        return [setting.OrderType, durations] as const
+      }
+
+      case 'StopIfTraded': {
+        return ['Stop', durations] as const
+      }
+
+      case 'TrailingStopIfTraded': {
+        return ['TrailingStop', durations] as const
+      }
+
+      default: {
+        throw new Error(`Unsupported order type: ${setting.OrderType}`)
+      }
+    }
   })
 
   return Object.fromEntries(entries) as unknown as DataContextStock['orderTypes']
