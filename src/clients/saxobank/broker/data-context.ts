@@ -1477,6 +1477,7 @@ export class DataContext implements AsyncDisposable {
         }
         break
       }
+
       case 'StopLimit': {
         options = {
           AccountKey: order.stock.account.key,
@@ -1494,6 +1495,7 @@ export class DataContext implements AsyncDisposable {
         }
         break
       }
+
       case 'TrailingStop': {
         options = {
           AccountKey: order.stock.account.key,
