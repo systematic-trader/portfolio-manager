@@ -1643,8 +1643,38 @@ export class DataContext implements AsyncDisposable {
    * - Det er måske bedst at ordre skal forblive pending i internal state, indtil ordren ses som ordre/position hos SaxoBank API. Når den eksisterer i SaxoBank API, så kan internal state opdateres.
    */
 
-  async stockOrderCancel({}: {}): Promise<'cancelled' | 'not-found' | 'see-positions OR wait-for-refresh'> {
-    throw new Error('Not implemented')
+  async stockOrderCancel({ orderId, accountKey }: {
+    /** The orderID that Saxobank has generated */
+    readonly orderId: string
+    /** Account that the order has been placed on */
+    readonly accountKey: string
+  }): Promise<'cancelled' | 'not-found'> {
+    const response = await this.app.trading.orders.delete({
+      AccountKey: accountKey,
+      OrderIds: [orderId],
+    })
+
+    const [cancellation] = response.Orders
+
+    // This should never happen (the response array should always have a length equal to the number of order ids (1))
+    if (response.Orders.length !== 1 || cancellation === undefined) {
+      throw new Error('Unexpected response from SaxoBank when cancelling order')
+    }
+
+    if (cancellation.ErrorInfo === undefined) {
+      return 'cancelled'
+    }
+
+    switch (cancellation.ErrorInfo.ErrorCode) {
+      // happens if the order has never existed OR if the order has been filled
+      case 'OrderNotFound': {
+        return 'not-found'
+      }
+
+      default: {
+        throw new Error(`Unexpected error code when cancelling order: ${cancellation.ErrorInfo.ErrorCode}`)
+      }
+    }
   }
 
   async stockPositionSetTakeProfit({}: {}): Promise<boolean> {
