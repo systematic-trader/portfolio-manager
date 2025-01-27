@@ -33,7 +33,7 @@ export const InstrumentTradingConditionsEtf = props({
     MinCommission: number(),
     OrderAction: OrderAction.extract(['ExecuteOrder']),
     PerUnitRate: optional(unknown()), // only specified on sim
-    RateOnAmount: optional(number()), // only specified on sim
+    RateOnAmount: optional(number()),
   })]),
   CurrencyConversion: optional(CurrencyConversion),
   CurrentSpread: number(),
