@@ -2,6 +2,7 @@ import type { Currency3 } from '../types/derives/currency.ts'
 import type { DataContext, DataContextAccount, DataContextReader } from './data-context.ts'
 import { SaxoBankInstrumentSymbolNotFoundError, SaxoBankInstrumentSymbolsNotFoundError } from './errors.ts'
 import type { MarketSessionOpened } from './market-session.ts'
+import { SaxoBankETF, type SaxoBankETFSymbols } from './saxobank-etf.ts'
 import { SaxoBankStock, type SaxoBankStockSymbols } from './saxobank-stock.ts'
 import { SaxoBankTransferCashOrder } from './saxobank-transfer-cash-order.ts'
 
@@ -180,6 +181,51 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
   }
 
   /**
+   * Get an ETF available for the account.
+   * @param symbol - The symbol of the stock.
+   * @returns The stock.
+   */
+  async etf<
+    Symbol extends SaxoBankETFSymbols<Options['currency']>,
+  >(symbol: Symbol): Promise<
+    SaxoBankETF<{
+      symbol: Symbol
+      account: { accountID: Options['accountID']; currency: Options['currency'] }
+    }>
+  > {
+    const [uic] = await this.#context.findInstrumentUICs({
+      assetType: 'Etf',
+      symbols: [symbol],
+      limit: 1,
+    })
+
+    if (uic === undefined) {
+      throw new SaxoBankInstrumentSymbolNotFoundError('ETF', symbol)
+    }
+
+    const [etfReader, etfSnapshot, etfCost] = await Promise.all([
+      this.#context.etf({ uic }),
+      this.#context.etfSnapshot({ uic }),
+      this.#context.etfCost({ accountKey: this.key, uic }),
+    ])
+
+    const etf = new SaxoBankETF<{
+      symbol: Symbol
+      account: { accountID: Options['accountID']; currency: Options['currency'] }
+    }>({
+      context: this.#context,
+      etf: etfReader,
+      account: this,
+      symbol,
+      uic,
+      cost: etfCost,
+      snapshot: etfSnapshot,
+    })
+
+    return etf
+  }
+
+  /**
    * Get a stock available for the account.
    * @param symbol - The symbol of the stock.
    * @returns The stock.
@@ -233,6 +279,14 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
 // const stock = await account.stock('AAPL:XNAS')
 
 // const order = stock.buy({
+//   type: 'Market',
+//   quantity: 1,
+//   duration: 'Day',
+// })
+
+// const etf = await account.etf('SXR8:XETR')
+
+// const order = etf.buy({
 //   type: 'Market',
 //   quantity: 1,
 //   duration: 'Day',
