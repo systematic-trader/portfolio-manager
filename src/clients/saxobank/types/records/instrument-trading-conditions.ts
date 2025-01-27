@@ -21,6 +21,48 @@ import { SwapPoints } from './swap-points.ts'
 import { TradingConditionExchangeFeeRule } from './trading-condition-exchange-fee-rule.ts'
 import { TradingConditionRule } from './trading-condition-rule.ts'
 
+// #region Etf
+export const InstrumentTradingConditionsEtf = props({
+  AccountCurrency: Currency3,
+  AmountCurrency: Currency3,
+  AssetType: literal('Etf'),
+  CollateralValue: number(),
+  CollateralUtilizationLimit: optional(unknown()), // only specified on sim
+  CommissionLimits: tuple([props({
+    Currency: Currency3,
+    MinCommission: number(),
+    OrderAction: OrderAction.extract(['ExecuteOrder']),
+    PerUnitRate: optional(unknown()), // only specified on sim
+    RateOnAmount: optional(number()), // only specified on sim
+  })]),
+  CurrencyConversion: optional(CurrencyConversion),
+  CurrentSpread: number(),
+  HasKID: boolean(),
+  InitialCollateralValue: number(),
+  InstrumentCurrency: Currency3,
+  InternalCosts: optional(props({
+    IncidentalCost: optional(props({
+      CostPct: number(),
+    })),
+    PortfolioCost: props({
+      CostPct: number(),
+    }),
+  })),
+  IsSrdEligible: boolean(),
+  IsTradable: boolean(),
+  MaintenanceCollateralValue: number(),
+  MaximumCollateralAmount: number(),
+  MinOrderSize: optional(number()),
+  MinOrderSizeCurrency: optional(Currency3),
+  Rating: number(),
+  ScheduledTradingConditions: optional(unknown()),
+  Uic: number(),
+  VatOnCustodyFeePct: optional(number()), // Only undefined on sim
+})
+
+export interface InstrumentTradingConditionsEtf extends GuardType<typeof InstrumentTradingConditionsEtf> {}
+// #endregion
+
 // #region FxSpot
 export const InstrumentTradingConditionsFxSpot = props({
   AccountCurrency: Currency3,
@@ -64,7 +106,7 @@ export const InstrumentTradingConditionsStock = props({
   AmountCurrency: Currency3,
   AssetType: literal('Stock'),
   CollateralValue: number(),
-  CollateralUtilizationLimit: optional(unknown()), // seems to be only specified on sim
+  CollateralUtilizationLimit: optional(unknown()), // only specified on sim
   CommissionLimits: tuple([props({
     Currency: Currency3,
     MaxCommission: optional(number()),
@@ -104,11 +146,13 @@ export interface InstrumentTradingConditionsStock extends GuardType<typeof Instr
 // #endregion
 
 export const InstrumentTradingConditions = {
+  Etf: InstrumentTradingConditionsEtf,
   FxSpot: InstrumentTradingConditionsFxSpot,
   Stock: InstrumentTradingConditionsStock,
 } as const
 
 export type InstrumentTradingConditions = {
+  Etf: InstrumentTradingConditionsEtf
   FxSpot: InstrumentTradingConditionsFxSpot
   Stock: InstrumentTradingConditionsStock
 }

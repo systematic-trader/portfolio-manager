@@ -44,6 +44,10 @@ export class Instrument {
     }).execute()
 
     switch (AssetType) {
+      case 'Etf': {
+        return assertReturn(InstrumentTradingConditions[AssetType], response)
+      }
+
       case 'FxSpot': {
         return assertReturn(InstrumentTradingConditions[AssetType], response)
       }
