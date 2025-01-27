@@ -6,7 +6,7 @@ import type { InstrumentTradingConditions } from '../../../../types/records/inst
 
 describe('client-services/trading-conditions/instrument', () => {
   const limit: number | undefined = undefined
-  const skip = 100
+  const skip = 0
 
   using app = new SaxoBankApplication({ type: 'Live' })
 
