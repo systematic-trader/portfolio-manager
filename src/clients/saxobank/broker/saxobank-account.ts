@@ -182,8 +182,8 @@ export class SaxoBankAccount<Options extends { readonly accountID: string; reado
 
   /**
    * Get an ETF available for the account.
-   * @param symbol - The symbol of the stock.
-   * @returns The stock.
+   * @param symbol - The symbol of the ETF.
+   * @returns The ETF.
    */
   async etf<
     Symbol extends SaxoBankETFSymbols<Options['currency']>,
