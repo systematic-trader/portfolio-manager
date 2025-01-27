@@ -1661,12 +1661,17 @@ export class DataContext implements AsyncDisposable {
       throw new Error('Unexpected response from SaxoBank when cancelling order')
     }
 
+    // When the response only consists of an order id (i.e. error info is undefined), then the order has been cancelled
     if (cancellation.ErrorInfo === undefined) {
       return 'cancelled'
     }
 
+    // Otherwise, if error info is defined, then the order has not been cancelled
+    // This might be due to several reasong, such as:
+    // 1. The order has never existed (e.g. the order id is incorrect)
+    // 2. The order has already been filled (it should be possible to find a position with the same external reference as the order)
+    // Note that it is not possible to differentiate between whether the order has been filled or never existed
     switch (cancellation.ErrorInfo.ErrorCode) {
-      // happens if the order has never existed OR if the order has been filled
       case 'OrderNotFound': {
         return 'not-found'
       }
