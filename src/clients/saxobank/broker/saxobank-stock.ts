@@ -230,6 +230,16 @@ export class SaxoBankStockOrder<
     this.type = options.type
     this.options = options.order
 
+    // todo hvis vi ikke har en position, men vi vil sælge, så kan vi ikke sælge
+    // if (existingPositionInsufficientQuantity) {
+    //   throw new Error('Bang')
+    // }
+
+    // todo hvis vi har eksisterende ordre (som stop loss eller take profit), som forhindrer salg, så kan vi ikke sælge
+    // if (existingOrdersPreventSale) {
+    //   throw new Error('Bang')
+    // }
+
     const durations = this.#reader.value.orderTypes[options.order.type]
 
     if (durations === undefined) {
