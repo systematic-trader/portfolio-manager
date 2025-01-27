@@ -1635,10 +1635,15 @@ export class DataContext implements AsyncDisposable {
     }
   }
 
+  /* Vedrørende orders og positions.
+   *
+   * En ordre kan være forsvundet og vi ved ikke hvorfor:
+   *
+   * - Ordren kan være blevet udført og måske findes allerede i positions. Vi vil gerne undgå at lægge endnu en ordre ind, så derfor SKAL internal state opdateres, og man derfor undgår at lægge en ny ordre ind.
+   * - Det er måske bedst at ordre skal forblive pending i internal state, indtil ordren ses som ordre/position hos SaxoBank API. Når den eksisterer i SaxoBank API, så kan internal state opdateres.
+   */
+
   async stockOrderCancel({}: {}): Promise<'cancelled' | 'not-found' | 'see-positions OR wait-for-refresh'> {
-    // 1. En ordre kan være forsvundet og vi ved ikke hvorfor
-    // 1a. Ordren kan være blevet udført og måske findes allerede i positions. Vi vil gerne undgå at lægge endnu en ordre ind, så derfor SKAL internal state opdateres, og man derfor undgår at lægge en ny ordre ind.
-    // 1b. Det er måske bedst at ordre skal forblive pending i internal state, indtil ordren ses som ordre/position hos SaxoBank API. Når den eksisterer i SaxoBank API, så kan internal state opdateres.
     throw new Error('Not implemented')
   }
 
