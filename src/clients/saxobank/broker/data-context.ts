@@ -291,34 +291,121 @@ export class DataContext implements AsyncDisposable {
   readonly #initializers = new Map<string, Promise<DataContextReader<unknown>>>()
   readonly #subscriptionReaders = new Map<string, DataContextReader<unknown>>()
   readonly #appReaders = new Map<string, DataContextReader<unknown>>()
-  readonly #stream1: SaxoBankStream
-  readonly #stream2: SaxoBankStream
-  readonly #stream3: SaxoBankStream
-  readonly #stream4: SaxoBankStream
+
+  #stream1: undefined | SaxoBankStream
+  #stream2: undefined | SaxoBankStream
+  #stream3: undefined | SaxoBankStream
+  #stream4: undefined | SaxoBankStream
 
   #instruments = new Map<string, InstrumentDetailsUnion>()
   #exchanges = new Map<string, ExchangeDetails>()
 
+  #disposePromise: undefined | Promise<void>
+
   #error: undefined | Error
 
   get #availableStream(): SaxoBankStream {
+    if (this.#controller.signal.aborted) {
+      throw new DataContextError('DataContext is disposed. No available stream.')
+    }
+
+    if (this.#stream1 === undefined) {
+      this.#stream1 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
+
+      this.#stream1.addListener('disposed', (error) => {
+        console.log('stream1 disposed in data-context')
+
+        if (error !== undefined && this.#error === undefined) {
+          this.#error = error
+        }
+
+        if (this.#stream1 === undefined) {
+          return
+        }
+
+        this.#stream1 = undefined
+
+        return this[Symbol.asyncDispose]()
+      }, { once: true })
+    }
+
     if (this.#stream1.size < 200) {
       return this.#stream1
+    }
+
+    if (this.#stream2 === undefined) {
+      this.#stream2 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
+
+      this.#stream2.addListener('disposed', (error) => {
+        console.log('stream2 disposed in data-context')
+
+        if (error !== undefined && this.#error === undefined) {
+          this.#error = error
+        }
+
+        if (this.#stream2 === undefined) {
+          return
+        }
+
+        this.#stream2 = undefined
+
+        return this[Symbol.asyncDispose]()
+      }, { once: true })
     }
 
     if (this.#stream2.size < 200) {
       return this.#stream2
     }
 
+    if (this.#stream3 === undefined) {
+      this.#stream3 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
+
+      this.#stream3.addListener('disposed', (error) => {
+        console.log('stream3 disposed in data-context')
+
+        if (error !== undefined && this.#error === undefined) {
+          this.#error = error
+        }
+
+        if (this.#stream3 === undefined) {
+          return
+        }
+
+        this.#stream3 = undefined
+
+        return this[Symbol.asyncDispose]()
+      }, { once: true })
+    }
+
     if (this.#stream3.size < 200) {
       return this.#stream3
+    }
+
+    if (this.#stream4 === undefined) {
+      this.#stream4 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
+
+      this.#stream4.addListener('disposed', (error) => {
+        console.log('stream4 disposed in data-context')
+
+        if (error !== undefined && this.#error === undefined) {
+          this.#error = error
+        }
+
+        if (this.#stream4 === undefined) {
+          return
+        }
+
+        this.#stream4 = undefined
+
+        return this[Symbol.asyncDispose]()
+      }, { once: true })
     }
 
     if (this.#stream4.size < 200) {
       return this.#stream4
     }
 
-    throw new Error('No available stream')
+    throw new Error('All streams are full')
   }
 
   readonly app: SaxoBankApplication
@@ -331,30 +418,16 @@ export class DataContext implements AsyncDisposable {
   }) {
     this.app = new SaxoBankApplication({ type })
     this.#controller = new AbortController()
-    this.#stream1 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
-    this.#stream2 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
-    this.#stream3 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
-    this.#stream4 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
-
-    const disposeListener = (error: undefined | Error) => {
-      if (error !== undefined && this.#error === undefined) {
-        this.#error = error
-      }
-
-      this[Symbol.asyncDispose]()
-    }
-
-    this.#stream1.addListener('disposed', disposeListener)
-    this.#stream2.addListener('disposed', disposeListener)
-    this.#stream3.addListener('disposed', disposeListener)
-    this.#stream4.addListener('disposed', disposeListener)
-
     this.#error = undefined
-
     this.#nowTimestamp = Date.now()
+    this.#disposePromise = undefined
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
+    if (this.#disposePromise !== undefined) {
+      return this.#disposePromise
+    }
+
     if (this.#controller.signal.aborted) {
       if (this.#error !== undefined) {
         throw this.#error
@@ -365,47 +438,86 @@ export class DataContext implements AsyncDisposable {
 
     this.#controller.abort()
 
-    await Promise.allSettled(this.#initializers.values()).then(() => {
-      return Promise.allSettled([
-        this.#stream1.dispose(),
-        this.#stream2.dispose(),
-        this.#stream3.dispose(),
-        this.#stream4.dispose(),
-        ...this.#appReaders.values().map((reader) => reader.dispose()),
-      ]).then((results) => {
-        try {
-          this.app.dispose()
-        } catch (error) {
-          if (this.#error === undefined) {
-            this.#error = ensureError(error)
-          }
-        }
+    const disposePromises: Promise<void>[] = []
 
-        for (const result of results) {
-          if (result.status === 'rejected') {
+    if (this.#stream1 !== undefined) {
+      disposePromises.push(this.#stream1.dispose().finally(() => console.log('stream1 disposed in data-context')))
+      this.#stream1 = undefined
+    }
+
+    if (this.#stream2 !== undefined) {
+      disposePromises.push(this.#stream2.dispose().finally(() => console.log('stream2 disposed in data-context')))
+      this.#stream2 = undefined
+    }
+
+    if (this.#stream3 !== undefined) {
+      disposePromises.push(this.#stream3.dispose().finally(() => console.log('stream3 disposed in data-context')))
+      this.#stream3 = undefined
+    }
+
+    if (this.#stream4 !== undefined) {
+      disposePromises.push(this.#stream4.dispose().finally(() => console.log('stream4 disposed in data-context')))
+      this.#stream4 = undefined
+    }
+
+    console.log('disposing streams:', disposePromises.length)
+
+    this.#disposePromise = Promise.allSettled(this.#initializers.values()).finally(() =>
+      console.log('initializers completed')
+    ).then(
+      () => {
+        return Promise.allSettled([
+          ...disposePromises,
+          Promise.allSettled(this.#appReaders.values().map((reader) => reader.dispose())).then((results) => {
+            for (const result of results) {
+              if (result.status === 'rejected') {
+                throw result.reason
+              }
+            }
+          }).finally(() => console.log('appReaders disposed in data-context')),
+        ]).then((results) => {
+          console.log('disposed all streams and app readers')
+          try {
+            this.app.dispose()
+          } catch (error) {
             if (this.#error === undefined) {
-              this.#error = ensureError(result.reason)
+              this.#error = ensureError(error)
+            }
+          } finally {
+            console.log('disposed app')
+          }
+
+          for (const result of results) {
+            if (result.status === 'rejected') {
+              if (this.#error === undefined) {
+                this.#error = ensureError(result.reason)
+              }
             }
           }
-        }
 
-        if (this.#error === undefined) {
-          if (this.#stream1?.state.status === 'failed') {
-            this.#error = this.#stream1.state.error
-          } else if (this.#stream2?.state.status === 'failed') {
-            this.#error = this.#stream2.state.error
-          } else if (this.#stream3?.state.status === 'failed') {
-            this.#error = this.#stream3.state.error
-          } else if (this.#stream4?.state.status === 'failed') {
-            this.#error = this.#stream4.state.error
+          if (this.#error === undefined) {
+            if (this.#stream1?.state.status === 'failed') {
+              this.#error = this.#stream1.state.error
+            } else if (this.#stream2?.state.status === 'failed') {
+              this.#error = this.#stream2.state.error
+            } else if (this.#stream3?.state.status === 'failed') {
+              this.#error = this.#stream3.state.error
+            } else if (this.#stream4?.state.status === 'failed') {
+              this.#error = this.#stream4.state.error
+            }
           }
-        }
 
-        if (this.#error !== undefined) {
-          throw this.#error
-        }
-      })
+          if (this.#error !== undefined) {
+            throw this.#error
+          }
+        })
+      },
+    ).finally(() => {
+      console.log('data-context is now disposed')
+      this.#disposePromise = undefined
     })
+
+    return this.#disposePromise
   }
 
   dispose(): Promise<void> {
@@ -481,11 +593,8 @@ export class DataContext implements AsyncDisposable {
       const reader = new DataContextReader({
         dispose: async (): Promise<void> => {
           if (this.#subscriptionReaders.delete(key)) {
-            await subscription.dispose()
-          }
-
-          if (this.#error !== undefined) {
-            throw this.#error
+            // await subscription.dispose()
+            this[Symbol.asyncDispose]()
           }
         },
         read: () => {
