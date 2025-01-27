@@ -1,6 +1,6 @@
 import { SaxoBankRandom } from '../saxobank-random.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
-import type * as Stocks from './config/stocks.ts'
+import type * as Stocks from './config/stock.ts'
 import type {
   DataContext,
   DataContextReaderView,
