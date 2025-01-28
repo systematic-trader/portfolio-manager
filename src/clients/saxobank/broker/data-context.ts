@@ -1750,6 +1750,11 @@ export class DataContext implements AsyncDisposable {
   }
 
   async stockPositionSetTakeProfit({}: {}): Promise<boolean> {
+    // todo 1. Check if we have any sell orders currently
+    // todo 2. If We have a stop-loss sell order, we should "append" this order to it, so they become OCO
+    // todo 3. If we have a take-profit sell order, we should update this order
+    // todo 4. If we have no sell orders, we can simply create the take-profit sell order independently
+
     throw new Error('Not implemented')
   }
 
@@ -1838,22 +1843,19 @@ export class DataContext implements AsyncDisposable {
 
     const [executeOrder] = conditions.CommissionLimits
 
-    // todo it seems that both buy/sell have identical costs
-    // todo it seems that no etf have a maximum commission (no ceiling)
-    // todo we should probably include ongoing charges (i've seen etf in ranges 0.2% - 0.35% yearly)
     return {
       Buy: {
         minimum: executeOrder.MinCommission,
-        maximum: 0,
+        maximum: executeOrder.MaxCommission,
         additionalCommission: 0,
-        costPerShareCommission: 0,
+        costPerShareCommission: executeOrder.PerUnitRate ?? 0,
         percentageCommission: executeOrder.RateOnAmount ?? 0,
       },
       Sell: {
         minimum: executeOrder.MinCommission,
-        maximum: 0,
+        maximum: executeOrder.MaxCommission,
         additionalCommission: 0,
-        costPerShareCommission: 0,
+        costPerShareCommission: executeOrder.PerUnitRate ?? 0,
         percentageCommission: executeOrder.RateOnAmount ?? 0,
       },
     }

@@ -27,12 +27,13 @@ export const InstrumentTradingConditionsEtf = props({
   AmountCurrency: Currency3,
   AssetType: literal('Etf'),
   CollateralValue: number(),
-  CollateralUtilizationLimit: optional(unknown()), // only specified on sim
+  CollateralUtilizationLimit: optional(unknown()), // todo
   CommissionLimits: tuple([props({
     Currency: Currency3,
+    MaxCommission: optional(number()),
     MinCommission: number(),
     OrderAction: OrderAction.extract(['ExecuteOrder']),
-    PerUnitRate: optional(unknown()), // only specified on sim
+    PerUnitRate: optional(number()),
     RateOnAmount: optional(number()),
   })]),
   CurrencyConversion: optional(CurrencyConversion),
@@ -106,7 +107,7 @@ export const InstrumentTradingConditionsStock = props({
   AmountCurrency: Currency3,
   AssetType: literal('Stock'),
   CollateralValue: number(),
-  CollateralUtilizationLimit: optional(unknown()), // only specified on sim
+  CollateralUtilizationLimit: optional(unknown()), // todo
   CommissionLimits: tuple([props({
     Currency: Currency3,
     MaxCommission: optional(number()),
