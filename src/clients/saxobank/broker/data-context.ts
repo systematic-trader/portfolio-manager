@@ -6,6 +6,7 @@ import {
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { toArray } from '../../../utils/async-iterable.ts'
 import { ensureError } from '../../../utils/error.ts'
+import { invertRecord } from '../../../utils/object.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import { HTTPClientError, HTTPClientRequestAbortError } from '../../http-client.ts'
 import { SaxoBankApplication } from '../../saxobank-application.ts'
@@ -26,6 +27,7 @@ import type { ClosedPositionResponseUnion } from '../types/records/closed-positi
 import type { ExchangeSession } from '../types/records/exchange-session.ts'
 import type {
   InstrumentDetails,
+  InstrumentDetailsEtf,
   InstrumentDetailsStock,
   InstrumentDetailsUnion,
 } from '../types/records/instrument-details.ts'
@@ -47,6 +49,7 @@ import {
   SaxoBankOrderError,
 } from './errors.ts'
 import { mapInstrumentSessions, type MarketSession } from './market-session.ts'
+import type { SaxoBankETFOrder, SaxoBankETFOrderOptions } from './saxobank-etf.ts'
 import type { SaxoBankStockOrder, SaxoBankStockOrderOptions } from './saxobank-stock.ts'
 
 type PriceResponse = { [K in keyof typeof PriceResponse]: GuardType<typeof PriceResponse[K]> }
@@ -148,6 +151,75 @@ export interface DataContextStockSnapshot {
 }
 
 export interface DataContextStockCost {
+  /** The cost of the buy order. */
+  readonly Buy: DataContextCost
+  /** The cost of the sell order. */
+  readonly Sell: DataContextCost
+}
+
+export interface DataContextETF {
+  readonly symbol: string
+  readonly description: string
+  readonly lot: {
+    readonly minimum: number
+    readonly maximum: undefined | number
+    readonly increment: number
+  }
+  readonly sum: {
+    readonly minimum: undefined | number
+    readonly maximum: undefined | number
+  }
+  readonly session: MarketSession
+  readonly orderTypes: Readonly<
+    Record<
+      keyof typeof ETFOrderTypes,
+      ReadonlyArray<keyof typeof ETFOrderDurationTypes>
+    >
+  >
+  roundPriceToTickSize(price: number): number
+}
+
+export interface DataContextETFSnapshot {
+  /** Updated at timestamp. */
+  readonly updatedAt: string
+
+  /** The delay in seconds. */
+  readonly delayedBySeconds: number
+
+  /** The trade price and volume of the instrument. */
+  readonly trade: {
+    /** Last traded price of the instrument. */
+    readonly price: number
+    /** Last traded volume of the instrument. */
+    readonly size: number
+  }
+
+  /** The quote of the instrument. */
+  readonly quote: {
+    /** The ask price and size of the instrument. */
+    readonly ask: {
+      /** The ask price of the instrument. */
+      readonly price: number
+      /** The ask size of the instrument. */
+      readonly size: number
+    }
+    /** The bid price and size of the instrument. */
+    readonly bid: {
+      /** The bid price of the instrument. */
+      readonly price: number
+      /** The bid size of the instrument. */
+      readonly size: number
+    }
+
+    /** Calculated middle of ask and bid */
+    readonly middle: {
+      /** Middle price calculated as (ask.amount + bid.amount) / 2. */
+      readonly price: number
+    }
+  }
+}
+
+export interface DataContextETFCost {
   /** The cost of the buy order. */
   readonly Buy: DataContextCost
   /** The cost of the sell order. */
@@ -1470,17 +1542,12 @@ export class DataContext implements AsyncDisposable {
       Uic: uic,
     })
 
-    const { AccountCurrency: accountCurrency } = conditions
-
-    if (accountCurrency !== conditions.AmountCurrency) {
+    // This should never happen because we only access instruments in the same currency as our account
+    if (conditions.AccountCurrency !== conditions.AmountCurrency) {
       throw new Error('Account currency and amount currency mismatch')
     }
 
-    const executeOrder = conditions.CommissionLimits.find((commission) => commission.OrderAction === 'ExecuteOrder')
-
-    if (executeOrder === undefined) {
-      throw new Error('ExecuteOrder commission not found')
-    }
+    const [executeOrder] = conditions.CommissionLimits
 
     return {
       Buy: {
@@ -1688,6 +1755,243 @@ export class DataContext implements AsyncDisposable {
 
   async stockPositionSetStopLoss({}: {}): Promise<boolean> {
     throw new Error('Not implemented')
+  }
+
+  async etf({ uic }: { readonly uic: number }): Promise<DataContextReaderView<DataContextETF>> {
+    return await this.instrument({ assetType: 'Etf', uic }).then(async (instrumentReader) => {
+      if (instrumentReader.value.Exchange === undefined) {
+        throw new Error(
+          `ETF ${instrumentReader.value.Symbol} (UIC=${instrumentReader.value.Uic}) has no exchange defined.`,
+        )
+      }
+
+      const exchangeReader = await this.exchange({ ID: instrumentReader.value.Exchange.ExchangeId })
+
+      return exchangeReader.merge(instrumentReader).view(([exchange, instrument]) => {
+        return {
+          symbol: instrument.Symbol,
+          description: instrument.Description,
+          lot: calculateOrderLotSpecification(instrument),
+          sum: calculateOrderSumSpecification(instrument),
+          session: mapInstrumentSessions(this.#nowTimestamp, instrument, exchange.sessions),
+          orderTypes: mapETFOrderTypes(instrument),
+          roundPriceToTickSize: roundPriceToTickSize.bind(null, instrument),
+        }
+      })
+    })
+  }
+
+  async etfSnapshot({ uic }: { readonly uic: number }): Promise<DataContextETFSnapshot> {
+    const { Quote, LastUpdated, PriceInfoDetails } = await this.app.trading.infoPrices.get({
+      AssetType: 'Etf',
+      Uic: uic,
+    })
+
+    if (Quote.Ask === undefined) {
+      throw new Error('Ask is undefined')
+    }
+
+    if (Quote.Bid === undefined) {
+      throw new Error('Bid is undefined')
+    }
+
+    if (PriceInfoDetails === undefined) {
+      throw new Error('PriceInfoDetails is undefined')
+    }
+
+    return {
+      updatedAt: LastUpdated,
+      delayedBySeconds: (Quote.DelayedByMinutes ?? 0) * 60,
+      trade: {
+        price: PriceInfoDetails.LastTraded,
+        size: PriceInfoDetails.LastTradedSize,
+      },
+      quote: {
+        ask: {
+          price: Quote.Ask,
+          size: Quote.AskSize ?? 0,
+        },
+        bid: {
+          price: Quote.Bid,
+          size: Quote.BidSize ?? 0,
+        },
+        middle: {
+          price: (Quote.Ask + Quote.Bid) / 2,
+        },
+      },
+    }
+  }
+
+  async etfCost(
+    { accountKey, uic }: { readonly accountKey: string; readonly uic: number },
+  ): Promise<DataContextETFCost> {
+    const conditions = await this.app.clientServices.tradingConditions.instrument.get({
+      AccountKey: accountKey,
+      AssetType: 'Etf',
+      Uic: uic,
+    })
+
+    // This should never happen because we only access instruments in the same currency as our account
+    if (conditions.AccountCurrency !== conditions.AmountCurrency) {
+      throw new Error('Account currency and amount currency mismatch')
+    }
+
+    const [executeOrder] = conditions.CommissionLimits
+
+    // todo it seems that both buy/sell have identical costs
+    // todo it seems that no etf have a maximum commission (no ceiling)
+    // todo we should probably include ongoing charges (i've seen etf in ranges 0.2% - 0.35% yearly)
+    return {
+      Buy: {
+        minimum: executeOrder.MinCommission,
+        maximum: 0,
+        additionalCommission: 0,
+        costPerShareCommission: 0,
+        percentageCommission: executeOrder.RateOnAmount ?? 0,
+      },
+      Sell: {
+        minimum: executeOrder.MinCommission,
+        maximum: 0,
+        additionalCommission: 0,
+        costPerShareCommission: 0,
+        percentageCommission: executeOrder.RateOnAmount ?? 0,
+      },
+    }
+  }
+
+  async etfOrder(
+    { uic, order }: {
+      readonly uic: number
+      readonly order: SaxoBankETFOrder<{
+        readonly account: { readonly accountID: string; readonly currency: Currency3 }
+        readonly type: 'Buy' | 'Sell'
+        readonly symbol: string
+        readonly order: SaxoBankETFOrderOptions
+      }>
+    },
+  ): Promise<unknown> {
+    const requestID = SaxoBankRandom.requestID()
+
+    let options: undefined | PlaceOrderParametersEntryWithNoRelatedOrders = undefined
+
+    if (order.options.duration in ETFOrderDurationTypes === false) {
+      const supported = Object.keys(ETFOrderDurationTypes).map((key) => `"${key}"`).join(', ')
+
+      throw new Error(`Order "duration" supports ${supported}: ${order.options.duration}`)
+    }
+
+    const OrderDuration: OrderDuration = { DurationType: ETFOrderDurationTypes[order.options.duration] }
+
+    switch (order.options.type) {
+      case 'Market': {
+        options = {
+          AccountKey: order.etf.account.key,
+          Amount: order.options.quantity,
+          AssetType: 'Etf',
+          BuySell: order.type,
+          ExternalReference: order.ID,
+          ManualOrder: false,
+          OrderDuration,
+          OrderType: ETFOrderTypes[order.options.type],
+          RequestId: requestID,
+          Uic: uic,
+        }
+        break
+      }
+
+      case 'Limit': {
+        options = {
+          AccountKey: order.etf.account.key,
+          Amount: order.options.quantity,
+          AssetType: 'Etf',
+          BuySell: order.type,
+          ExternalReference: order.ID,
+          ManualOrder: false,
+          OrderDuration,
+          OrderPrice: order.options.limit,
+          OrderType: ETFOrderTypes[order.options.type],
+          RequestId: requestID,
+          Uic: uic,
+        }
+        break
+      }
+
+      case 'Stop': {
+        options = {
+          AccountKey: order.etf.account.key,
+          RequestId: requestID,
+          AssetType: 'Etf',
+          OrderType: ETFOrderTypes[order.options.type],
+          BuySell: order.type,
+          Uic: uic,
+          Amount: order.options.quantity,
+          ManualOrder: false,
+          ExternalReference: order.ID,
+          OrderPrice: order.options.stop,
+          OrderDuration,
+        }
+        break
+      }
+
+      case 'StopLimit': {
+        options = {
+          AccountKey: order.etf.account.key,
+          Amount: order.options.quantity,
+          AssetType: 'Etf',
+          BuySell: order.type,
+          ExternalReference: order.ID,
+          ManualOrder: false,
+          OrderDuration,
+          OrderPrice: order.options.stop,
+          OrderType: ETFOrderTypes[order.options.type],
+          RequestId: requestID,
+          StopLimitPrice: order.options.limit,
+          Uic: uic,
+        }
+        break
+      }
+
+      case 'TrailingStop': {
+        options = {
+          AccountKey: order.etf.account.key,
+          Amount: order.options.quantity,
+          AssetType: 'Etf',
+          BuySell: order.type,
+          ExternalReference: order.ID,
+          ManualOrder: false,
+          OrderDuration,
+          OrderPrice: order.options.stop,
+          OrderType: ETFOrderTypes[order.options.type],
+          RequestId: requestID,
+          TrailingStopDistanceToMarket: order.options.marketOffset,
+          TrailingStopStep: order.options.stepAmount,
+          Uic: uic,
+        }
+        break
+      }
+
+      default: {
+        throw new Error('Not supported order type.')
+      }
+    }
+
+    try {
+      const result = await this.app.trading.orders.post(options)
+
+      // TODO add to internal state for pending orders
+
+      return result
+    } catch (error) {
+      if (
+        error instanceof HTTPClientError &&
+        error.statusCode === 400 &&
+        isOrderErrorCodeBody(error.body)
+      ) {
+        throw new SaxoBankOrderError(error.body.ErrorInfo.ErrorCode, error.body.ErrorInfo.Message, options)
+      }
+
+      throw error
+    }
   }
 
   async fxspot({ uic }: { readonly uic: number }): Promise<DataContextReaderView<DataContextFXSpot>> {
@@ -2069,17 +2373,9 @@ const StockOrderDurationTypes = {
   ImmediateOrCancel: 'ImmediateOrCancel',
 } as const
 
-const StockOrderTypesReverse = Object.fromEntries(
-  Object.entries(StockOrderTypes).map(([key, value]) => [value, key]),
-) as {
-  readonly [K in keyof typeof StockOrderTypes as typeof StockOrderTypes[K]]: K
-}
+const StockOrderTypesReverse = invertRecord(StockOrderDurationTypes)
 
-const StockOrderDurationTypesReverse = Object.fromEntries(
-  Object.entries(StockOrderDurationTypes).map(([key, value]) => [value, key]),
-) as {
-  readonly [K in keyof typeof StockOrderDurationTypes as typeof StockOrderDurationTypes[K]]: K
-}
+const StockOrderDurationTypesReverse = invertRecord(StockOrderDurationTypes)
 
 function mapStockOrderTypes(
   instrument: InstrumentDetailsStock,
@@ -2101,4 +2397,45 @@ function mapStockOrderTypes(
   })
 
   return Object.fromEntries(entries) as unknown as DataContextStock['orderTypes']
+}
+
+const ETFOrderTypes = {
+  Limit: 'Limit',
+  Market: 'Market',
+  Stop: 'StopIfTraded',
+  StopLimit: 'StopLimit',
+  TrailingStop: 'TrailingStopIfTraded',
+} as const
+
+const ETFOrderDurationTypes = {
+  Day: 'DayOrder',
+  GoodTillCancel: 'GoodTillCancel',
+  ImmediateOrCancel: 'ImmediateOrCancel',
+  FillOrKill: 'FillOrKill',
+} as const
+
+const ETFOrderTypesReverse = invertRecord(ETFOrderTypes)
+
+const ETFOrderDurationTypesReverse = invertRecord(ETFOrderDurationTypes)
+
+function mapETFOrderTypes(
+  instrument: InstrumentDetailsEtf,
+): DataContextETF['orderTypes'] {
+  const entries = instrument.SupportedOrderTypeSettings.filter((setting) => {
+    const settingOrderType = setting.OrderType as keyof typeof ETFOrderTypesReverse
+
+    return settingOrderType in ETFOrderTypesReverse
+  }).map((setting) => {
+    const settingOrderType = setting.OrderType as keyof typeof ETFOrderTypesReverse
+    const type = ETFOrderTypesReverse[settingOrderType]
+    const durations = setting.DurationTypes.filter(
+      (duration): duration is keyof typeof ETFOrderDurationTypesReverse => {
+        return duration in ETFOrderDurationTypesReverse
+      },
+    ).map((duration) => ETFOrderDurationTypesReverse[duration])
+
+    return [type, durations] as const
+  })
+
+  return Object.fromEntries(entries) as unknown as DataContextETF['orderTypes']
 }
