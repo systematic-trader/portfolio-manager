@@ -27,7 +27,7 @@ export const InstrumentTradingConditionsEtf = props({
   AmountCurrency: Currency3,
   AssetType: literal('Etf'),
   CollateralValue: number(),
-  CollateralUtilizationLimit: optional(unknown()), // todo
+  CollateralUtilizationLimit: optional(unknown()),
   CommissionLimits: tuple([props({
     Currency: Currency3,
     MaxCommission: optional(number()),
@@ -107,7 +107,7 @@ export const InstrumentTradingConditionsStock = props({
   AmountCurrency: Currency3,
   AssetType: literal('Stock'),
   CollateralValue: number(),
-  CollateralUtilizationLimit: optional(unknown()), // todo
+  CollateralUtilizationLimit: optional(unknown()),
   CommissionLimits: tuple([props({
     Currency: Currency3,
     MaxCommission: optional(number()),
