@@ -23,3 +23,11 @@ export function fromEntries<T extends readonly [keyof never, unknown]>(
 ): { readonly [key in T[0]]: Extract<T, readonly [key, unknown]>[1] } {
   return Object.fromEntries(entries) as { readonly [key in T[0]]: Extract<T, readonly [key, unknown]>[1] }
 }
+
+export function invertRecord<T extends Record<string, string>>(record: T): {
+  readonly [K in keyof T as T[K]]: K
+} {
+  return Object.fromEntries(Object.entries(record).map(([key, value]) => [value, key])) as {
+    readonly [K in keyof T as T[K]]: K
+  }
+}
