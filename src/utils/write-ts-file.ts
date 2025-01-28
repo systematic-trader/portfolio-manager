@@ -54,7 +54,9 @@ export class TSClass {
   }
 
   toJSONString(): string {
-    const props = this.props.map((property) => `${property.toJSONString('=')}`).join(EOL)
+    const props = this.props.map((property) => {
+      return property.static ? `static ${property.toJSONString('=')}` : `${property.toJSONString(':')}`
+    }).join(EOL)
 
     return `{${props}}`
   }
@@ -62,6 +64,7 @@ export class TSClass {
 
 export class TSProperty {
   readonly key: string
+  readonly static: boolean
   readonly value:
     | boolean
     | number
@@ -74,6 +77,7 @@ export class TSProperty {
   constructor(
     options: {
       readonly key: string
+      readonly static?: boolean
       readonly value:
         | boolean
         | number
@@ -85,6 +89,7 @@ export class TSProperty {
     },
   ) {
     this.key = options.key
+    this.static = options.static ?? false
     this.value = options.value
   }
 

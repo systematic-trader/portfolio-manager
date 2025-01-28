@@ -15,7 +15,7 @@ import type { SaxoBankAccount } from './saxobank-account.ts'
 type ETFsType = typeof ETFs
 type ETFCurrencies = keyof ETFsType
 
-export type SaxoBankETFSymbols<Currency> = InstanceType<ETFsType[Currency & ETFCurrencies]>['symbols'][number]
+export type SaxoBankETFSymbols<Currency> = ETFsType[Currency & ETFCurrencies]['symbols'][number]
 
 export class SaxoBankETF<
   Options extends {

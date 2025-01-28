@@ -1,13 +1,13 @@
 import * as path from 'jsr:@std/path'
 import { SaxoBankApplication } from '../../saxobank-application.ts'
-import { downloadSaxoBankETFs } from './download-etfs.ts'
-import { downloadSaxoBankStocks } from './download-stocks.ts'
+import { downloadSaxoBankSymbols } from './download-symbols.ts'
 
 const CONFIG_DIRNAME = import.meta.dirname as string
 
 export async function downloadSaxoBankBrokerConfig(app: SaxoBankApplication, outputPath: string): Promise<void> {
-  await downloadSaxoBankETFs(app, outputPath)
-  await downloadSaxoBankStocks(app, outputPath)
+  // await downloadSaxoBankETFs(app, outputPath)
+  // await downloadSaxoBankStocks(app, outputPath)
+  await downloadSaxoBankSymbols(app, outputPath)
 }
 
 if (import.meta.main) {

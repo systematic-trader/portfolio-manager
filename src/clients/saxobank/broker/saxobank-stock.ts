@@ -15,7 +15,7 @@ import type { SaxoBankAccount } from './saxobank-account.ts'
 type StocksType = typeof Stocks
 type StockCurrencies = keyof StocksType
 
-export type SaxoBankStockSymbols<Currency> = InstanceType<StocksType[Currency & StockCurrencies]>['symbols'][number]
+export type SaxoBankStockSymbols<Currency> = StocksType[Currency & StockCurrencies]['symbols'][number]
 
 export class SaxoBankStock<
   Options extends {
