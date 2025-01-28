@@ -7,7 +7,7 @@ export async function downloadSaxoBankETFs(app: SaxoBankApplication, outputPath:
   const instruments = await toArray(
     app.referenceData.instruments.get({
       AssetTypes: ['Etf'],
-      IncludeNonTradable: false,
+      IncludeNonTradable: true,
     }),
   )
 

@@ -7,7 +7,7 @@ export async function downloadSaxoBankStocks(app: SaxoBankApplication, outputPat
   const instruments = await toArray(
     app.referenceData.instruments.get({
       AssetTypes: ['Stock'],
-      IncludeNonTradable: false,
+      IncludeNonTradable: true,
     }),
   )
 
