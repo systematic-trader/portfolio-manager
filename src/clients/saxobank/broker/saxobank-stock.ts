@@ -214,10 +214,7 @@ export class SaxoBankStockOrder<
   constructor(options: {
     readonly context: DataContext
     readonly reader: DataContextReaderView<DataContextStock>
-    readonly stock: SaxoBankStock<{
-      symbol: Options['symbol']
-      account: Options['account']
-    }>
+    readonly stock: SaxoBankStock<{ symbol: Options['symbol']; account: Options['account'] }>
     readonly uic: number
     readonly type: Options['type']
     readonly order: Options['order']

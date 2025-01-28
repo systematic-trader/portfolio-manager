@@ -65,7 +65,7 @@ test('Invalid account currency', async () => {
     .toThrow(new SaxoBankAccountCurrencyMismatchError(accountID, expectedCurrency, actualCurrency))
 })
 
-describe('placing stock orders', () => {
+describe('placing buy orders', () => {
   using app = new SaxoBankApplication({ type: 'Simulation' })
 
   const {
@@ -85,7 +85,7 @@ describe('placing stock orders', () => {
     'TrailingStop',
   ]
 
-  test('of different order types', async ({ step }) => {
+  test('for stock', async ({ step }) => {
     for (const orderType of orderTypes) {
       const options = await SaxoBankBroker.options({ type: 'Simulation' })
 
@@ -212,6 +212,151 @@ describe('placing stock orders', () => {
             })
 
             const order = teslaStock.buy({
+              type: 'TrailingStop',
+              quantity: 1,
+              duration: 'Day',
+              stop,
+              marketOffset: 10,
+              stepAmount: 1,
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+        }
+      })
+    }
+  })
+
+  test('for etf', async ({ step }) => {
+    for (const orderType of orderTypes) {
+      const options = await SaxoBankBroker.options({ type: 'Simulation' })
+
+      const saxoAccount = await getFirstAccount()
+
+      const eunl = { symbol: 'EUNL:XETR', uic: 113771 } as const
+
+      const [eunlInstrument] = await toArray(app.referenceData.instruments.details.get({
+        AssetTypes: ['Etf'],
+        Uics: [eunl.uic],
+      }))
+
+      expect(eunlInstrument).toBeDefined()
+      if (eunlInstrument === undefined) {
+        return
+      }
+
+      const { Quote: quote } = await app.trading.infoPrices.get({
+        AssetType: eunlInstrument.AssetType,
+        Uic: eunlInstrument.Uic,
+      })
+
+      if (QuoteKnown.accept(quote) === false) {
+        throw new Error('Unknown quote')
+      }
+
+      await step(orderType, async () => {
+        await resetSimulationAccount()
+
+        await using broker = await SaxoBankBroker(options)
+        const account = await broker.accounts.get({ ID: saxoAccount.AccountId, currency: 'EUR' })
+
+        expect(account).toBeDefined()
+        if (account === undefined) {
+          return
+        }
+
+        const eunlETF = await account.etf(eunl.symbol)
+
+        switch (orderType) {
+          case 'Market': {
+            const order = eunlETF.buy({
+              type: 'Market',
+              quantity: 1,
+              duration: 'Day',
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+
+          case 'Limit': {
+            const { orderPrice: limit } = calculateFavourableOrderPrice({
+              buySell: 'Buy',
+              orderType: 'Limit',
+              instrument: eunlInstrument,
+              quote,
+            })
+
+            const order = eunlETF.buy({
+              type: 'Limit',
+              quantity: 1,
+              duration: 'Day',
+              limit,
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+
+          case 'Stop': {
+            const { orderPrice: stop } = calculateFavourableOrderPrice({
+              buySell: 'Buy',
+              orderType: 'Stop',
+              instrument: eunlInstrument,
+              quote,
+            })
+
+            const order = eunlETF.buy({
+              type: 'Stop',
+              quantity: 1,
+              duration: 'Day',
+              stop,
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+
+          case 'StopLimit': {
+            const { orderPrice: stop, stopLimitPrice: limit } = calculateFavourableOrderPrice({
+              buySell: 'Buy',
+              orderType: 'StopLimit',
+              instrument: eunlInstrument,
+              quote,
+            })
+
+            const order = eunlETF.buy({
+              type: 'StopLimit',
+              quantity: 1,
+              duration: 'Day',
+              stop,
+              limit,
+            })
+
+            const result = await order.execute()
+            expect(result).toBeDefined()
+
+            break
+          }
+
+          case 'TrailingStop': {
+            const { orderPrice: stop } = calculateFavourableOrderPrice({
+              buySell: 'Buy',
+              orderType: 'TrailingStop',
+              instrument: eunlInstrument,
+              quote,
+            })
+
+            const order = eunlETF.buy({
               type: 'TrailingStop',
               quantity: 1,
               duration: 'Day',

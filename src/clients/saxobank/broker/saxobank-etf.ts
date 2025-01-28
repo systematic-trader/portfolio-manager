@@ -1,7 +1,13 @@
 import { SaxoBankRandom } from '../saxobank-random.ts'
 import type { Currency3 } from '../types/derives/currency.ts'
 import type * as ETFs from './config/etf.ts'
-import type { DataContext, DataContextReaderView, DataContextStockCost } from './data-context.ts'
+import type {
+  DataContext,
+  DataContextETF,
+  DataContextETFCost,
+  DataContextETFSnapshot,
+  DataContextReaderView,
+} from './data-context.ts'
 import { SaxoBankOrderUnsupportedOrderDurationError, SaxoBankOrderUnsupportedOrderTypeError } from './errors.ts'
 import type { MarketSession } from './market-session.ts'
 import type { SaxoBankAccount } from './saxobank-account.ts'
@@ -53,7 +59,7 @@ export class SaxoBankETF<
     readonly account: SaxoBankAccount<Options['account']>
     readonly symbol: Options['symbol']
     readonly uic: number
-    readonly cost: DataContextStockCost
+    readonly cost: DataContextETFCost
     readonly snapshot: DataContextETFSnapshot
   }) {
     this.#context = options.context
@@ -116,8 +122,8 @@ export class SaxoBankETF<
    * Place an order to adjust the position to the target value.
    * The method will return if nothing happens with some kind of state to represent the result.
    *
-   * @param value - The target value of the stock.
-   * @param block - The block size of the stock. The order will only happen in the block size. If block is $10000, then the total value must change with $10000 or more.
+   * @param value - The target value of the ETF.
+   * @param block - The block size of the ETF. The order will only happen in the block size. If block is $10000, then the total value must change with $10000 or more.
    * @param tolerance.commission - The tolerance of the commission in percentage (0.01 is 1%).
    * @param tolerance.value - The tolerance of the value in percentage (1.05 is 105%), which allows the value to be up to `value * tolerance.value`.
    * @param session.allowExtendedHours - If the order should be allowed to be executed outside of the regular trading hours.
@@ -152,7 +158,7 @@ export type SaxoBankETFOrderOptions = {
   readonly stop?: undefined
   readonly marketOffset?: undefined
   readonly stepAmount?: undefined
-  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
+  readonly duration: 'GoodTillCancel' | 'Day' | 'ImmediateOrCancel' | 'FillOrKill'
 } | {
   readonly type: 'Market'
   readonly quantity: number
@@ -160,7 +166,7 @@ export type SaxoBankETFOrderOptions = {
   readonly stop?: undefined
   readonly marketOffset?: undefined
   readonly stepAmount?: undefined
-  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
+  readonly duration: 'GoodTillCancel' | 'Day'
 } | {
   readonly type: 'Stop'
   readonly quantity: number
@@ -168,7 +174,7 @@ export type SaxoBankETFOrderOptions = {
   readonly stop: number
   readonly marketOffset?: undefined
   readonly stepAmount?: undefined
-  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
+  readonly duration: 'GoodTillCancel' | 'Day'
 } | {
   readonly type: 'StopLimit'
   readonly quantity: number
@@ -176,7 +182,7 @@ export type SaxoBankETFOrderOptions = {
   readonly stop: number
   readonly marketOffset?: undefined
   readonly stepAmount?: undefined
-  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
+  readonly duration: 'GoodTillCancel' | 'Day'
 } | {
   readonly type: 'TrailingStop'
   readonly quantity: number
@@ -184,7 +190,7 @@ export type SaxoBankETFOrderOptions = {
   readonly stop: number
   readonly marketOffset: number
   readonly stepAmount: number
-  readonly duration: 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel'
+  readonly duration: 'GoodTillCancel' | 'Day'
 }
 
 export class SaxoBankETFOrder<
@@ -208,10 +214,7 @@ export class SaxoBankETFOrder<
   constructor(options: {
     readonly context: DataContext
     readonly reader: DataContextReaderView<DataContextETF>
-    readonly etf: SaxoBankETF<{
-      symbol: Options['symbol']
-      account: Options['account']
-    }>
+    readonly etf: SaxoBankETF<{ symbol: Options['symbol']; account: Options['account'] }>
     readonly uic: number
     readonly type: Options['type']
     readonly order: Options['order']
@@ -223,6 +226,16 @@ export class SaxoBankETFOrder<
     this.ID = SaxoBankRandom.orderID('etf')
     this.type = options.type
     this.options = options.order
+
+    // todo hvis vi ikke har en position, men vi vil sælge, så kan vi ikke sælge
+    // if (existingPositionInsufficientQuantity) {
+    //   throw new Error('Bang')
+    // }
+
+    // todo hvis vi har eksisterende ordre (som stop loss eller take profit), som forhindrer salg, så kan vi ikke sælge
+    // if (existingOrdersPreventSale) {
+    //   throw new Error('Bang')
+    // }
 
     const durations = this.#reader.value.orderTypes[options.order.type]
 
@@ -320,14 +333,3 @@ export class SaxoBankETFOrder<
     return unknown
   }
 }
-
-// const etf = undefined as unknown as SaxoBankETF<{
-//   symbol: 'SXR8:XETR'
-//   account: { accountID: '3432432INET'; currency: 'USD' }
-// }>
-
-// const order = etf.buy({
-//   type: 'Market',
-//   quantity: 100,
-//   duration: 'GoodTillCancel',
-// })
