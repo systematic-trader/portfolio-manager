@@ -62,6 +62,9 @@ export const CancelOrdersByIdErrorCode = enums([
   'TooLateToCancelOrder',
 
   /** Not documented */
+  'IllegalRequest',
+
+  /** Not documented */
   'None',
 ])
 
