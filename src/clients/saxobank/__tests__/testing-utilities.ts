@@ -776,9 +776,34 @@ export class TestingUtilities {
             break
           }
 
-          case 'Stop':
-          case 'StopIfTraded':
           case 'Limit': {
+            const { orderPrice } = this.calculateFavourableOrderPrice({
+              buySell: buySell,
+              instrument,
+              orderType,
+              quote,
+            })
+
+            resolve(
+              await app.trading.orders.post({
+                AccountKey: accountKey,
+                Amount: amount,
+                AssetType: instrument.AssetType,
+                BuySell: buySell,
+                ExternalReference: referenceId,
+                ManualOrder: false,
+                OrderDuration: { DurationType: 'DayOrder' },
+                OrderPrice: orderPrice,
+                OrderType: orderType,
+                RequestId: requestId,
+                Uic: instrument.Uic,
+              }),
+            )
+            break
+          }
+
+          case 'Stop':
+          case 'StopIfTraded': {
             const { orderPrice } = this.calculateFavourableOrderPrice({
               buySell: buySell,
               instrument,
