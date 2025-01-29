@@ -73,6 +73,7 @@ const RelatedOpenOrders = union([
   tuple([RelatedOrder, RelatedOrder]),
 ])
 
+// todo
 // #region Bond
 const OrderResponseBondBase = props({
   AssetType: literal('Bond'),
@@ -142,12 +143,11 @@ export type OrderResponseBond = GuardType<typeof OrderResponseBond>
 // #region CfdOnEtc
 const OrderResponseCfdOnEtcBase = props({
   AssetType: literal('CfdOnEtc'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -156,8 +156,10 @@ const OrderResponseCfdOnEtcBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -167,16 +169,18 @@ const OrderResponseCfdOnEtcBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
+  ShortTrading: ShortTrading,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
-
-  ShortTrading: ShortTrading,
+  Uic: integer(),
 })
 
 export const OrderResponseCfdOnEtcMarket = OrderResponseCfdOnEtcBase.merge(props({
@@ -231,12 +235,11 @@ export type OrderResponseCfdOnEtc = GuardType<typeof OrderResponseCfdOnEtc>
 // #region CfdOnEtf
 const OrderResponseCfdOnEtfBase = props({
   AssetType: literal('CfdOnEtf'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -245,8 +248,10 @@ const OrderResponseCfdOnEtfBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -256,16 +261,18 @@ const OrderResponseCfdOnEtfBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
+  ShortTrading: ShortTrading,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
-
-  ShortTrading: ShortTrading,
+  Uic: integer(),
 })
 
 export const OrderResponseCfdOnEtfMarket = OrderResponseCfdOnEtfBase.merge(props({
@@ -320,12 +327,11 @@ export type OrderResponseCfdOnEtf = GuardType<typeof OrderResponseCfdOnEtf>
 // #region CfdOnEtn
 const OrderResponseCfdOnEtnBase = props({
   AssetType: literal('CfdOnEtn'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -334,8 +340,10 @@ const OrderResponseCfdOnEtnBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -345,16 +353,18 @@ const OrderResponseCfdOnEtnBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
+  ShortTrading: ShortTrading,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
-
-  ShortTrading: ShortTrading,
+  Uic: integer(),
 })
 
 export const OrderResponseCfdOnEtnMarket = OrderResponseCfdOnEtnBase.merge(props({
@@ -409,12 +419,11 @@ export type OrderResponseCfdOnEtn = GuardType<typeof OrderResponseCfdOnEtn>
 // #region CfdOnFund
 const OrderResponseCfdOnFundBase = props({
   AssetType: literal('CfdOnFund'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -423,8 +432,10 @@ const OrderResponseCfdOnFundBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -434,16 +445,18 @@ const OrderResponseCfdOnFundBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
+  ShortTrading: ShortTrading,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
-
-  ShortTrading: ShortTrading,
+  Uic: integer(),
 })
 
 export const OrderResponseCfdOnFundMarket = OrderResponseCfdOnFundBase.merge(props({
@@ -498,12 +511,11 @@ export type OrderResponseCfdOnFund = GuardType<typeof OrderResponseCfdOnFund>
 // #region CfdOnFutures
 const OrderResponseCfdOnFuturesBase = props({
   AssetType: literal('CfdOnFutures'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -512,10 +524,13 @@ const OrderResponseCfdOnFuturesBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
+  ExpiryDate: string({ format: 'date-iso8601' }),
   ExternalReference: optional(string()),
   IpoSubscriptionFee: number(),
   IsExtendedHoursEnabled: boolean(),
@@ -523,16 +538,17 @@ const OrderResponseCfdOnFuturesBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
-
-  ExpiryDate: string({ format: 'date-iso8601' }),
+  Uic: integer(),
 })
 
 export const OrderResponseCfdOnFuturesMarket = OrderResponseCfdOnFuturesBase.merge(props({
@@ -764,12 +780,11 @@ export type OrderResponseCfdOnStock = GuardType<typeof OrderResponseCfdOnStock>
 // #region ContractFutures
 const OrderResponseContractFuturesBase = props({
   AssetType: literal('ContractFutures'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -778,10 +793,13 @@ const OrderResponseContractFuturesBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
+  ExpiryDate: string({ format: 'date-iso8601' }),
   ExternalReference: optional(string()),
   IpoSubscriptionFee: number(),
   IsExtendedHoursEnabled: boolean(),
@@ -789,17 +807,18 @@ const OrderResponseContractFuturesBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
+  OpenInterest: number(),
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
-
-  ExpiryDate: string({ format: 'date-iso8601' }),
-  OpenInterest: number(),
+  Uic: integer(),
 })
 
 export const OrderResponseContractFuturesMarket = OrderResponseContractFuturesBase.merge(props({
@@ -856,12 +875,11 @@ export type OrderResponseContractFutures = GuardType<typeof OrderResponseContrac
 // #region Etc
 const OrderResponseEtcBase = props({
   AssetType: literal('Etc'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -870,8 +888,10 @@ const OrderResponseEtcBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -881,14 +901,17 @@ const OrderResponseEtcBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
+  Uic: integer(),
 })
 
 export const OrderResponseEtcMarket = OrderResponseEtcBase.merge(props({
@@ -942,12 +965,11 @@ export type OrderResponseEtc = GuardType<typeof OrderResponseEtc>
 // #region Etf
 const OrderResponseEtfBase = props({
   AssetType: literal('Etf'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -956,8 +978,10 @@ const OrderResponseEtfBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -967,14 +991,17 @@ const OrderResponseEtfBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
+  Uic: integer(),
 })
 
 export const OrderResponseEtfMarket = OrderResponseEtfBase.merge(props({
@@ -1028,12 +1055,11 @@ export type OrderResponseEtf = GuardType<typeof OrderResponseEtf>
 // #region Etn
 const OrderResponseEtnBase = props({
   AssetType: literal('Etn'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -1042,8 +1068,10 @@ const OrderResponseEtnBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -1053,14 +1081,17 @@ const OrderResponseEtnBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
+  Uic: integer(),
 })
 
 export const OrderResponseEtnMarket = OrderResponseEtnBase.merge(props({
@@ -1114,12 +1145,11 @@ export type OrderResponseEtn = GuardType<typeof OrderResponseEtn>
 // #region Fund
 const OrderResponseFundBase = props({
   AssetType: literal('Fund'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -1128,8 +1158,10 @@ const OrderResponseFundBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -1139,14 +1171,17 @@ const OrderResponseFundBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
+  Uic: integer(),
 })
 
 export const OrderResponseFundMarket = OrderResponseFundBase.merge(props({
@@ -1203,7 +1238,6 @@ const OrderResponseFxForwardsBase = props({
   AssetType: literal('FxForwards'),
   Uic: integer(),
   RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
@@ -1260,12 +1294,11 @@ export type OrderResponseFxForwards = GuardType<typeof OrderResponseFxForwards>
 // #region FxSpot
 const OrderResponseFxSpotBase = props({
   AssetType: literal('FxSpot'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: number(),
+  Bid: number(),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -1276,6 +1309,7 @@ const OrderResponseFxSpotBase = props({
   CurrentPriceDelayMinutes: integer(),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -1285,19 +1319,17 @@ const OrderResponseFxSpotBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: number(),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
-
-  Ask: number(),
-  Bid: number(),
-  DistanceToMarket: optional(number()),
-  MarketValue: number(),
+  Uic: integer(),
 })
 
 export const OrderResponseFxSpotMarket = OrderResponseFxSpotBase.merge(props({
@@ -1352,12 +1384,11 @@ export type OrderResponseFxSpot = GuardType<typeof OrderResponseFxSpot>
 // #region Stock
 const OrderResponseStockBase = props({
   AssetType: literal('Stock'),
-  Uic: integer(),
-  RelatedOpenOrders,
-
   AccountId: string(),
   AccountKey: string(),
   Amount: integer({ exclusiveMinimum: 0 }),
+  Ask: optional(number()),
+  Bid: optional(number()),
   BuySell: BuySell,
   CalculationReliability: CalculationReliability,
   ClientId: string(),
@@ -1366,8 +1397,10 @@ const OrderResponseStockBase = props({
   CorrelationKey: string(),
   CurrentPrice: number(),
   CurrentPriceDelayMinutes: integer(),
+  CurrentPriceLastTraded: optional(string({ format: 'date-iso8601' })),
   CurrentPriceType: PriceType,
   DisplayAndFormat: InstrumentDisplayAndFormat,
+  DistanceToMarket: optional(number()),
   Duration: OrderDuration,
   Exchange: InstrumentExchangeDetails,
   ExternalReference: optional(string()),
@@ -1377,14 +1410,17 @@ const OrderResponseStockBase = props({
   IsMarketOpen: boolean(),
   MarketPrice: number(),
   MarketState: MarketState,
+  MarketValue: optional(number()),
   NonTradableReason: NonTradableReason,
   OpenOrderType: OrderType,
   OrderAmountType: OrderAmountType,
   OrderId: string(),
   OrderRelation: OpenOrderRelation,
   OrderTime: string({ format: 'date-iso8601' }),
+  RelatedOpenOrders,
   Status: OrderStatus,
   TradingStatus: TradingStatus,
+  Uic: integer(),
 })
 
 export const OrderResponseStockMarket = OrderResponseStockBase.merge(props({
