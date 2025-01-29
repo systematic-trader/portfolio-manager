@@ -20,28 +20,39 @@ import type { OrderDuration } from '../../types/records/order-duration.ts'
 // #region Order placement
 type OrderParametersByOrderType = {
   readonly OrderType: 'Market'
-  readonly OrderPrice?: never
-  readonly StopLimitPrice?: never
-  readonly TrailingStopStep?: never
-  readonly TrailingStopDistanceToMarket?: never
+  readonly ExecuteAtTradingSession?: undefined
+  readonly OrderPrice?: undefined
+  readonly StopLimitPrice?: undefined
+  readonly TrailingStopDistanceToMarket?: undefined
+  readonly TrailingStopStep?: undefined
 } | {
-  readonly OrderType: 'Limit' | 'Stop' | 'StopIfTraded'
+  readonly OrderType: 'Limit'
+  readonly ExecuteAtTradingSession?: undefined | 'All'
   readonly OrderPrice: number
-  readonly StopLimitPrice?: never
-  readonly TrailingStopStep?: never
-  readonly TrailingStopDistanceToMarket?: never
+  readonly StopLimitPrice?: undefined
+  readonly TrailingStopDistanceToMarket?: undefined
+  readonly TrailingStopStep?: undefined
+} | {
+  readonly OrderType: 'Stop' | 'StopIfTraded'
+  readonly ExecuteAtTradingSession?: undefined
+  readonly OrderPrice: number
+  readonly StopLimitPrice?: undefined
+  readonly TrailingStopDistanceToMarket?: undefined
+  readonly TrailingStopStep?: undefined
 } | {
   readonly OrderType: 'StopLimit'
+  readonly ExecuteAtTradingSession?: undefined
   readonly OrderPrice: number
   readonly StopLimitPrice: number
-  readonly TrailingStopStep?: never
-  readonly TrailingStopDistanceToMarket?: never
+  readonly TrailingStopDistanceToMarket?: undefined
+  readonly TrailingStopStep?: undefined
 } | {
   readonly OrderType: 'TrailingStop' | 'TrailingStopIfTraded'
+  readonly ExecuteAtTradingSession?: undefined
   readonly OrderPrice: number
-  readonly TrailingStopStep: number
+  readonly StopLimitPrice?: undefined
   readonly TrailingStopDistanceToMarket: number
-  readonly StopLimitPrice?: never
+  readonly TrailingStopStep: number
 }
 
 export type SupportedPlacableOrderTypes = OrderParametersByOrderType['OrderType']
@@ -598,7 +609,12 @@ export class Orders {
     const hasRootExternalReference = 'ExternalReference' in parameters
     const relatedOrders = parameters.Orders?.length
 
-    const body = { ...parameters, Orders: parameters.Orders?.map((order) => ({ AccountKey, ...order })) }
+    const body = {
+      ...parameters,
+      AccountKey,
+      Orders: parameters.Orders?.map((order) => ({ AccountKey, ...order })),
+    }
+
     const headers = RequestId === undefined ? undefined : {
       'x-request-id': RequestId,
     }
@@ -606,7 +622,7 @@ export class Orders {
     // Method 1
     if (hasRootExternalReference && relatedOrders === undefined) {
       return await this.#client.post({
-        body: parameters,
+        body,
         headers,
         guard: PlaceOrderResponseEntryWithNoRelatedOrders,
         timeout: options.timeout,
