@@ -108,7 +108,7 @@ type UpdateOrderParametersBase =
     readonly IsForceOpen?: undefined | boolean
     readonly OrderId: string
   }
-  & OrderParametersByOrderType
+  & Omit<OrderParametersByOrderType, 'ExecuteAtTradingSession'>
 // #endregion
 
 // #region Order placement method 1
