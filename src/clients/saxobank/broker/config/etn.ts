@@ -390,6 +390,7 @@ export class ZAR {
     'AMETNQ:XJSE',
     'APETNC:XJSE',
     'APETNQ:XJSE',
+    'ASN809:XJSE',
     'ASXIIA:XJSE',
     'BHETNC:XJSE',
     'BHETNQ:XJSE',
