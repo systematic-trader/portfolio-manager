@@ -1,5 +1,6 @@
 import { toArray } from '../../../../utils/async-iterable.ts'
 import { afterAll, beforeEach, describe, expect, test } from '../../../../utils/testing.ts'
+import { Timeout } from '../../../../utils/timeout.ts'
 import { SaxoBankApplication } from '../../../saxobank-application.ts'
 import { TestingUtilities } from '../../__tests__/testing-utilities.ts'
 import { QuoteKnown } from '../../types/records/quote.ts'
@@ -226,6 +227,8 @@ describe('placing buy orders', () => {
             break
           }
         }
+
+        await Timeout.wait(5000)
       })
     }
   })

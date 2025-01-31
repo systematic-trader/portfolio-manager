@@ -13,11 +13,7 @@ test('cost', async () => {
   const account = (await broker.accounts.get({ ID: Object.keys(options.accounts)[0]!, currency: 'EUR' }))!
   const apple = await account.stock('SIE:XETR')
 
-  console.log(apple.cost)
-
   const order = apple.buy({ type: 'Market', quantity: 1, duration: 'Day' })
-
-  console.log(order.cost)
 
   expect(order).toBeDefined()
 })

@@ -385,8 +385,6 @@ export class DataContext implements AsyncDisposable {
       this.#stream1 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
 
       this.#stream1.addListener('disposed', (error) => {
-        console.log('stream1 disposed in data-context')
-
         if (error !== undefined && this.#error === undefined) {
           this.#error = error
         }
@@ -409,8 +407,6 @@ export class DataContext implements AsyncDisposable {
       this.#stream2 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
 
       this.#stream2.addListener('disposed', (error) => {
-        console.log('stream2 disposed in data-context')
-
         if (error !== undefined && this.#error === undefined) {
           this.#error = error
         }
@@ -433,8 +429,6 @@ export class DataContext implements AsyncDisposable {
       this.#stream3 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
 
       this.#stream3.addListener('disposed', (error) => {
-        console.log('stream3 disposed in data-context')
-
         if (error !== undefined && this.#error === undefined) {
           this.#error = error
         }
@@ -457,8 +451,6 @@ export class DataContext implements AsyncDisposable {
       this.#stream4 = new SaxoBankStream({ app: this.app, signal: this.#controller.signal })
 
       this.#stream4.addListener('disposed', (error) => {
-        console.log('stream4 disposed in data-context')
-
         if (error !== undefined && this.#error === undefined) {
           this.#error = error
         }
@@ -495,6 +487,7 @@ export class DataContext implements AsyncDisposable {
     this.#disposePromise = undefined
   }
 
+  // deno-lint-ignore require-await
   async [Symbol.asyncDispose](): Promise<void> {
     if (this.#disposePromise !== undefined) {
       return this.#disposePromise
@@ -510,33 +503,31 @@ export class DataContext implements AsyncDisposable {
 
     this.#controller.abort()
 
+    // await brokerStream.dispose()
+
     const disposePromises: Promise<void>[] = []
 
     if (this.#stream1 !== undefined) {
-      disposePromises.push(this.#stream1.dispose().finally(() => console.log('stream1 disposed in data-context')))
+      disposePromises.push(this.#stream1.dispose())
       this.#stream1 = undefined
     }
 
     if (this.#stream2 !== undefined) {
-      disposePromises.push(this.#stream2.dispose().finally(() => console.log('stream2 disposed in data-context')))
+      disposePromises.push(this.#stream2.dispose())
       this.#stream2 = undefined
     }
 
     if (this.#stream3 !== undefined) {
-      disposePromises.push(this.#stream3.dispose().finally(() => console.log('stream3 disposed in data-context')))
+      disposePromises.push(this.#stream3.dispose())
       this.#stream3 = undefined
     }
 
     if (this.#stream4 !== undefined) {
-      disposePromises.push(this.#stream4.dispose().finally(() => console.log('stream4 disposed in data-context')))
+      disposePromises.push(this.#stream4.dispose())
       this.#stream4 = undefined
     }
 
-    console.log('disposing streams:', disposePromises.length)
-
-    this.#disposePromise = Promise.allSettled(this.#initializers.values()).finally(() =>
-      console.log('initializers completed')
-    ).then(
+    this.#disposePromise = Promise.allSettled(this.#initializers.values()).then(
       () => {
         return Promise.allSettled([
           ...disposePromises,
@@ -546,17 +537,14 @@ export class DataContext implements AsyncDisposable {
                 throw result.reason
               }
             }
-          }).finally(() => console.log('appReaders disposed in data-context')),
+          }),
         ]).then((results) => {
-          console.log('disposed all streams and app readers')
           try {
             this.app.dispose()
           } catch (error) {
             if (this.#error === undefined) {
               this.#error = ensureError(error)
             }
-          } finally {
-            console.log('disposed app')
           }
 
           for (const result of results) {
@@ -585,7 +573,6 @@ export class DataContext implements AsyncDisposable {
         })
       },
     ).finally(() => {
-      console.log('data-context is now disposed')
       this.#disposePromise = undefined
     })
 
@@ -663,6 +650,7 @@ export class DataContext implements AsyncDisposable {
       let value = map(subscription.message)
 
       const reader = new DataContextReader({
+        // deno-lint-ignore require-await
         dispose: async (): Promise<void> => {
           if (this.#subscriptionReaders.delete(key)) {
             // await subscription.dispose()
@@ -1749,7 +1737,8 @@ export class DataContext implements AsyncDisposable {
     }
   }
 
-  async stockPositionSetTakeProfit({}: {}): Promise<boolean> {
+  // deno-lint-ignore require-await
+  async stockPositionSetTakeProfit(): Promise<boolean> {
     // todo 1. Check if we have any sell orders currently
     // todo 2. If We have a stop-loss sell order, we should "append" this order to it, so they become OCO
     // todo 3. If we have a take-profit sell order, we should update this order
@@ -1758,7 +1747,8 @@ export class DataContext implements AsyncDisposable {
     throw new Error('Not implemented')
   }
 
-  async stockPositionSetStopLoss({}: {}): Promise<boolean> {
+  // deno-lint-ignore require-await
+  async stockPositionSetStopLoss(): Promise<boolean> {
     throw new Error('Not implemented')
   }
 

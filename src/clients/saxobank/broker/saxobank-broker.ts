@@ -5,6 +5,19 @@ import { DataContext } from './data-context.ts'
 import { SaxoBankAccountNotFoundError } from './errors.ts'
 import { SaxoBankAccount } from './saxobank-account.ts'
 
+/* TODO check in runtime if the instrument is tradable for the current client
+.filter((instrument) =>
+    instrument.Exchange !== undefined &&
+    instrument.IsTradable === true &&
+    instrument.NonTradableReason === 'None' &&
+    instrument.TradableAs?.includes('FxSpot') === true &&
+    instrument.TradingStatus === 'Tradable'
+  )
+*/
+
+// TODO accountKey skal gives med til get instrument details for at checke om instrumentet er tradable for den angivne konto
+// Alternativt kan man lade være med at angive accountKey og så checke i runtime om instrumentet er tradable for den angivne konto ved at kigge på TradableOn
+
 const DEFAULTS = {
   currencyConversionFee: 0.0025,
 } as const
@@ -66,7 +79,7 @@ export interface SaxoBankBroker<Options extends SaxoBankBrokerOptions> extends A
 }
 
 export async function SaxoBankBroker<const Options extends SaxoBankBrokerOptions>(
-  options: SaxoBankBrokerOptions,
+  options: Options,
 ): Promise<SaxoBankBroker<Options>> {
   const context = new DataContext({ type: options.type })
 

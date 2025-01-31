@@ -13,9 +13,9 @@ import type { MarketSession } from './market-session.ts'
 import type { SaxoBankAccount } from './saxobank-account.ts'
 
 type StocksType = typeof Stocks
-type StockCurrencies = keyof StocksType
 
-export type SaxoBankStockSymbols<Currency> = StocksType[Currency & StockCurrencies]['symbols'][number]
+export type SaxoBankStockCurrencies = keyof StocksType
+export type SaxoBankStockSymbols<Currency> = StocksType[Currency & SaxoBankStockCurrencies]['symbols'][number]
 
 export class SaxoBankStock<
   Options extends {

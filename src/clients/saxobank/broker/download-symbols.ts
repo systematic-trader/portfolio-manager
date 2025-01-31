@@ -50,11 +50,13 @@ export async function downloadSaxoBankSymbols(app: SaxoBankApplication, outputPa
       continue
     }
 
+    // deno-lint-ignore no-console
     console.log(`Included ${sum} ${assetType}s:`)
 
     const constants: WriteTSFileOptions['constants'] = [...currenciesMap]
       .toSorted(([leftCurrency], [rightCurrency]) => leftCurrency.localeCompare(rightCurrency))
       .map(([currency, symbols]) => {
+        // deno-lint-ignore no-console
         console.log(`  ${currency}: ${symbols.size}`)
 
         const symbolsProp = new TSProperty({
@@ -69,6 +71,7 @@ export async function downloadSaxoBankSymbols(app: SaxoBankApplication, outputPa
         }
       })
 
+    // deno-lint-ignore no-console
     console.log()
 
     await writeTSFile({
@@ -76,49 +79,4 @@ export async function downloadSaxoBankSymbols(app: SaxoBankApplication, outputPa
       constants,
     })
   }
-
-  // const foundStocks = new Map<string, number>()
-
-  // const output = instruments
-  //   .toSorted((left, right) => left.Symbol.toUpperCase().localeCompare(right.Symbol.toUpperCase()))
-  //   .reduce<Record<string, string[]>>((output, instrument) => {
-  //     if (instrument.AssetType !== 'Stock') {
-  //       return output
-  //     }
-
-  //     const symbol = instrument.Symbol.toUpperCase()
-
-  //     foundStocks.set(instrument.CurrencyCode, (foundStocks.get(instrument.CurrencyCode) ?? 0) + 1)
-
-  //     const currencySymbols = (output[instrument.CurrencyCode] ??= [])
-
-  //     currencySymbols.push(symbol)
-
-  //     return output
-  //   }, {})
-
-  // const constants: WriteTSFileOptions['constants'] = Object.entries(output)
-  //   .toSorted(([leftCurrency], [rightCurrency]) => leftCurrency.localeCompare(rightCurrency))
-  //   .map(([currency, symbols]) => {
-  //     const symbolsProp = new TSProperty({
-  //       key: 'symbols',
-  //       value: new TSValue({ value: symbols, as: 'const' }),
-  //     })
-
-  //     return {
-  //       name: currency,
-  //       content: new TSClass({ props: [symbolsProp] }),
-  //     }
-  //   })
-
-  // await writeTSFile({
-  //   filePath: path.join(outputPath, 'stock.ts'),
-  //   constants,
-  // })
-
-  // // deno-lint-ignore no-console
-  // console.log(
-  //   `Included ${[...foundStocks.values()].reduce((sum, count) => sum + count, 0)} stocks:`,
-  //   Object.fromEntries([...foundStocks].sort((left, right) => left[0].localeCompare(right[0]))),
-  // )
 }
