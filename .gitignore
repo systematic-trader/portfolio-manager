@@ -51,3 +51,5 @@ public/index.html
 
 .vscode/
 data/
+
+*.pem
