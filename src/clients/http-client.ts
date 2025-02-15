@@ -19,6 +19,7 @@ const debug = {
 
 function assertReturnBody<T>(
   guard: Guard<T>,
+  headers: Record<string, string>,
   body: unknown,
   statusCode: HTTPServiceResponseInvalidError['statusCode'],
   statusText: HTTPServiceResponseInvalidError['statusText'],
@@ -31,6 +32,7 @@ function assertReturnBody<T>(
         error.message,
         statusCode,
         statusText,
+        headers,
         body,
         error.invalidations,
       )
@@ -67,8 +69,8 @@ export class HTTPClientError extends HTTPError {
     href: string,
     statusCode: HTTPClientError['statusCode'],
     statusText: HTTPClientError['statusText'],
-    body: HTTPClientError['body'],
     headers: HTTPClientError['headers'],
+    body: HTTPClientError['body'],
   ) {
     let message = `${statusCode} ${statusText} - ${method} ${href}\n${stringifyJSON(headers, undefined, 2)}`
 
@@ -104,14 +106,16 @@ export class HTTPClientRequestAbortError extends Error {
 }
 
 export class HTTPServiceError extends HTTPError {
+  readonly headers: Record<string, string>
   readonly body: unknown
 
   constructor(
     statusCode: HTTPServiceError['statusCode'],
     statusText: HTTPServiceError['statusText'],
+    headers: HTTPServiceError['headers'],
     body: HTTPServiceError['body'],
   ) {
-    let message = `${statusCode} ${statusText}`
+    let message = `${statusCode} ${statusText}\n${stringifyJSON(headers, undefined, 2)}`
 
     if (typeof body === 'string') {
       message = `${message}\n${body}`
@@ -123,6 +127,7 @@ export class HTTPServiceError extends HTTPError {
 
     super(message, statusCode, statusText)
     this.body = body
+    this.headers = headers
   }
 }
 
@@ -133,10 +138,11 @@ export class HTTPServiceResponseInvalidError extends HTTPServiceError {
     message: string,
     statusCode: HTTPServiceResponseInvalidError['statusCode'],
     statusText: HTTPServiceResponseInvalidError['statusText'],
+    headers: HTTPServiceResponseInvalidError['headers'],
     body: HTTPServiceResponseInvalidError['body'],
     invalidations: HTTPServiceResponseInvalidError['invalidations'],
   ) {
-    super(statusCode, statusText, body)
+    super(statusCode, statusText, headers, body)
     this.invalidations = invalidations
     this.message = message
   }
@@ -243,7 +249,13 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(guard, body, response.status, response.statusText)
+      return assertReturnBody(
+        guard,
+        Object.fromEntries(response.headers),
+        body,
+        response.status,
+        response.statusText,
+      )
     }
 
     return body
@@ -299,7 +311,13 @@ export class HTTPClient {
     const text = await response.text()
 
     if (guard !== undefined) {
-      return assertReturnBody(guard, text, response.status, response.statusText)
+      return assertReturnBody(
+        guard,
+        Object.fromEntries(response.headers),
+        text,
+        response.status,
+        response.statusText,
+      )
     }
 
     return text
@@ -402,7 +420,13 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(guard, responseBody, response.status, response.statusText)
+      return assertReturnBody(
+        guard,
+        Object.fromEntries(response.headers),
+        responseBody,
+        response.status,
+        response.statusText,
+      )
     }
 
     return responseBody
@@ -505,7 +529,13 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(guard, responseBody, response.status, response.statusText)
+      return assertReturnBody(
+        guard,
+        Object.fromEntries(response.headers),
+        responseBody,
+        response.status,
+        response.statusText,
+      )
     }
 
     return responseBody
@@ -608,7 +638,13 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(guard, responseBody, response.status, response.statusText)
+      return assertReturnBody(
+        guard,
+        Object.fromEntries(response.headers),
+        responseBody,
+        response.status,
+        response.statusText,
+      )
     }
 
     return responseBody
@@ -699,7 +735,13 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(guard, responseBody, response.status, response.statusText)
+      return assertReturnBody(
+        guard,
+        Object.fromEntries(response.headers),
+        responseBody,
+        response.status,
+        response.statusText,
+      )
     }
 
     return responseBody
@@ -837,6 +879,8 @@ async function fetchOkResponse(client: HTTPClient, url: string | URL, options: {
   try {
     const response = await fetchResponse(client, url, { method, body, headers, signal })
 
+    const responseHeaders = Object.fromEntries(response.headers.entries())
+
     if (response.ok === false) {
       const body = response.headers
           .get('Content-Type')
@@ -846,7 +890,7 @@ async function fetchOkResponse(client: HTTPClient, url: string | URL, options: {
         : await response.text()
 
       if (response.status >= 500) {
-        throw new HTTPServiceError(response.status, response.statusText, body)
+        throw new HTTPServiceError(response.status, response.statusText, responseHeaders, body)
       }
 
       throw new HTTPClientError(
@@ -854,8 +898,8 @@ async function fetchOkResponse(client: HTTPClient, url: string | URL, options: {
         response.url,
         response.status,
         response.statusText,
+        responseHeaders,
         body,
-        Object.fromEntries(response.headers),
       )
     }
 

@@ -13,7 +13,9 @@ import { ensureError } from '../../utils/error.ts'
 import type { JSONReadonlyRecord } from '../../utils/json.ts'
 import { mergeAbortSignals } from '../../utils/signal.ts'
 import { Timeout } from '../../utils/timeout.ts'
+import { urlJoin } from '../../utils/url.ts'
 import { HTTPClient, HTTPClientRequestAbortError } from '../http-client.ts'
+import { sanitize } from './sanitize.ts'
 
 // todo håndter scenariet, hvor vores live session token er udløbet (tjek for 401 - undersøg hvad de sender til os)
 
@@ -52,11 +54,13 @@ export interface InteractiveBrokersClientOptions {
   readonly type: 'Live' | 'Paper'
 }
 
-export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOptions> implements AsyncDisposable {
+export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOptions = InteractiveBrokersClientOptions>
+  implements AsyncDisposable {
   readonly #controller: AbortController
 
   readonly #env: {
-    readonly baseUrl: string
+    readonly type: Options['type']
+    readonly baseUrl: URL
     readonly consumerKey: string
     readonly accessToken: string
     readonly accessTokenSecret: string
@@ -71,11 +75,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
   #ticklePromise: undefined | Timeout<void>
   #liveSessionTokenPromise: undefined | Promise<{ readonly expiration: number; readonly token: string }>
 
-  readonly type: Options['type']
-
   constructor(options: Options) {
-    this.type = options.type
-
     const consumerKey = Environment['IB_CONSUMER_KEY']
     const accessToken = Environment['IB_ACCESS_TOKEN']
     const accessTokenSecret = Environment['IB_ACCESS_TOKEN_SECRET']
@@ -98,7 +98,8 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     }
 
     this.#env = {
-      baseUrl: options.type === 'Live' ? 'https://api.ibkr.com' : 'https://qa.interactivebrokers.com',
+      type: options.type,
+      baseUrl: new URL(options.type === 'Live' ? 'https://api.ibkr.com' : 'https://qa.interactivebrokers.com'),
       consumerKey,
       accessToken,
       accessTokenSecret,
@@ -116,6 +117,14 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     })
   }
 
+  get type(): Options['type'] {
+    return this.#env.type
+  }
+
+  get baseUrl(): URL {
+    return this.#env.baseUrl
+  }
+
   async #startAndMaintainSession({ signal }: {
     readonly signal: AbortSignal
   }): Promise<LiveSessionToken> {
@@ -126,7 +135,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
       const liveSessionToken = await this.#createLiveSessionToken({ signal })
 
       // todo se hvad den returnerer og skriv en guard - fail fast hvis noget ikke er som vi forventer
-      const loginUrl = new URL('v1/api/iserver/auth/ssodh/init', this.#env.baseUrl)
+      const loginUrl = urlJoin(this.#env.baseUrl, 'v1/api/iserver/auth/ssodh/init')
       loginUrl.searchParams.set('compete', 'true')
       loginUrl.searchParams.set('publish', 'true')
 
@@ -215,7 +224,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
       try {
         const liveSessionToken = await this.#liveSessionTokenPromise
 
-        const logoutUrl = new URL('v1/api/logout', this.#env.baseUrl)
+        const logoutUrl = urlJoin(this.#env.baseUrl, 'v1/api/logout')
 
         // todo skriv en guard og se hvad den returnerer
         await this.#http.postOkJSON(logoutUrl, {
@@ -278,10 +287,10 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     readonly searchParams?: undefined | SearchParamRecord
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
-  }): Promise<unknown> {
+  }): Promise<T> {
     this.#httpMethodPrecheck()
 
-    const url = new URL(path, this.#env.baseUrl)
+    const url = urlJoin(this.#env.baseUrl, path)
     if (searchParams !== undefined) {
       url.search = buildURLSearchParams(searchParams).toString()
     }
@@ -318,6 +327,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     debug.get(url.toString())
 
     return this.#http.getOkJSON(url, {
+      coerce: sanitize,
       headers: {
         ...headers,
         Authorization: authorizationHeader,
@@ -342,10 +352,9 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     readonly searchParams?: undefined | SearchParamRecord
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
-  }): Promise<unknown> {
+  }): Promise<T> {
     this.#httpMethodPrecheck()
-
-    const url = new URL(path, this.#env.baseUrl)
+    const url = urlJoin(this.#env.baseUrl, path)
     if (searchParams !== undefined) {
       url.search = buildURLSearchParams(searchParams).toString()
     }
@@ -382,6 +391,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     debug.post(url.toString())
 
     return this.#http.postOkJSON(url, {
+      coerce: sanitize,
       headers: {
         ...headers,
         Authorization: authorizationHeader,
@@ -406,7 +416,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     readonly searchParams?: undefined | SearchParamRecord
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
-  }): Promise<unknown> {
+  }): Promise<T> {
     this.#httpMethodPrecheck()
 
     const url = new URL(path, this.#env.baseUrl)
@@ -446,6 +456,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     debug.delete(url.toString())
 
     return this.#http.deleteOkJSON(url, {
+      coerce: sanitize,
       headers: {
         ...headers,
         Authorization: authorizationHeader,
@@ -461,7 +472,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     readonly token: string
     readonly expiration: number
   }> {
-    const url = new URL('v1/api/oauth/live_session_token', this.#env.baseUrl)
+    const url = urlJoin(this.#env.baseUrl, 'v1/api/oauth/live_session_token')
 
     const diffieHellmanPrivateKey = generateDiffieHellmanPrivateKey()
 

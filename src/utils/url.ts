@@ -1,3 +1,20 @@
+export function pathJoin(base: string, ...paths: ReadonlyArray<undefined | string>): string {
+  let path = base
+
+  for (const next of paths) {
+    if (next === undefined) {
+      continue
+    }
+
+    const nextBase = path.endsWith('/') ? path : `${path}/`
+    const nextPath = next.startsWith('/') ? next.slice(1) : next
+
+    path = `${nextBase}${nextPath}`
+  }
+
+  return path
+}
+
 export function urlJoin(base: string | URL, ...paths: ReadonlyArray<undefined | string>): URL {
   let url = new URL(base)
 
