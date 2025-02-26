@@ -329,10 +329,10 @@ function isEnvironmentTrue(value: undefined | string, fallback = false): boolean
  * ```
  */
 export function createDebug({
-  pattern = Environment['DEBUG'],
+  pattern = Environment.tryGet('DEBUG'),
   write,
-  colors = isEnvironmentTrue(Environment['DEBUG_COLORS'], true),
-  timestamp = isEnvironmentTrue(Environment['DEBUG_TIMESTAMP'], true),
+  colors = isEnvironmentTrue(Environment.tryGet('DEBUG_COLORS'), true),
+  timestamp = isEnvironmentTrue(Environment.tryGet('DEBUG_TIMESTAMP'), true),
 }: DebugOptions): Debug {
   if (pattern === undefined || pattern.length === 0) {
     return debugNothing

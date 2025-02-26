@@ -1,13 +1,21 @@
-import { load } from 'jsr:@std/dotenv@0.225.2'
+import { load } from 'jsr:@std/dotenv@0.225.3'
 
-export const Environment: Record<string, string | undefined> = Deno.env.toObject()
+const record = { ...Deno.env.toObject(), ...(await load()) }
 
-const dotenv = await load()
+export const Environment = {
+  keys: () => Object.keys(record),
+  entries: () => Object.entries(record),
+  get(key: string): string {
+    const value = record[key]
 
-for (const key in dotenv) {
-  const value = dotenv[key]
+    if (typeof value === 'string') {
+      return value
+    }
 
-  if (typeof value === 'string') {
-    Environment[key] = dotenv[key]
-  }
+    throw new Error(`Environment variable ${key} is not defined`)
+  },
+
+  tryGet(key: string): string | undefined {
+    return record[key]
+  },
 }

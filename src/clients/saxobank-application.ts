@@ -124,7 +124,7 @@ export class SaxoBankApplication implements Disposable {
   readonly valueAdd: ValueAdd
 
   constructor(settings: undefined | SaxoBankApplicationSettings = {}) {
-    const envType = Environment['SAXOBANK_APP_TYPE']
+    const envType = Environment.tryGet('SAXOBANK_APP_TYPE')
 
     if (envType !== undefined && envType !== 'Live' && envType !== 'Simulation') {
       throw new Error('Invalid SAXOBANK_APP_TYPE environment variable. Must be "Live" or "Simulation"')
@@ -138,7 +138,7 @@ export class SaxoBankApplication implements Disposable {
       ? SaxoBankApplicationConfig[this.type].storedAuthenticationFile
       : settings.authentication.store
 
-    const key = settings.key ?? Environment[SaxoBankApplicationConfig[this.type].env.key]
+    const key = settings.key ?? Environment.tryGet(SaxoBankApplicationConfig[this.type].env.key)
 
     if (key === undefined) {
       throw new Error(
@@ -148,7 +148,7 @@ export class SaxoBankApplication implements Disposable {
       )
     }
 
-    const secret = settings.secret ?? Environment[SaxoBankApplicationConfig[this.type].env.secret]
+    const secret = settings.secret ?? Environment.tryGet(SaxoBankApplicationConfig[this.type].env.secret)
 
     if (secret === undefined) {
       throw new Error(
@@ -165,7 +165,7 @@ export class SaxoBankApplication implements Disposable {
         ? settings.redirectURL
         : settings.redirectURL instanceof URL
         ? settings.redirectURL
-        : settings.redirectURL.public) ?? Environment[SaxoBankApplicationConfig[this.type].env.redirectURL]
+        : settings.redirectURL.public) ?? Environment.tryGet(SaxoBankApplicationConfig[this.type].env.redirectURL)
 
     if (redirectURL === undefined) {
       throw new Error(
@@ -185,13 +185,13 @@ export class SaxoBankApplication implements Disposable {
       (settings.redirectURL instanceof URL || typeof settings.redirectURL === 'string'
         ? undefined
         : settings.redirectURL?.listener?.hostname) ??
-        Environment[SaxoBankApplicationConfig[this.type].env.listenerHostname] ?? redirectURL.hostname
+        Environment.tryGet(SaxoBankApplicationConfig[this.type].env.listenerHostname) ?? redirectURL.hostname
 
     const listenerPort = Number.parseInt(
       (settings.redirectURL instanceof URL || typeof settings.redirectURL === 'string'
         ? undefined
         : settings.redirectURL?.listener?.port?.toString()) ??
-        Environment[SaxoBankApplicationConfig[this.type].env.listenerPort] ?? redirectURL.port,
+        Environment.tryGet(SaxoBankApplicationConfig[this.type].env.listenerPort) ?? redirectURL.port,
       10,
     )
 
