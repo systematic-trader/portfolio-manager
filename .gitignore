@@ -53,3 +53,5 @@ public/index.html
 data/
 
 *.pem
+
+/certificates

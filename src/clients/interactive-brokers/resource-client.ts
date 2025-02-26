@@ -1,28 +1,29 @@
 import type { Guard } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import type { JSONReadonlyRecord } from '../../utils/json.ts'
-import { pathJoin } from '../../utils/url.ts'
-import type { InteractiveBrokersClient, SearchParamRecord } from './client.ts'
+import { type JSONReadonlyRecord, stringifyJSON } from '../../utils/json.ts'
+import { urlJoin } from '../../utils/url.ts'
+import type { HTTPClient } from '../http-client.ts'
+import type { SearchParamRecord } from './client-old.ts'
 
 export class InteractiveBrokersResourceClient {
-  #path: string
-  #client: InteractiveBrokersClient
+  readonly #http: HTTPClient
+  readonly #url: URL
 
-  constructor({ path, http }: {
-    readonly path: string
-    readonly http: InteractiveBrokersClient
+  constructor({ url, http }: {
+    readonly url: string | URL
+    readonly http: HTTPClient
   }) {
-    this.#path = path
-    this.#client = http
+    this.#http = http
+    this.#url = new URL(url)
   }
 
   appendPath(path: string): InteractiveBrokersResourceClient {
     return new InteractiveBrokersResourceClient({
-      path: pathJoin(this.#path, path),
-      http: this.#client,
+      http: this.#http,
+      url: urlJoin(this.#url, path),
     })
   }
 
-  get<T = unknown>({ path: subpath, ...options }: {
+  get<T = unknown>(options: {
     readonly guard?: undefined | Guard<T>
     readonly headers?: undefined | Record<string, string>
     readonly path?: undefined | string
@@ -30,11 +31,10 @@ export class InteractiveBrokersResourceClient {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
-    const path = pathJoin(this.#path, subpath)
-    return this.#client.get({ path, ...options })
+    return this.#http.getOkJSON(urlJoin(this.#url, options.path), options)
   }
 
-  post<T = unknown>({ path: subpath, ...options }: {
+  post<T = unknown>(options: {
     readonly body?: JSONReadonlyRecord
     readonly guard?: undefined | Guard<T>
     readonly headers?: undefined | Record<string, string>
@@ -43,13 +43,10 @@ export class InteractiveBrokersResourceClient {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
-    const path = pathJoin(this.#path, subpath)
-
-    return this.#client.post({ path, ...options })
+    return this.#http.postOkJSON(urlJoin(this.#url, options.path), { ...options, body: stringifyJSON(options.body) })
   }
 
-  delete<T = unknown>({ path: subpath, ...options }: {
-    readonly body?: JSONReadonlyRecord
+  delete<T = unknown>(options: {
     readonly guard?: undefined | Guard<T>
     readonly headers?: undefined | Record<string, string>
     readonly path?: undefined | string
@@ -57,8 +54,6 @@ export class InteractiveBrokersResourceClient {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
-    const path = pathJoin(this.#path, subpath)
-
-    return this.#client.delete({ path, ...options })
+    return this.#http.deleteOkJSON(urlJoin(this.#url, options.path), options)
   }
 }
