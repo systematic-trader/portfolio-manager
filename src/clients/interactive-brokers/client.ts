@@ -68,7 +68,7 @@ const CONFIG = {
       privateEncryptionKey: join(Deno.cwd(), 'certificates', 'paper_private_encryption.pem'),
     },
 
-    baseURL: new URL('https://qa.interactivebrokers.com'),
+    baseURL: new URL('https://api.ibkr.com'),
 
     get consumerKey() {
       return Environment.get('IB_PAPER_CONSUMER_KEY')
@@ -137,7 +137,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
         }
       },
       onError: (error) => {
-        // handle session timeout by setting this.#
+        // handle session timeout by calling something not-implemented on #session for re-login
         throw error
       },
     })
@@ -520,7 +520,7 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
     }
 
     if (this.#controller.signal.aborted) {
-      throw new Error('InteractiveBrokersOAuth1a is disposed')
+      throw new Error(`${this.constructor.name} is disposed`)
     }
 
     if (this.#liveSessionPromise === undefined) {
@@ -542,9 +542,9 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
       return this.#disposePromise
     }
 
-    if (this.#error !== undefined) {
-      throw this.#error
-    }
+    // if (this.#error !== undefined) {
+    //   throw this.#error
+    // }
 
     if (this.#controller.signal.aborted) {
       return
@@ -587,7 +587,7 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
         this.#error = ensureError(error)
       }
 
-      throw this.#error
+      // throw this.#error
     }).finally(() => {
       this.#liveSessionPromise = undefined
       this.#ticklePromise = undefined
