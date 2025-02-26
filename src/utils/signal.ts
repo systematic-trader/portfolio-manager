@@ -1,3 +1,5 @@
+export function mergeAbortSignals(signal: AbortSignal, ...signals: ReadonlyArray<undefined | AbortSignal>): AbortSignal
+export function mergeAbortSignals(...signals: ReadonlyArray<undefined | AbortSignal>): undefined | AbortSignal
 export function mergeAbortSignals(...signals: ReadonlyArray<undefined | AbortSignal>): undefined | AbortSignal {
   const definedSignals = signals.filter((signal): signal is AbortSignal => signal !== undefined)
 
