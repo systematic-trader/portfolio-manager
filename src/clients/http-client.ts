@@ -149,23 +149,48 @@ export class HTTPServiceResponseInvalidError extends HTTPServiceError {
 }
 
 export type HTTPClientHeaders = Record<string, undefined | string> | Headers
+export interface HTTPClientHeadersOptions {
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  readonly url: string
+  readonly signal: undefined | AbortSignal
+}
 
 export class HTTPClient {
-  #createHeaders: () => Headers | Promise<Headers>
+  static #client = new HTTPClient()
 
-  constructor({ headers }: {
+  static get = HTTPClient.#client.get.bind(HTTPClient.#client)
+  static getOk = HTTPClient.#client.getOk.bind(HTTPClient.#client)
+  static getOkJSON = HTTPClient.#client.getOkJSON.bind(HTTPClient.#client)
+  static getOkBlob = HTTPClient.#client.getOkBlob.bind(HTTPClient.#client)
+  static getOkText = HTTPClient.#client.getOkText.bind(HTTPClient.#client)
+  static post = HTTPClient.#client.post.bind(HTTPClient.#client)
+  static postOk = HTTPClient.#client.postOk.bind(HTTPClient.#client)
+  static postOkJSON = HTTPClient.#client.postOkJSON.bind(HTTPClient.#client)
+  static patch = HTTPClient.#client.patch.bind(HTTPClient.#client)
+  static patchOk = HTTPClient.#client.patchOk.bind(HTTPClient.#client)
+  static patchOkJSON = HTTPClient.#client.patchOkJSON.bind(HTTPClient.#client)
+  static put = HTTPClient.#client.put.bind(HTTPClient.#client)
+  static putOk = HTTPClient.#client.putOk.bind(HTTPClient.#client)
+  static putOkJSON = HTTPClient.#client.putOkJSON.bind(HTTPClient.#client)
+  static delete = HTTPClient.#client.delete.bind(HTTPClient.#client)
+  static deleteOk = HTTPClient.#client.deleteOk.bind(HTTPClient.#client)
+  static deleteOkJSON = HTTPClient.#client.deleteOkJSON.bind(HTTPClient.#client)
+
+  readonly createHeaders: (options: HTTPClientHeadersOptions) => Promise<Headers>
+  readonly #onError?: HTTPClientOnErrorHandler
+
+  constructor({ headers, onError }: {
     readonly headers?:
       | undefined
       | HTTPClientHeaders
-      | (() => undefined | HTTPClientHeaders | Promise<undefined | HTTPClientHeaders>)
+      | ((options: HTTPClientHeadersOptions) => undefined | HTTPClientHeaders | Promise<undefined | HTTPClientHeaders>)
+    readonly onError?: undefined | HTTPClientOnErrorHandler
   } = {}) {
-    this.#createHeaders = typeof headers === 'function'
-      ? async () => mergeHeaders(new Headers(), await headers())
-      : () => mergeHeaders(new Headers(), headers)
-  }
+    this.createHeaders = typeof headers === 'function'
+      ? async (options: HTTPClientHeadersOptions) => mergeHeaders(new Headers(), await headers(options))
+      : () => Promise.resolve(mergeHeaders(new Headers(), headers))
 
-  async loadHeaders(): Promise<Headers> {
-    return await this.#createHeaders()
+    this.#onError = onError
   }
 
   async get(
@@ -174,7 +199,7 @@ export class HTTPClient {
       headers,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
@@ -197,7 +222,7 @@ export class HTTPClient {
       headers,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
@@ -222,7 +247,7 @@ export class HTTPClient {
       coerce,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly guard?: undefined | Guard<T>
       readonly headers?: undefined | HTTPClientHeaders
@@ -267,7 +292,7 @@ export class HTTPClient {
       headers,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
@@ -292,7 +317,7 @@ export class HTTPClient {
       headers,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly guard?: undefined | Guard<string>
       readonly headers?: undefined | HTTPClientHeaders
@@ -330,14 +355,14 @@ export class HTTPClient {
       body,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly body?: RequestInit['body']
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
       readonly onError?: undefined | HTTPClientOnErrorHandler
-    },
+    } = {},
   ): Promise<Response> {
     return await fetchResponse(this, url, {
       method: 'POST',
@@ -356,7 +381,7 @@ export class HTTPClient {
       body,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly body?: RequestInit['body']
@@ -384,7 +409,7 @@ export class HTTPClient {
       coerce,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly guard?: undefined | Guard<T>
       readonly headers?: undefined | HTTPClientHeaders
@@ -439,14 +464,14 @@ export class HTTPClient {
       body,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly body?: RequestInit['body']
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
       readonly onError?: undefined | HTTPClientOnErrorHandler
-    },
+    } = {},
   ): Promise<Response> {
     return await fetchResponse(this, url, {
       method: 'PATCH',
@@ -465,7 +490,7 @@ export class HTTPClient {
       body,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly body?: RequestInit['body']
@@ -493,7 +518,7 @@ export class HTTPClient {
       coerce,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly guard?: undefined | Guard<T>
       readonly headers?: undefined | HTTPClientHeaders
@@ -548,14 +573,14 @@ export class HTTPClient {
       body,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly body?: RequestInit['body']
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
       readonly onError?: undefined | HTTPClientOnErrorHandler
-    },
+    } = {},
   ): Promise<Response> {
     return await fetchResponse(this, url, {
       method: 'PUT',
@@ -574,7 +599,7 @@ export class HTTPClient {
       body,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly body?: RequestInit['body']
@@ -602,7 +627,7 @@ export class HTTPClient {
       coerce,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly guard?: undefined | Guard<T>
       readonly headers?: undefined | HTTPClientHeaders
@@ -656,7 +681,7 @@ export class HTTPClient {
       headers,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
@@ -679,7 +704,7 @@ export class HTTPClient {
       headers,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
@@ -704,7 +729,7 @@ export class HTTPClient {
       coerce,
       signal,
       timeout,
-      onError,
+      onError = this.#onError,
     }: {
       readonly guard?: undefined | Guard<T>
       readonly headers?: undefined | HTTPClientHeaders
@@ -770,6 +795,14 @@ function mergeHeaders(
     }
   }
 
+  for (const [key, value] of resultHeaders.entries()) {
+    if (value.length === 0) {
+      resultHeaders.delete(key)
+    } else {
+      resultHeaders.set(key, value)
+    }
+  }
+
   return resultHeaders
 }
 
@@ -810,7 +843,14 @@ async function fetchResponse(client: HTTPClient, url: string | URL, options: {
       throw new HTTPClientRequestAbortError(options.method, url.toString())
     }
 
-    const readyHeaders = mergeHeaders(await client.loadHeaders(), headers)
+    const readyHeaders = mergeHeaders(
+      await client.createHeaders({
+        method: options.method,
+        url: new URL(url).href,
+        signal,
+      }),
+      headers,
+    )
 
     const response = await fetch(url, {
       method,
