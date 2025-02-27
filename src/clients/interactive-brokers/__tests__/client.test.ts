@@ -28,7 +28,7 @@ const CONTRACTS = {
 }
 
 describe(InteractiveBrokersClient.name, () => {
-  test.only('Getting brokerage session status', async () => {
+  test('Getting brokerage session status', async () => {
     // Response ser ud til at ændre sig periodisk
     // Jeg har bare ændret den til "undefined" mens jeg tester
 
