@@ -34,7 +34,10 @@ export class InteractiveBrokersResourceClient {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
-    return this.#http.getOkJSON(createFullURL(this.#url, options.path, options.searchParams), options)
+    return this.#http.getOkJSON(
+      createFullURL(this.#url, options.path, options.searchParams),
+      { ...options, coerce: sanitize },
+    )
   }
 
   post<T = unknown>(options: {
@@ -49,6 +52,7 @@ export class InteractiveBrokersResourceClient {
     return this.#http.postOkJSON(createFullURL(this.#url, options.path, options.searchParams), {
       ...options,
       body: stringifyJSON(options.body),
+      coerce: sanitize,
     })
   }
 
@@ -60,7 +64,10 @@ export class InteractiveBrokersResourceClient {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
-    return this.#http.deleteOkJSON(createFullURL(this.#url, options.path, options.searchParams), options)
+    return this.#http.deleteOkJSON(createFullURL(this.#url, options.path, options.searchParams), {
+      ...options,
+      coerce: sanitize,
+    })
   }
 }
 
@@ -82,4 +89,83 @@ function createFullURL(baseURL: URL, path: undefined | string, searchParams: und
   }
 
   return url
+}
+
+/**
+ * This function sanitizes the data and removes the garbage.
+ */
+function sanitize(value: unknown): unknown {
+  switch (typeof value) {
+    case 'object': {
+      if (value === null) {
+        return undefined
+      }
+
+      if (Array.isArray(value)) {
+        const arrayValue = value.reduce((accumulation, item) => {
+          const sanitizedItem = sanitize(item)
+
+          if (sanitizedItem !== undefined) {
+            accumulation.push(sanitizedItem)
+          }
+
+          return accumulation
+        }, [])
+
+        return arrayValue.length > 0 ? arrayValue : undefined
+      }
+
+      const record = value as Record<string, unknown>
+
+      const sanitizedRecord = {} as Record<string, unknown>
+
+      let hasDefinedProperty = false
+
+      const propertyKeys = Object.keys(record).sort()
+
+      for (const propertyKey of propertyKeys) {
+        const propertyValue = record[propertyKey]
+
+        const sanitizedValue = sanitize(propertyValue)
+
+        if (sanitizedValue !== undefined) {
+          hasDefinedProperty = true
+          sanitizedRecord[propertyKey] = sanitizedValue
+        }
+      }
+
+      return hasDefinedProperty ? sanitizedRecord : undefined
+    }
+
+    case 'string': {
+      let trimmedValue = value.trim()
+
+      if (
+        trimmedValue.length > 1 &&
+        trimmedValue.at(-1) === '.' &&
+        trimmedValue.at(-2) === ' '
+      ) {
+        // remove whitespaces preceeding the dot, but keep the dot
+        trimmedValue = trimmedValue.replace(/\s*\.$/, '.')
+      }
+
+      if (trimmedValue === '') {
+        return undefined
+      }
+
+      if (trimmedValue === '.') {
+        return undefined
+      }
+
+      if (trimmedValue === 'Undefined') {
+        return undefined
+      }
+
+      return trimmedValue
+    }
+
+    default: {
+      return value
+    }
+  }
 }
