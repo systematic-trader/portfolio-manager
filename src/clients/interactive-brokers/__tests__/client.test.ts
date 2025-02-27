@@ -39,6 +39,13 @@ describe(InteractiveBrokersClient.name, () => {
     debug(status)
   })
 
+  test('Getting accountds', async () => {
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+    const accounts = await client.iserver.accounts.get()
+    debug(accounts)
+  })
+
   test('Getting information about exchanges', () => {
     // Det ser ud til, at der ikke er et endpoint specifikt til at hente oplysninger om en børs
     // Jeg skrev til deres support api@interactivebrokers.com og spurgte
