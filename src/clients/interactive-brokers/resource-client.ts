@@ -2,7 +2,10 @@ import type { Guard } from 'https://raw.githubusercontent.com/systematic-trader/
 import { type JSONReadonlyRecord, stringifyJSON } from '../../utils/json.ts'
 import { urlJoin } from '../../utils/url.ts'
 import type { HTTPClient } from '../http-client.ts'
-import type { SearchParamRecord } from './client-old.ts'
+
+export type SearchParamValue = undefined | boolean | number | string | ReadonlyArray<number | string | boolean>
+
+export type SearchParamRecord = Record<string, SearchParamValue>
 
 export class InteractiveBrokersResourceClient {
   readonly #http: HTTPClient
@@ -31,7 +34,7 @@ export class InteractiveBrokersResourceClient {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
-    return this.#http.getOkJSON(urlJoin(this.#url, options.path), options)
+    return this.#http.getOkJSON(createFullURL(this.#url, options.path, options.searchParams), options)
   }
 
   post<T = unknown>(options: {
@@ -43,7 +46,10 @@ export class InteractiveBrokersResourceClient {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
-    return this.#http.postOkJSON(urlJoin(this.#url, options.path), { ...options, body: stringifyJSON(options.body) })
+    return this.#http.postOkJSON(createFullURL(this.#url, options.path, options.searchParams), {
+      ...options,
+      body: stringifyJSON(options.body),
+    })
   }
 
   delete<T = unknown>(options: {
@@ -54,6 +60,26 @@ export class InteractiveBrokersResourceClient {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<T> {
-    return this.#http.deleteOkJSON(urlJoin(this.#url, options.path), options)
+    return this.#http.deleteOkJSON(createFullURL(this.#url, options.path, options.searchParams), options)
   }
+}
+
+function createFullURL(baseURL: URL, path: undefined | string, searchParams: undefined | SearchParamRecord): URL {
+  const url = urlJoin(baseURL, path)
+
+  if (searchParams !== undefined) {
+    const params = new URLSearchParams()
+
+    for (const key in searchParams) {
+      const value = searchParams[key]
+
+      if (value !== undefined) {
+        params.append(key, String(value))
+      }
+    }
+
+    url.search = params.toString()
+  }
+
+  return url
 }
