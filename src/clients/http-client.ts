@@ -19,8 +19,10 @@ const debug = {
 
 function assertReturnBody<T>(
   guard: Guard<T>,
-  headers: Record<string, string>,
   body: unknown,
+  method: HTTPServiceResponseInvalidError['method'],
+  href: HTTPServiceResponseInvalidError['href'],
+  headers: HTTPServiceResponseInvalidError['headers'],
   statusCode: HTTPServiceResponseInvalidError['statusCode'],
   statusText: HTTPServiceResponseInvalidError['statusText'],
 ): T {
@@ -30,6 +32,8 @@ function assertReturnBody<T>(
     if (error instanceof AssertionError) {
       throw new HTTPServiceResponseInvalidError(
         error.message,
+        method,
+        href,
         statusCode,
         statusText,
         headers,
@@ -106,16 +110,20 @@ export class HTTPClientRequestAbortError extends Error {
 }
 
 export class HTTPServiceError extends HTTPError {
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  readonly href: string
   readonly headers: Record<string, string>
   readonly body: unknown
 
   constructor(
+    method: HTTPServiceError['method'],
+    href: HTTPServiceError['href'],
     statusCode: HTTPServiceError['statusCode'],
     statusText: HTTPServiceError['statusText'],
     headers: HTTPServiceError['headers'],
     body: HTTPServiceError['body'],
   ) {
-    let message = `${statusCode} ${statusText}\n${stringifyJSON(headers, undefined, 2)}`
+    let message = `${statusCode} ${statusText} - ${method} ${href}\n${stringifyJSON(headers, undefined, 2)}`
 
     if (typeof body === 'string') {
       message = `${message}\n${body}`
@@ -126,6 +134,8 @@ export class HTTPServiceError extends HTTPError {
     }
 
     super(message, statusCode, statusText)
+    this.method = method
+    this.href = href
     this.body = body
     this.headers = headers
   }
@@ -136,15 +146,17 @@ export class HTTPServiceResponseInvalidError extends HTTPServiceError {
 
   constructor(
     message: string,
+    method: HTTPServiceResponseInvalidError['method'],
+    href: HTTPServiceResponseInvalidError['href'],
     statusCode: HTTPServiceResponseInvalidError['statusCode'],
     statusText: HTTPServiceResponseInvalidError['statusText'],
     headers: HTTPServiceResponseInvalidError['headers'],
     body: HTTPServiceResponseInvalidError['body'],
     invalidations: HTTPServiceResponseInvalidError['invalidations'],
   ) {
-    super(statusCode, statusText, headers, body)
+    super(method, href, statusCode, statusText, headers, body)
     this.invalidations = invalidations
-    this.message = message
+    this.message = `${this.message}\n${message}`
   }
 }
 
@@ -276,8 +288,10 @@ export class HTTPClient {
     if (guard !== undefined) {
       return assertReturnBody(
         guard,
-        Object.fromEntries(response.headers),
         body,
+        'GET',
+        url instanceof URL ? url.href : url,
+        Object.fromEntries(response.headers),
         response.status,
         response.statusText,
       )
@@ -338,8 +352,10 @@ export class HTTPClient {
     if (guard !== undefined) {
       return assertReturnBody(
         guard,
-        Object.fromEntries(response.headers),
         text,
+        'GET',
+        url instanceof URL ? url.href : url,
+        Object.fromEntries(response.headers),
         response.status,
         response.statusText,
       )
@@ -447,8 +463,10 @@ export class HTTPClient {
     if (guard !== undefined) {
       return assertReturnBody(
         guard,
-        Object.fromEntries(response.headers),
         responseBody,
+        'POST',
+        url instanceof URL ? url.href : url,
+        Object.fromEntries(response.headers),
         response.status,
         response.statusText,
       )
@@ -556,8 +574,10 @@ export class HTTPClient {
     if (guard !== undefined) {
       return assertReturnBody(
         guard,
-        Object.fromEntries(response.headers),
         responseBody,
+        'PATCH',
+        url instanceof URL ? url.href : url,
+        Object.fromEntries(response.headers),
         response.status,
         response.statusText,
       )
@@ -665,8 +685,10 @@ export class HTTPClient {
     if (guard !== undefined) {
       return assertReturnBody(
         guard,
-        Object.fromEntries(response.headers),
         responseBody,
+        'PUT',
+        url instanceof URL ? url.href : url,
+        Object.fromEntries(response.headers),
         response.status,
         response.statusText,
       )
@@ -762,8 +784,10 @@ export class HTTPClient {
     if (guard !== undefined) {
       return assertReturnBody(
         guard,
-        Object.fromEntries(response.headers),
         responseBody,
+        'DELETE',
+        url instanceof URL ? url.href : url,
+        Object.fromEntries(response.headers),
         response.status,
         response.statusText,
       )
@@ -930,7 +954,14 @@ async function fetchOkResponse(client: HTTPClient, url: string | URL, options: {
         : await response.text()
 
       if (response.status >= 500) {
-        throw new HTTPServiceError(response.status, response.statusText, responseHeaders, body)
+        throw new HTTPServiceError(
+          method,
+          url instanceof URL ? url.href : url,
+          response.status,
+          response.statusText,
+          responseHeaders,
+          body,
+        )
       }
 
       throw new HTTPClientError(
