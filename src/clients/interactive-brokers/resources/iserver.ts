@@ -6,6 +6,7 @@ import { Contract } from './iserver/contract.ts'
 import { Currency } from './iserver/currency.ts'
 import { ExchangeRate } from './iserver/exchange-rate.ts'
 import { MarketData } from './iserver/market-data.ts'
+import { Questions } from './iserver/questions.ts'
 import { Secdef } from './iserver/secdef.ts'
 
 export class Iserver {
@@ -19,6 +20,7 @@ export class Iserver {
   readonly exchangeRate: ExchangeRate
   readonly marketData: MarketData
   readonly secdef: Secdef
+  readonly questions: Questions
 
   constructor(client: InteractiveBrokersResourceClient) {
     this.#client = client.appendPath('iserver')
@@ -31,5 +33,6 @@ export class Iserver {
     this.exchangeRate = new ExchangeRate(this.#client)
     this.marketData = new MarketData(this.#client)
     this.secdef = new Secdef(this.#client)
+    this.questions = new Questions(this.#client)
   }
 }
