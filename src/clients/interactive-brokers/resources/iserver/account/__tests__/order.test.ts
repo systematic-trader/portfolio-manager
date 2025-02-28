@@ -33,6 +33,7 @@ describe('iserver/account/order', () => {
       const contractId = CONTRACTS['EUR.DKK']
 
       // todo check if we have enough funds in too do actually do this test
+      // todo make a test showing what happens when we're converting from something we don't have
 
       const toEURResponse = await client.iserver.account.orders.post({
         accountId,
