@@ -16,24 +16,6 @@ import type { InteractiveBrokersResourceClient } from '../../../resource-client.
 import type { ExchangeCode } from '../../../types/derived/exchange-code.ts'
 import { OrderStatus } from '../../../types/derived/order-status.ts'
 
-const ResponseOrderPlacedElement = props({
-  order_id: string(),
-  local_order_id: string(), // will correspond to the cOID
-  order_status: OrderStatus,
-  encrypt_message: literal('1'),
-})
-
-const ResponseConfirmationRequiredElement = props({
-  id: string(),
-  message: array(string()),
-  isSuppressed: boolean(),
-  messageIds: array(string()),
-})
-
-const ResponseError = props({
-  error: string(),
-}, { extendable: true })
-
 // #region Get Orders
 // Filtering by other order statuses is will return a http 500 error (internal server error)
 type OrderStatusFilter = Extract<
@@ -288,6 +270,24 @@ type ParametersByTimeInForce =
   | ParametersByTimeInForceGoodTilDate
   | ParametersByTimeInForceFillOrKill
 // #endregion
+
+const ResponseOrderPlacedElement = props({
+  order_id: string(),
+  local_order_id: string(), // will correspond to the cOID
+  order_status: OrderStatus,
+  encrypt_message: literal('1'),
+})
+
+const ResponseConfirmationRequiredElement = props({
+  id: string(),
+  message: array(string()),
+  isSuppressed: boolean(),
+  messageIds: array(string()),
+})
+
+const ResponseError = props({
+  error: string(),
+}, { extendable: true })
 
 // #region Method 1: Currency conversion order
 export type PlaceOrderParametersCurrencyConversion = {
