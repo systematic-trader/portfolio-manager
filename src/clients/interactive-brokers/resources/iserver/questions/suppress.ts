@@ -1,6 +1,9 @@
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
 import { SuppressQuestionsResponse } from '../../../types/record/suppres-questions-response.ts'
-import type { SuppressibleMessageIds } from '../../../types/record/suppressible-message-ids.ts'
+import {
+  type SuppressibleMessageIds,
+  SuppressibleMessageIdValues,
+} from '../../../types/record/suppressible-message-ids.ts'
 import { Reset } from './suppress/reset.ts'
 
 export class Suppress {
@@ -17,9 +20,9 @@ export class Suppress {
   /**
    * Suppress the specified order reply messages for the duration of the brokerage session.
    */
-  async post({ messageIds }: {
-    readonly messageIds: SuppressibleMessageIds | readonly SuppressibleMessageIds[]
-  }, { signal, timeout }: {
+  async post({ messageIds = SuppressibleMessageIdValues }: {
+    readonly messageIds?: undefined | SuppressibleMessageIds | readonly SuppressibleMessageIds[]
+  } = {}, { signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<SuppressQuestionsResponse> {
