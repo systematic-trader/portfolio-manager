@@ -3,7 +3,7 @@ import { Environment } from '../../../../../../utils/environment.ts'
 import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { Timeout } from '../../../../../../utils/timeout.ts'
 import { InteractiveBrokersClient, type InteractiveBrokersClientOptions } from '../../../../client.ts'
-import type { PlaceOrderParametersSingle } from '../orders.ts'
+import type { OrderPlacementParametersSingle } from '../orders.ts'
 
 const debug = Debug('test')
 
@@ -15,6 +15,7 @@ const CONTRACTS = {
   'TSLA': 76792991,
   'NOVO.B': 652806383,
   'ES@20270617': 649180661, // 17/06/2027
+  'EUR.DKK': 39394687, // todo this naming seems off
 }
 
 // todo remove this, when it's implemented into the client
@@ -24,6 +25,55 @@ async function prepareClient(client: InteractiveBrokersClient<InteractiveBrokers
 }
 
 describe('iserver/account/order', () => {
+  describe('currency conversion', () => {
+    test('DKK -> EUR -> DKK', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+      await prepareClient(client)
+
+      const contractId = CONTRACTS['EUR.DKK']
+
+      // todo check if we have enough funds in too do actually do this test
+
+      const toEURResponse = await client.iserver.account.orders.post({
+        accountId,
+        orders: [{
+          isCcyConv: true,
+          acctId: accountId,
+          orderType: 'MKT',
+          side: 'BUY',
+          cOID: `test-order-${Math.random()}`,
+          conidex: `${contractId}@SMART`,
+          fxQty: 500, // in dkk
+          manualIndicator: false,
+          tif: 'DAY',
+        }],
+      })
+
+      debug('dkk -> eur response', toEURResponse)
+      expect(toEURResponse).toBeDefined()
+
+      await Timeout.wait(5000)
+
+      const toDKKResponse = await client.iserver.account.orders.post({
+        accountId,
+        orders: [{
+          isCcyConv: true,
+          acctId: accountId,
+          orderType: 'MKT',
+          side: 'SELL',
+          cOID: `test-order-${Math.random()}`,
+          conidex: `${contractId}@SMART`,
+          fxQty: 450, // still in dkk (a bit less to account for 2 USD in conversion fees - which will be deduced in the account base currency)
+          manualIndicator: false,
+          tif: 'DAY',
+        }],
+      })
+
+      debug('eur -> dkk response', toDKKResponse)
+      expect(toDKKResponse).toBeDefined()
+    })
+  })
+
   describe('placing single entry order', () => {
     test('limit', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
@@ -45,7 +95,7 @@ describe('iserver/account/order', () => {
             quantity: 1,
             cOID: `test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('response', response)
@@ -72,7 +122,7 @@ describe('iserver/account/order', () => {
             quantity: 1,
             cOID: `test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('response', response)
@@ -99,7 +149,7 @@ describe('iserver/account/order', () => {
             outsideRth: true,
             cOID: `test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('response', response)
@@ -125,7 +175,7 @@ describe('iserver/account/order', () => {
             quantity: 1,
             cOID: `test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('response', response)
@@ -152,7 +202,7 @@ describe('iserver/account/order', () => {
             quantity: 1,
             cOID: `test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('response', response)
@@ -179,7 +229,7 @@ describe('iserver/account/order', () => {
             quantity: 1,
             cOID: `test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('response', response)
@@ -208,7 +258,7 @@ describe('iserver/account/order', () => {
             quantity: 1,
             cOID: `test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('response', response)
@@ -237,7 +287,7 @@ describe('iserver/account/order', () => {
             quantity: 1,
             cOID: `test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('response', response)
@@ -268,7 +318,7 @@ describe('iserver/account/order', () => {
             quantity: 1,
             cOID: `test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('response', response)
@@ -297,7 +347,7 @@ describe('iserver/account/order', () => {
             outsideRth: true,
             cOID: `entry-test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('entry response', entryResponse)
@@ -320,7 +370,7 @@ describe('iserver/account/order', () => {
             outsideRth: true,
             cOID: `exit-test-order-${Math.random()}`,
           }],
-        } satisfies PlaceOrderParametersSingle,
+        } satisfies OrderPlacementParametersSingle,
       )
 
       debug('exit response', exitResponse)

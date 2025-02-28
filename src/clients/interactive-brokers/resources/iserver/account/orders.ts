@@ -52,7 +52,6 @@ interface StaticParameters {
   readonly outsideRth?: undefined | boolean
   readonly quantity: number
   readonly side: 'BUY' | 'SELL'
-  readonly tif: 'GTC' | 'OPG' | 'DAY' | 'IOC' | 'PAX' // todo "PAX" is for crypto only - we probably have other fields we need to specify for time in force
 
   // readonly parentId?: undefined | string // todo only required for bracket orders
   // readonly isSingleGroup?: undefined | boolean // todo what does this do?
@@ -271,56 +270,69 @@ type ParametersByTimeInForce =
   | ParametersByTimeInForceFillOrKill
 // #endregion
 
-const ResponseOrderPlacedElement = props({
-  order_id: string(),
-  local_order_id: string(), // will correspond to the cOID
-  order_status: OrderStatus,
+export const OrderPlacementResponseSuccessElement = props({
   encrypt_message: literal('1'),
+  local_order_id: string(), // will correspond to the cOID
+  order_id: string(),
+  order_status: OrderStatus,
+
+  // Seems to be specified when the order has been submitted, but there are some warnings that should be taken into account
+  // For instance, when converting currency:
+  // > Order Message:
+  // > BUY 500 DKK EUR.DKK Forex
+  // > Warning: Your order size is below the EUR 20000 IdealPro minimum and will be routed as an odd lot order.
+  text: optional(string()),
+  warning_message: optional(string()),
 })
 
-const ResponseConfirmationRequiredElement = props({
+export interface OrderPlacementResponseSuccessElement extends GuardType<typeof OrderPlacementResponseSuccessElement> {}
+
+export const OrderPlacementResponseConfirmationRequiredElement = props({
   id: string(),
   message: array(string()),
   isSuppressed: boolean(),
   messageIds: array(string()),
 })
 
-const ResponseError = props({
+export interface OrderPlacementResponseConfirmationRequiredElement
+  extends GuardType<typeof OrderPlacementResponseConfirmationRequiredElement> {}
+
+export const OrderPlacementResponseError = props({
   error: string(),
 }, { extendable: true })
 
+export interface OrderPlacementResponseError extends GuardType<typeof OrderPlacementResponseError> {}
+
 // #region Method 1: Currency conversion order
-export type PlaceOrderParametersCurrencyConversion = {
+export type OrderPlacementParametersCurrencyConversion = {
   readonly accountId: string
   readonly orders: readonly [
     Omit<StaticParameters, 'quantity'> & ParametersByOrderTypeMarket & ParametersByTimeInForce & {
       readonly isCcyConv: true
       readonly fxQty: number
-      readonly side: 'BUY'
     },
   ]
 }
 
-// todo tuple response?
 export const PlaceOrderResponseCurrencyConversion = union([
-  ResponseOrderPlacedElement,
-  ResponseConfirmationRequiredElement,
-  ResponseError,
+  tuple([OrderPlacementResponseSuccessElement]),
+  // tuple([ResponseConfirmationRequiredElement]), // todo this might not be needed
+  OrderPlacementResponseError,
 ])
 
 export type ResponseCurrencyConversion = GuardType<typeof PlaceOrderResponseCurrencyConversion>
 // #endregion
 
 // #region Method 2: Single order (without any related orders)
-export type PlaceOrderParametersSingle = {
+export type OrderPlacementParametersSingle = {
   readonly accountId: string
   readonly orders: readonly [StaticParameters & ParametersByOrderType & ParametersByTimeInForce]
 }
 
 export const PlaceOrderResponseSingle = union([
-  tuple([ResponseOrderPlacedElement]),
-  tuple([ResponseConfirmationRequiredElement]),
-  ResponseError,
+  tuple([OrderPlacementResponseSuccessElement]),
+  // tuple([ResponseConfirmationRequiredElement]), // todo this might not be needed
+  OrderPlacementResponseError,
 ])
 
 export type PlaceOrderResponseSingle = GuardType<typeof PlaceOrderResponseSingle>
@@ -391,7 +403,7 @@ export class Orders {
    * Currency conversion order
    */
   async post(
-    parameters: PlaceOrderParametersCurrencyConversion,
+    parameters: OrderPlacementParametersCurrencyConversion,
     options?: { readonly timeout?: undefined | number },
   ): Promise<ResponseCurrencyConversion>
 
@@ -400,7 +412,7 @@ export class Orders {
    * Single order (without any related orders)
    */
   async post(
-    parameters: PlaceOrderParametersSingle,
+    parameters: OrderPlacementParametersSingle,
     options?: { readonly timeout?: undefined | number },
   ): Promise<PlaceOrderResponseSingle>
 
@@ -408,7 +420,7 @@ export class Orders {
    * Submit a new order(s) ticket, bracket, or OCA group.
    */
   async post(
-    { accountId, orders }: PlaceOrderParametersCurrencyConversion | PlaceOrderParametersSingle,
+    { accountId, orders }: OrderPlacementParametersCurrencyConversion | OrderPlacementParametersSingle,
     { signal, timeout }: {
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
