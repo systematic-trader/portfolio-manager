@@ -17,37 +17,32 @@ const debug = {
   DELETE: Debug('http-client:delete'),
 }
 
-function assertReturnBody<T>(
-  guard: Guard<T>,
-  body: unknown,
-  method: HTTPServiceResponseInvalidError['method'],
-  href: HTTPServiceResponseInvalidError['href'],
-  headers: HTTPServiceResponseInvalidError['headers'],
-  statusCode: HTTPServiceResponseInvalidError['statusCode'],
-  statusText: HTTPServiceResponseInvalidError['statusText'],
-): T {
-  try {
-    return assertReturn(guard, body)
-  } catch (error) {
-    if (error instanceof AssertionError) {
-      throw new HTTPServiceResponseInvalidError(
-        error.message,
-        method,
-        href,
-        statusCode,
-        statusText,
-        headers,
-        body,
-        error.invalidations,
-      )
-    }
-
-    throw error
-  }
+type Writable<T> = {
+  -readonly [K in keyof T]: T[K]
 }
 
-export interface HTTPClientOnErrorHandler {
-  (error: Error, retries: number): void | Promise<void>
+export interface HTTPClientRequest {
+  readonly url: URL
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  readonly headers: Headers
+  readonly body: undefined | RequestInit['body']
+  readonly signal: undefined | AbortSignal
+}
+
+export interface HTTPClientOnErrorCallback {
+  (
+    { request, error, retries }: {
+      readonly request: HTTPClientRequest
+      readonly error: Error
+      readonly retries: number
+    },
+  ): void | Promise<void>
+}
+
+export interface HTTPClientHeadersCallback {
+  (
+    { request }: { readonly request: HTTPClientRequest },
+  ): undefined | HTTPClientHeaders | Promise<undefined | HTTPClientHeaders>
 }
 
 export abstract class HTTPError extends Error {
@@ -141,7 +136,11 @@ export class HTTPServiceError extends HTTPError {
   }
 }
 
-export class HTTPServiceResponseInvalidError extends HTTPServiceError {
+export class HTTPServiceResponseInvalidError extends HTTPError {
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  readonly href: string
+  readonly headers: Record<string, string>
+  readonly body: unknown
   readonly invalidations: readonly unknown[]
 
   constructor(
@@ -154,18 +153,29 @@ export class HTTPServiceResponseInvalidError extends HTTPServiceError {
     body: HTTPServiceResponseInvalidError['body'],
     invalidations: HTTPServiceResponseInvalidError['invalidations'],
   ) {
-    super(method, href, statusCode, statusText, headers, body)
+    let prepend = `${statusCode} ${statusText} - ${method} ${href}\n${stringifyJSON(headers, undefined, 2)}`
+
+    if (typeof body === 'string') {
+      prepend = `${prepend}\n${body}`
+    }
+
+    if (typeof body === 'object' && body !== null) {
+      prepend = `${prepend}\n${stringifyJSON(body, undefined, 2)}`
+    }
+
+    super(`${prepend}\n${message}`, statusCode, statusText)
+    this.method = method
+    this.href = href
+    this.body = body
+    this.headers = headers
     this.invalidations = invalidations
-    this.message = `${this.message}\n${message}`
   }
 }
 
-export type HTTPClientHeaders = Record<string, undefined | string> | Headers
-export interface HTTPClientHeadersOptions {
-  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  readonly url: string
-  readonly signal: undefined | AbortSignal
-}
+export type HTTPClientHeaders =
+  | Record<string, undefined | null | string>
+  | Headers
+  | ReadonlyArray<readonly [string, undefined | null | string]>
 
 export class HTTPClient {
   static #client = new HTTPClient()
@@ -188,19 +198,76 @@ export class HTTPClient {
   static deleteOk = HTTPClient.#client.deleteOk.bind(HTTPClient.#client)
   static deleteOkJSON = HTTPClient.#client.deleteOkJSON.bind(HTTPClient.#client)
 
-  readonly createHeaders: (options: HTTPClientHeadersOptions) => Promise<Headers>
-  readonly #onError?: HTTPClientOnErrorHandler
+  static createHeaders(headers: undefined | HTTPClientHeaders): Headers {
+    return this.joinHeaders(headers)
+  }
+
+  static joinHeaders(
+    first: undefined | HTTPClientHeaders,
+    ...rest: ReadonlyArray<undefined | HTTPClientHeaders>
+  ): Headers {
+    const resultHeaders = new Headers()
+
+    if (first instanceof Headers) {
+      for (const [key, value] of first.entries()) {
+        if (value.length !== 0) {
+          resultHeaders.set(key, value)
+        }
+      }
+    } else if (first instanceof Array) {
+      for (const [key, value] of first) {
+        if (typeof value === 'string' && value.length !== 0) {
+          resultHeaders.set(key, value)
+        }
+      }
+    } else if (first !== undefined) {
+      for (const [key, value] of Object.entries(first)) {
+        if (typeof value === 'string' && value.length !== 0) {
+          resultHeaders.set(key, value)
+        }
+      }
+    }
+
+    for (const headers of rest) {
+      if (headers !== undefined) {
+        if (headers instanceof Headers) {
+          for (const [key, value] of headers.entries()) {
+            if (value.length !== 0) {
+              resultHeaders.set(key, value)
+            }
+          }
+        } else if (headers instanceof Array) {
+          for (const [key, value] of headers) {
+            if (typeof value === 'string' && value.length !== 0) {
+              resultHeaders.set(key, value)
+            }
+          }
+        } else {
+          for (const [key, value] of Object.entries(headers)) {
+            if (typeof value === 'string' && value.length !== 0) {
+              resultHeaders.set(key, value)
+            }
+          }
+        }
+      }
+    }
+
+    return resultHeaders
+  }
+
+  readonly headersCallback: HTTPClientHeadersCallback
+  readonly #onError?: HTTPClientOnErrorCallback
 
   constructor({ headers, onError }: {
     readonly headers?:
       | undefined
       | HTTPClientHeaders
-      | ((options: HTTPClientHeadersOptions) => undefined | HTTPClientHeaders | Promise<undefined | HTTPClientHeaders>)
-    readonly onError?: undefined | HTTPClientOnErrorHandler
+      | HTTPClientHeadersCallback
+    readonly onError?: undefined | HTTPClientOnErrorCallback
   } = {}) {
-    this.createHeaders = typeof headers === 'function'
-      ? async (options: HTTPClientHeadersOptions) => mergeHeaders(new Headers(), await headers(options))
-      : () => Promise.resolve(mergeHeaders(new Headers(), headers))
+    this.headersCallback = typeof headers === 'function'
+      ? headers
+      : ({ request }) => HTTPClient.joinHeaders(headers, request.headers)
 
     this.#onError = onError
   }
@@ -216,15 +283,16 @@ export class HTTPClient {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchResponse(this, url, {
+    return await executeRequest(url, {
       method: 'GET',
       headers,
       signal,
       timeout,
       onError,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -239,15 +307,17 @@ export class HTTPClient {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchOkResponse(this, url, {
+    return await executeRequest(url, {
       method: 'GET',
       headers,
       signal,
       timeout,
       onError,
+      onlyOk: true,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -266,11 +336,11 @@ export class HTTPClient {
       readonly coerce?: undefined | ((body: unknown) => unknown)
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<T> {
     const response = await this.getOk(url, {
-      headers: mergeHeaders(
+      headers: HTTPClient.joinHeaders(
         { 'accept': 'application/json' },
         headers,
       ),
@@ -286,7 +356,7 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(
+      return assertResponseBody(
         guard,
         body,
         'GET',
@@ -311,7 +381,7 @@ export class HTTPClient {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Blob> {
     const response = await this.getOk(url, {
@@ -337,7 +407,7 @@ export class HTTPClient {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<string> {
     const response = await this.getOk(url, {
@@ -350,7 +420,7 @@ export class HTTPClient {
     const text = await response.text()
 
     if (guard !== undefined) {
-      return assertReturnBody(
+      return assertResponseBody(
         guard,
         text,
         'GET',
@@ -377,16 +447,17 @@ export class HTTPClient {
       readonly body?: RequestInit['body']
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchResponse(this, url, {
+    return await executeRequest(url, {
       method: 'POST',
       headers,
       signal,
       timeout,
       onError,
       body,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -403,16 +474,18 @@ export class HTTPClient {
       readonly body?: RequestInit['body']
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchOkResponse(this, url, {
+    return await executeRequest(url, {
       method: 'POST',
       headers,
       signal,
       timeout,
       onError,
       body,
+      onlyOk: true,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -433,11 +506,11 @@ export class HTTPClient {
       readonly coerce?: undefined | ((body: unknown) => unknown)
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<T> {
     const response = await this.postOk(url, {
-      headers: mergeHeaders(
+      headers: HTTPClient.joinHeaders(
         {
           'accept': 'application/json',
           'content-type': 'application/json; charset=utf-8',
@@ -461,7 +534,7 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(
+      return assertResponseBody(
         guard,
         responseBody,
         'POST',
@@ -488,16 +561,17 @@ export class HTTPClient {
       readonly body?: RequestInit['body']
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchResponse(this, url, {
+    return await executeRequest(url, {
       method: 'PATCH',
       headers,
       signal,
       timeout,
       onError,
       body,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -514,16 +588,18 @@ export class HTTPClient {
       readonly body?: RequestInit['body']
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchOkResponse(this, url, {
+    return await executeRequest(url, {
       method: 'PATCH',
       headers,
       signal,
       timeout,
       onError,
       body,
+      onlyOk: true,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -544,11 +620,11 @@ export class HTTPClient {
       readonly coerce?: undefined | ((body: unknown) => unknown)
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<T> {
     const response = await this.patchOk(url, {
-      headers: mergeHeaders(
+      headers: HTTPClient.joinHeaders(
         {
           'accept': 'application/json',
           'content-type': 'application/json; charset=utf-8',
@@ -572,7 +648,7 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(
+      return assertResponseBody(
         guard,
         responseBody,
         'PATCH',
@@ -599,16 +675,17 @@ export class HTTPClient {
       readonly body?: RequestInit['body']
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchResponse(this, url, {
+    return await executeRequest(url, {
       method: 'PUT',
       headers,
       signal,
       timeout,
       onError,
       body,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -625,16 +702,18 @@ export class HTTPClient {
       readonly body?: RequestInit['body']
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchOkResponse(this, url, {
+    return await executeRequest(url, {
       method: 'PUT',
       headers,
       signal,
       timeout,
       onError,
       body,
+      onlyOk: true,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -655,11 +734,11 @@ export class HTTPClient {
       readonly coerce?: undefined | ((body: unknown) => unknown)
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<T> {
     const response = await this.putOk(url, {
-      headers: mergeHeaders(
+      headers: HTTPClient.joinHeaders(
         {
           'accept': 'application/json',
           'content-type': 'application/json; charset=utf-8',
@@ -683,7 +762,7 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(
+      return assertResponseBody(
         guard,
         responseBody,
         'PUT',
@@ -708,15 +787,16 @@ export class HTTPClient {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchResponse(this, url, {
+    return await executeRequest(url, {
       method: 'DELETE',
       headers,
       signal,
       timeout,
       onError,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -731,15 +811,17 @@ export class HTTPClient {
       readonly headers?: undefined | HTTPClientHeaders
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<Response> {
-    return await fetchOkResponse(this, url, {
+    return await executeRequest(url, {
       method: 'DELETE',
       headers,
       signal,
       timeout,
       onError,
+      onlyOk: true,
+      headersCallback: this.headersCallback,
     })
   }
 
@@ -758,11 +840,11 @@ export class HTTPClient {
       readonly coerce?: undefined | ((body: unknown) => unknown)
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
-      readonly onError?: undefined | HTTPClientOnErrorHandler
+      readonly onError?: undefined | HTTPClientOnErrorCallback
     } = {},
   ): Promise<T> {
     const response = await this.deleteOk(url, {
-      headers: mergeHeaders(
+      headers: HTTPClient.joinHeaders(
         { 'accept': 'application/json' },
         headers,
       ),
@@ -782,7 +864,7 @@ export class HTTPClient {
     }
 
     if (guard !== undefined) {
-      return assertReturnBody(
+      return assertResponseBody(
         guard,
         responseBody,
         'DELETE',
@@ -797,47 +879,45 @@ export class HTTPClient {
   }
 }
 
-function mergeHeaders(
-  first: HeadersInit,
-  ...rest: ReadonlyArray<HTTPClientHeaders | undefined>
-): Headers {
-  const resultHeaders = new Headers(first)
-
-  for (const headers of rest) {
-    if (headers !== undefined) {
-      if (headers instanceof Headers) {
-        for (const [key, value] of headers.entries()) {
-          resultHeaders.set(key, value)
-        }
-      } else {
-        for (const [key, value] of Object.entries(headers)) {
-          if (typeof value === 'string') {
-            resultHeaders.set(key, value)
-          }
-        }
-      }
+function assertResponseBody<T>(
+  guard: Guard<T>,
+  body: unknown,
+  method: HTTPServiceResponseInvalidError['method'],
+  href: HTTPServiceResponseInvalidError['href'],
+  headers: HTTPServiceResponseInvalidError['headers'],
+  statusCode: HTTPServiceResponseInvalidError['statusCode'],
+  statusText: HTTPServiceResponseInvalidError['statusText'],
+): T {
+  try {
+    return assertReturn(guard, body)
+  } catch (error) {
+    if (error instanceof AssertionError) {
+      throw new HTTPServiceResponseInvalidError(
+        error.message,
+        method,
+        href,
+        statusCode,
+        statusText,
+        headers,
+        body,
+        error.invalidations,
+      )
     }
-  }
 
-  for (const [key, value] of resultHeaders.entries()) {
-    if (value.length === 0) {
-      resultHeaders.delete(key)
-    } else {
-      resultHeaders.set(key, value)
-    }
+    throw error
   }
-
-  return resultHeaders
 }
 
-async function fetchResponse(client: HTTPClient, url: string | URL, options: {
+async function executeRequest(url: string | URL, options: {
   readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   readonly headers?: undefined | HTTPClientHeaders
   readonly body?: RequestInit['body']
   readonly signal?: undefined | AbortSignal
   readonly timeout?: undefined | number
-  readonly onError?: undefined | HTTPClientOnErrorHandler
-}, retries = 0): Promise<Response> {
+  readonly onError?: undefined | HTTPClientOnErrorCallback
+  readonly onlyOk?: undefined | boolean
+  readonly headersCallback?: undefined | HTTPClientHeadersCallback
+}): Promise<Response> {
   if (
     options.timeout !== undefined &&
     (
@@ -848,46 +928,109 @@ async function fetchResponse(client: HTTPClient, url: string | URL, options: {
     throw new TypeError(`Expected timeout to be a positive integer, got ${options.timeout}`)
   }
 
-  if (options.body === undefined) {
-    debug[options.method](new URL(url).href)
-  } else {
-    debug[options.method](new URL(url).href, options.body)
-  }
-
   using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
 
   const signal = mergeAbortSignals(
     options.signal,
     timeout?.signal,
   )
-  const { onError, method, body, headers } = options
 
-  try {
-    if (signal !== undefined && signal.aborted === true) {
-      throw new HTTPClientRequestAbortError(options.method, url.toString())
+  if (signal !== undefined && signal.aborted === true) {
+    if (options.body === undefined || options.body === null) {
+      debug[options.method](new URL(url).href)
+    } else {
+      debug[options.method](new URL(url).href, options.body)
     }
 
-    const readyHeaders = mergeHeaders(
-      await client.createHeaders({
-        method: options.method,
-        url: new URL(url).href,
-        signal,
-      }),
-      headers,
-    )
+    throw new HTTPClientRequestAbortError(options.method, url.toString())
+  }
 
-    const response = await fetch(url, {
-      method,
-      body,
-      headers: readyHeaders,
-      signal,
+  const request: Writable<HTTPClientRequest> = {
+    url: new URL(url),
+    method: options.method,
+    headers: HTTPClient.createHeaders(options.headers),
+    body: options.body,
+    signal,
+  }
+
+  return await callFetch(
+    request,
+    options.headersCallback,
+    options.onError,
+    options.onlyOk,
+    0,
+  )
+}
+
+async function callFetch(
+  request: Writable<HTTPClientRequest>,
+  headersCallback: undefined | HTTPClientHeadersCallback,
+  errorCallback: undefined | HTTPClientOnErrorCallback,
+  onlyOk: undefined | boolean,
+  retries: number,
+): Promise<Response> {
+  if (request.body === undefined || request.body === null) {
+    debug[request.method](request.url.href)
+  } else {
+    debug[request.method](request.url.href, request.body)
+  }
+
+  if (request.signal?.aborted === true) {
+    throw new HTTPClientRequestAbortError(request.method, request.url.href)
+  }
+
+  const requestHeaders = request.headers
+
+  if (headersCallback !== undefined) {
+    request.headers = HTTPClient.createHeaders(await headersCallback({ request }))
+  }
+
+  try {
+    const response = await fetch(request.url, {
+      method: request.method,
+      body: request.body,
+      headers: request.headers,
+      signal: request.signal,
     })
+
+    if (onlyOk === true) {
+      const responseHeaders = Object.fromEntries(response.headers.entries())
+
+      if (response.ok === false) {
+        const body = response.headers
+            .get('Content-Type')
+            ?.toLocaleLowerCase()
+            .includes('application/json')
+          ? await response.json()
+          : await response.text()
+
+        if (response.status >= 500) {
+          throw new HTTPServiceError(
+            request.method,
+            request.url.href,
+            response.status,
+            response.statusText,
+            responseHeaders,
+            body,
+          )
+        }
+
+        throw new HTTPClientError(
+          request.method,
+          request.url.href,
+          response.status,
+          response.statusText,
+          responseHeaders,
+          body,
+        )
+      }
+    }
 
     return response
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
-        const abortError = new HTTPClientRequestAbortError(method, url.toString())
+        const abortError = new HTTPClientRequestAbortError(request.method, request.url.href)
 
         const stack = error.stack?.split('\n').slice(1).join('\n')
 
@@ -903,85 +1046,14 @@ async function fetchResponse(client: HTTPClient, url: string | URL, options: {
       error = ensureError(error)
     }
 
-    if (onError === undefined) {
+    if (errorCallback === undefined) {
       throw error
     }
 
-    await onError(error as Error, retries)
+    await errorCallback({ request, error: error as Error, retries })
 
-    return await fetchResponse(client, url, { onError, method, body, headers, signal }, retries++)
-  }
-}
+    request.headers = requestHeaders
 
-async function fetchOkResponse(client: HTTPClient, url: string | URL, options: {
-  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  readonly headers?: undefined | HTTPClientHeaders
-  readonly body?: RequestInit['body']
-  readonly signal?: undefined | AbortSignal
-  readonly timeout?: undefined | number
-  readonly onError?: undefined | HTTPClientOnErrorHandler
-}, retries = 0): Promise<Response> {
-  if (
-    options.timeout !== undefined &&
-    (
-      Number.isSafeInteger(options.timeout) === false ||
-      options.timeout < 1
-    )
-  ) {
-    throw new TypeError(`Expected timeout to be a positive integer, got ${options.timeout}`)
-  }
-
-  using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
-
-  const signal = mergeAbortSignals(
-    options.signal,
-    timeout?.signal,
-  )
-
-  const { onError, method, body, headers } = options
-
-  try {
-    const response = await fetchResponse(client, url, { method, body, headers, signal })
-
-    const responseHeaders = Object.fromEntries(response.headers.entries())
-
-    if (response.ok === false) {
-      const body = response.headers
-          .get('Content-Type')
-          ?.toLocaleLowerCase()
-          .includes('application/json')
-        ? await response.json()
-        : await response.text()
-
-      if (response.status >= 500) {
-        throw new HTTPServiceError(
-          method,
-          url instanceof URL ? url.href : url,
-          response.status,
-          response.statusText,
-          responseHeaders,
-          body,
-        )
-      }
-
-      throw new HTTPClientError(
-        method,
-        response.url,
-        response.status,
-        response.statusText,
-        responseHeaders,
-        body,
-      )
-    }
-
-    return response
-  } catch (error) {
-    if (onError === undefined) {
-      throw error
-    }
-
-    await onError(ensureError(error), retries)
-
-    return await fetchOkResponse(client, url, { onError, method, body, headers, signal }, retries++)
+    return await callFetch(request, headersCallback, errorCallback, onlyOk, retries++)
   }
 }

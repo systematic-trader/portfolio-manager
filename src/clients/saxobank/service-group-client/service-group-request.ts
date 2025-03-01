@@ -10,7 +10,7 @@ import {
 
 import { type JSONReadonlyRecord, stringifyJSON } from '../../../utils/json.ts'
 import { urlJoin } from '../../../utils/url.ts'
-import { type HTTPClient, type HTTPClientOnErrorHandler, HTTPClientRequestAbortError } from '../../http-client.ts'
+import { type HTTPClient, type HTTPClientOnErrorCallback, HTTPClientRequestAbortError } from '../../http-client.ts'
 import { sanitizeSaxobankValue } from './sanitize-saxobank-value.ts'
 import type { ServiceGroupSearchParams } from './service-group-search-params.ts'
 
@@ -18,7 +18,7 @@ export abstract class ServiceGroupRequest<T> {
   readonly #client: HTTPClient
   readonly #guard: undefined | Guard<T>
   readonly #headers: undefined | Record<string, string>
-  readonly #onError: undefined | HTTPClientOnErrorHandler
+  readonly #onError: undefined | HTTPClientOnErrorCallback
   readonly #signal: undefined | AbortSignal
   readonly #timeout: undefined | number
   readonly #url: URL
@@ -30,7 +30,7 @@ export abstract class ServiceGroupRequest<T> {
     readonly headers: undefined | Record<string, string>
     readonly guard: undefined | Guard<T>
     readonly timeout: undefined | number
-    readonly onError?: undefined | HTTPClientOnErrorHandler
+    readonly onError?: undefined | HTTPClientOnErrorCallback
     readonly searchParams: ServiceGroupSearchParams
     readonly signal?: undefined | AbortSignal
   }) {
@@ -283,7 +283,7 @@ export class ServiceGroupRequestGetPaginated<T = unknown> extends ServiceGroupRe
     readonly guard: undefined | Guard<T>
     readonly headers: undefined | Record<string, string>
     readonly limit: undefined | number
-    readonly onError?: undefined | HTTPClientOnErrorHandler
+    readonly onError?: undefined | HTTPClientOnErrorCallback
     readonly searchParams: ServiceGroupSearchParams
     readonly signal?: undefined | AbortSignal
     readonly timeout: undefined | number
@@ -308,7 +308,7 @@ export class ServiceGroupRequestPut<T = void> extends ServiceGroupRequest<T> {
     readonly client: HTTPClient
     readonly guard: undefined | Guard<T>
     readonly headers: undefined | Record<string, string>
-    readonly onError?: undefined | HTTPClientOnErrorHandler
+    readonly onError?: undefined | HTTPClientOnErrorCallback
     readonly searchParams: ServiceGroupSearchParams
     readonly signal?: undefined | AbortSignal
     readonly timeout: undefined | number
@@ -333,7 +333,7 @@ export class ServiceGroupRequestPost<T = void> extends ServiceGroupRequest<T> {
     readonly client: HTTPClient
     readonly guard: undefined | Guard<T>
     readonly headers: undefined | Record<string, string>
-    readonly onError?: undefined | HTTPClientOnErrorHandler
+    readonly onError?: undefined | HTTPClientOnErrorCallback
     readonly searchParams: ServiceGroupSearchParams
     readonly signal?: undefined | AbortSignal
     readonly timeout: undefined | number
@@ -358,7 +358,7 @@ export class ServiceGroupRequestPatch<T = void> extends ServiceGroupRequest<T> {
     readonly client: HTTPClient
     readonly guard: undefined | Guard<T>
     readonly headers: undefined | Record<string, string>
-    readonly onError?: undefined | HTTPClientOnErrorHandler
+    readonly onError?: undefined | HTTPClientOnErrorCallback
     readonly searchParams: ServiceGroupSearchParams
     readonly signal?: undefined | AbortSignal
     readonly timeout: undefined | number
@@ -395,7 +395,7 @@ async function* fetchPaginatedData<T = unknown>({
   readonly guard?: undefined | Guard<T>
   readonly headers?: undefined | Record<string, string>
   readonly limit?: undefined | number
-  readonly onError?: HTTPClientOnErrorHandler
+  readonly onError?: HTTPClientOnErrorCallback
   readonly signal?: undefined | AbortSignal
   readonly timeout?: undefined | number
   readonly url: string | URL

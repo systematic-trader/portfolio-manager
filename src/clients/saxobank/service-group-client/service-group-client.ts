@@ -4,7 +4,12 @@ import { ensureError } from '../../../utils/error.ts'
 import type { JSONReadonlyRecord } from '../../../utils/json.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import { urlJoin } from '../../../utils/url.ts'
-import { type HTTPClient, HTTPClientError, type HTTPClientOnErrorHandler } from '../../http-client.ts'
+import {
+  type HTTPClient,
+  HTTPClientError,
+  type HTTPClientOnErrorCallback,
+  type HTTPClientRequest,
+} from '../../http-client.ts'
 import {
   ServiceGroupRequestDelete,
   ServiceGroupRequestGet,
@@ -23,7 +28,7 @@ const debug = {
 export class ServiceGroupClient {
   readonly #client: HTTPClient
   readonly #serviceURL: URL
-  readonly #onError: HTTPClientOnErrorHandler
+  readonly #onError: HTTPClientOnErrorCallback
   readonly #searchParamsMaxLength: number
 
   get http(): HTTPClient {
@@ -32,7 +37,7 @@ export class ServiceGroupClient {
 
   constructor({ client, onError, searchParamsMaxLength, serviceURL }: {
     readonly client: HTTPClient
-    readonly onError?: undefined | HTTPClientOnErrorHandler
+    readonly onError?: undefined | HTTPClientOnErrorCallback
     readonly searchParamsMaxLength: number
     readonly serviceURL: URL
   }) {
@@ -43,11 +48,11 @@ export class ServiceGroupClient {
     if (onError === undefined) {
       this.#onError = onHTTPClientError.bind(undefined, this.#client)
     } else {
-      this.#onError = async (error, retries) => {
+      this.#onError = async ({ request, error, retries }) => {
         try {
-          await onError(error, retries)
+          await onError({ request, error, retries })
         } catch (error) {
-          await onHTTPClientError(this.#client, ensureError(error), retries)
+          await onHTTPClientError(this.#client, { request, error: ensureError(error), retries })
         }
       }
     }
@@ -231,7 +236,10 @@ const TimeoutsWeakMap = new WeakMap<
   Map<string, undefined | Promise<void>>
 >()
 
-async function onHTTPClientError(client: HTTPClient, error: Error, _retries: number): Promise<void> {
+async function onHTTPClientError(
+  client: HTTPClient,
+  { error }: { readonly request: HTTPClientRequest; readonly error: Error; readonly retries: number },
+): Promise<void> {
   if (error instanceof HTTPClientError === false) {
     throw error
   }

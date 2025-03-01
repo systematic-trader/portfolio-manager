@@ -1,25 +1,47 @@
-import { integer, props, string } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import {
+  boolean,
+  type GuardType,
+  integer,
+  optional,
+  props,
+  string,
+  unknown,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { join } from 'jsr:@std/path@^1.0.8/join'
 import { Buffer } from 'node:buffer'
 import crypto from 'node:crypto'
+import { Debug } from '../../utils/debug.ts'
 import { Environment } from '../../utils/environment.ts'
 import { ensureError } from '../../utils/error.ts'
 import { mergeAbortSignals } from '../../utils/signal.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { urlJoin } from '../../utils/url.ts'
-import { HTTPClient, HTTPClientRequestAbortError } from '../http-client.ts'
+import { HTTPClient, HTTPClientRequestAbortError, HTTPError, HTTPServiceError } from '../http-client.ts'
 import { InteractiveBrokersResourceClient } from './resource-client.ts'
 import { Iserver } from './resources/iserver.ts'
+import { StatusResponse } from './resources/iserver/auth/status.ts'
 import { Trsrv } from './resources/trsrv.ts'
+
+const PROMISE_VOID = Promise.resolve()
 
 // todo håndter scenariet, hvor vores live session token er udløbet (tjek for 401 - undersøg hvad de sender til os)
 
 // todo find ud af hvordan rate limit fungerer og håndter det
 
 // todo improve logging (e.g. we should show login/logout, lst generation, etc.)
-// const debug = {
-//   login: Debug('ib-client:login'),
-// }
+const debug = {
+  created: Debug('ib-client:created'),
+  disposed: Debug('ib-client:disposed'),
+  error: Debug('ib-client:error'),
+  session: {
+    authorizationHeader: Debug('ib-client:session:authorization-header'),
+    authorize: Debug('ib-client:session:authorize'),
+    reset: Debug('ib-client:session:reset'),
+    dispose: Debug('ib-client:session:dispose'),
+    tickle: Debug('ib-client:session:tickle'),
+    error: Debug('ib-client:session:error'),
+  },
+}
 
 const LiveSessionTokenResponse = props({
   diffie_hellman_response: string(),
@@ -27,17 +49,28 @@ const LiveSessionTokenResponse = props({
   live_session_token_expiration: integer(), // epoch time in ms
 })
 
-interface LiveSession {
-  /** The live session token, which should be used in authorization-flow */
-  readonly token: string
+const LoginResponse = props({
+  passed: optional(boolean()),
+  authenticated: boolean(),
+  connected: boolean(),
+  competing: boolean(),
+  hardware_info: optional(string()),
+  MAC: optional(string()),
+  message: optional(string()),
+  serverInfo: unknown(),
+})
 
-  /** The expiration of the token, epoch time in ms */
-  readonly expiration: number
-}
+interface LoginResponse extends GuardType<typeof LoginResponse> {}
 
-export type SearchParamValue = undefined | boolean | number | string | ReadonlyArray<number | string | boolean>
+const TickleResponse = props({
+  session: string(),
+  hmds: unknown(),
+  iserver: props({
+    authStatus: StatusResponse,
+  }),
+})
 
-export type SearchParamRecord = Record<string, SearchParamValue>
+interface TickleResponse extends GuardType<typeof TickleResponse> {}
 
 // todo let's figure out how to handle/store these files (they shoulnd't be in the repo - even if gitignored)
 const CONFIG = {
@@ -49,6 +82,9 @@ const CONFIG = {
 
     baseURL: new URL('https://api.ibkr.com'),
 
+    get accountId() {
+      return Environment.get('IB_LIVE_ACCOUNT_ID')
+    },
     get consumerKey() {
       return Environment.get('IB_LIVE_CONSUMER_KEY')
     },
@@ -70,6 +106,9 @@ const CONFIG = {
 
     baseURL: new URL('https://api.ibkr.com'),
 
+    get accountId() {
+      return Environment.get('IB_PAPER_ACCOUNT_ID')
+    },
     get consumerKey() {
       return Environment.get('IB_PAPER_CONSUMER_KEY')
     },
@@ -106,6 +145,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     this.baseURL = config.baseURL
 
     this.#session = new InteractiveBrokersOAuth1a({
+      accountId: config.accountId,
       baseURL: config.baseURL,
       consumerKey: config.consumerKey,
       accessToken: config.accessToken,
@@ -119,8 +159,10 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
       privateSignatureKey: Deno.readTextFileSync(config.paths.privateSignatureKey),
     })
 
+    const requestsMap = new WeakMap<object, string>()
+
     this.#http = new HTTPClient({
-      headers: async ({ method, url, signal }) => {
+      headers: async ({ request }) => {
         if (this.#session.error !== undefined) {
           throw this.#session.error
         }
@@ -129,15 +171,81 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
           throw new Error('InteractiveBrokersClient is disposed')
         }
 
-        const authorizationHeader = await this.#session.createAuthorizationHeader({ method, url, signal })
+        // 20250228-21:05 8V1j/Yzlty5KhqyUl0zz2bfOw3s=
+        const liveSessionToken = await this.#session.authorize()
 
-        return {
+        requestsMap.set(request, liveSessionToken)
+
+        return HTTPClient.joinHeaders({
           'User-Agent': 'Systematic Trader IB Client',
-          Authorization: authorizationHeader,
-        }
+          Authorization: this.#session.authorizationHeader({
+            method: request.method,
+            url: request.url,
+            liveSessionToken,
+          }),
+        }, request.headers)
       },
-      onError: (error) => {
-        // handle session timeout by calling something not-implemented on #session for re-login
+      onError: async ({ request, error, retries }) => {
+        if (
+          error instanceof HTTPClient ||
+          error instanceof HTTPServiceError
+        ) {
+          if (retries === 0) {
+            const liveSessionToken = requestsMap.get(request)
+
+            // There should always be a live session token
+            if (liveSessionToken === undefined) {
+              throw error
+            }
+
+            // Check if the live session token has already been updated
+            if (this.#session.has({ liveSessionToken }) === false) {
+              return
+            }
+
+            const statusUrl = urlJoin(config.baseURL, 'v1/api/iserver/auth/status')
+
+            const response = await HTTPClient.postOkJSON(statusUrl, {
+              headers: {
+                Authorization: this.#session.authorizationHeader({
+                  method: 'POST',
+                  url: statusUrl,
+                  liveSessionToken,
+                }),
+              },
+              guard: StatusResponse,
+            }).catch(() => undefined)
+
+            // Check if a new live session token is required
+            if ((response?.authenticated !== true && response?.connected !== true)) {
+              // Check if other requests are already updating the live session token
+              await this.#session.reset({ liveSessionToken })
+
+              return
+            }
+          }
+        } else if (error instanceof HTTPError === false && error instanceof HTTPClientRequestAbortError === false) {
+          /* log unknown error begin */
+          debug.error(config.accountId, 'UNKNOWN', error)
+
+          const extracted = {} as Record<string, unknown>
+
+          for (const key in error) {
+            if (key !== 'stack') {
+              Reflect.set(extracted, key, Reflect.get(error, key))
+            }
+          }
+
+          for (const key of Reflect.ownKeys(error)) {
+            if (key !== 'stack') {
+              Reflect.set(extracted, key, Reflect.get(error, key))
+            }
+          }
+
+          debug.error(config.accountId, 'UNKNOWN', 'properties', extracted)
+          /* log unknown error end */
+        }
+
         throw error
       },
     })
@@ -191,6 +299,7 @@ function decryptAccessTokenSecret({ accessTokenSecret, privateEncryptionKey }: {
 
 class InteractiveBrokersOAuth1a implements AsyncDisposable {
   readonly #options: {
+    readonly accountId: string
     readonly baseURL: URL
     readonly consumerKey: string
     readonly accessToken: string
@@ -203,9 +312,9 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
 
   #controller: AbortController
   #error: undefined | Error
-  #liveSessionPromise: undefined | Promise<LiveSession>
+  #liveSessionTokenPromise: undefined | Promise<string>
   #disposePromise: undefined | Promise<void>
-  #ticklePromise: undefined | Timeout<void>
+  #ticklePromise: Timeout<void>
 
   get error(): undefined | Error {
     return this.#error
@@ -215,7 +324,10 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
     return this.#controller.signal.aborted ? 'disposed' : 'active'
   }
 
+  #liveSessionToken: undefined | string = undefined
+
   constructor(options: {
+    readonly accountId: string
     readonly baseURL: URL
     readonly consumerKey: string
     readonly accessToken: string
@@ -228,97 +340,93 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
     this.#options = options
     this.#controller = new AbortController()
     this.#error = undefined
-    this.#liveSessionPromise = undefined
+    this.#liveSessionTokenPromise = undefined
     this.#disposePromise = undefined
-    this.#ticklePromise = undefined
-  }
 
-  async #login({ signal }: { readonly signal?: undefined | AbortSignal } = {}): Promise<LiveSession> {
-    try {
+    this.#ticklePromise = Timeout.repeat(60 * 1000, async (signal) => {
       const mergedSignal = mergeAbortSignals(this.#controller.signal, signal)
 
-      const url = urlJoin(this.#options.baseURL, 'v1/api/oauth/live_session_token')
-      const diffieHellmanPrivateKey = this.#generateDiffieHellmanPrivateKey()
-      const diffieHellmanChallenge = this.#generateDiffieHellmanChallenge({ key: diffieHellmanPrivateKey })
-
-      const authorizationHeader = this.#generateSignedAuthorizationHeader({
-        signatureMethod: 'RSA-SHA256',
-        diffieHellmanChallenge,
-        method: 'POST',
-        url,
-      })
-
-      const liveSessionTokenResponse = await HTTPClient.postOkJSON(url, {
-        guard: LiveSessionTokenResponse,
-        headers: {
-          'Authorization': authorizationHeader,
-
-          // todo these might not be required
-          'Accept-Encoding': 'gzip, deflate',
-          'Accept': '*/*',
-          'Connection': 'keep-alive',
-          'Content-Length': '0',
-        },
-        signal: mergedSignal,
-      })
-
-      const liveSessionToken = this.#calculateLiveSessionToken({
-        diffieHellmanPrivateKey: diffieHellmanPrivateKey,
-        diffieHellmanResponse: liveSessionTokenResponse.diffie_hellman_response,
-      })
-
-      const isValid = this.#validateLiveSessionToken({
-        liveSessionToken,
-        liveSessionTokenSignature: liveSessionTokenResponse.live_session_token_signature,
-      })
-
-      if (isValid === false) {
-        throw new Error('Live session token is invalid')
+      if (
+        mergedSignal.aborted ||
+        this.#liveSessionToken === undefined ||
+        this.#liveSessionTokenPromise !== undefined // new live session token is being generated
+      ) {
+        return
       }
 
-      // todo se hvad den returnerer og skriv en guard - fail fast hvis noget ikke er som vi forventer
-      const loginUrl = urlJoin(this.#options.baseURL, 'v1/api/iserver/auth/ssodh/init')
-      loginUrl.searchParams.set('compete', 'true')
-      loginUrl.searchParams.set('publish', 'true')
+      debug.session.tickle(this.#options.accountId, 'token check')
 
-      await HTTPClient.postOkJSON(loginUrl, {
-        headers: {
-          Authorization: this.#generateSignedAuthorizationHeader({
-            signatureMethod: 'HMAC-SHA256',
-            method: 'POST',
-            liveSessionToken: liveSessionToken,
-            url: loginUrl,
-          }),
-        },
-        signal: mergedSignal,
-      })
+      try {
+        const response = await this.#tickle({ liveSessionToken: this.#liveSessionToken, signal: mergedSignal })
 
-      let firstTickle = true
+        if (
+          response.iserver.authStatus.authenticated !== true &&
+          response.iserver.authStatus.connected !== true
+        ) {
+          debug.session.tickle(this.#options.accountId, 'token invalid')
 
-      this.#ticklePromise = Timeout.repeat(60 * 1000, async (signal) => {
-        if (firstTickle) {
-          firstTickle = false
+          this.#liveSessionToken = undefined
+        } else {
+          debug.session.tickle(this.#options.accountId, 'token valid')
+        }
+      } catch (error) {
+        if (error instanceof HTTPClientRequestAbortError) {
           return
         }
 
-        try {
-          await HTTPClient.post(urlJoin(this.#options.baseURL, 'v1/api/tickle'), { signal })
-        } catch (error) {
-          this.dispose().catch(() => {})
+        this.dispose().catch(() => {})
 
-          throw error
-        }
+        throw error
+      }
+    })
+  }
+
+  async #warmUp({ liveSessionToken }: { readonly liveSessionToken: string }): Promise<void> {
+    const accountsURL = urlJoin(this.#options.baseURL, 'v1/api/iserver/accounts')
+
+    // Silly (but required) warm-up specified by IBKR
+    while (true) {
+      const resp = await HTTPClient.getOkJSON(accountsURL, {
+        headers: {
+          Authorization: this.#generateSignedAuthorizationHeader({
+            signatureMethod: 'HMAC-SHA256',
+            method: 'GET',
+            liveSessionToken: liveSessionToken,
+            url: accountsURL,
+          }),
+        },
+        signal: this.#controller.signal,
       })
 
-      return {
-        token: liveSessionToken,
-        expiration: liveSessionTokenResponse.live_session_token_expiration,
+      if (typeof resp === 'object' && resp !== null && 'accounts' in resp) {
+        break
       }
-    } catch (error) {
-      this.#error = ensureError(error)
-      this.#controller.abort()
-      throw error
+
+      await Timeout.wait(1000)
     }
+
+    // TODO more warm-up
+  }
+
+  async #tickle(
+    { liveSessionToken, signal }: { readonly liveSessionToken: string; readonly signal?: undefined | AbortSignal },
+  ): Promise<TickleResponse> {
+    const tickleUrl = urlJoin(this.#options.baseURL, 'v1/api/tickle')
+
+    const response = await HTTPClient.postOkJSON(tickleUrl, {
+      headers: {
+        Authorization: this.#generateSignedAuthorizationHeader({
+          signatureMethod: 'HMAC-SHA256',
+          method: 'POST',
+          liveSessionToken,
+          url: tickleUrl,
+        }),
+      },
+      guard: TickleResponse,
+      signal,
+    })
+
+    return response
   }
 
   /**
@@ -497,79 +605,45 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
     return hmac === liveSessionTokenSignature
   }
 
-  /**
-   * Creates an authorization header for the given HTTP method and URL.
-   * @param method - The HTTP method to be used (GET, POST, etc.)
-   * @param url - The URL to be used for the request.
-   * @param signal - An optional AbortSignal to cancel the request.
-   * @returns The generated authorization header as a string.
-   */
-  async createAuthorizationHeader(
-    {
-      method,
-      url,
-      signal,
-    }: {
-      readonly method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE'
-      readonly url: URL | string
-      readonly signal?: undefined | AbortSignal
-    },
-  ): Promise<string> {
-    if (this.#error !== undefined) {
-      throw this.#error
-    }
+  async #logout({ liveSessionToken }: { readonly liveSessionToken: string }): Promise<boolean> {
+    const logoutUrl = urlJoin(this.#options.baseURL, 'v1/api/logout')
 
-    if (this.#controller.signal.aborted) {
-      throw new Error(`${this.constructor.name} is disposed`)
-    }
-
-    if (this.#liveSessionPromise === undefined) {
-      this.#liveSessionPromise = this.#login({ signal })
-    }
-
-    const liveSession = await this.#liveSessionPromise
-
-    return this.#generateSignedAuthorizationHeader({
-      method,
-      url,
-      signatureMethod: 'HMAC-SHA256',
-      liveSessionToken: liveSession.token,
+    const response = await HTTPClient.postOkJSON(logoutUrl, {
+      headers: {
+        Authorization: this.#generateSignedAuthorizationHeader({
+          method: 'POST',
+          url: logoutUrl,
+          signatureMethod: 'HMAC-SHA256',
+          liveSessionToken: liveSessionToken,
+        }),
+      },
+      guard: props({ status: boolean() }, { extendable: true }),
     })
+
+    return response.status
   }
 
-  async [Symbol.asyncDispose](): Promise<void> {
+  [Symbol.asyncDispose](): Promise<void> {
     if (this.#disposePromise !== undefined) {
       return this.#disposePromise
     }
 
-    // if (this.#error !== undefined) {
-    //   throw this.#error
-    // }
-
     if (this.#controller.signal.aborted) {
-      return
+      return PROMISE_VOID
     }
 
     this.#controller.abort()
-    this.#ticklePromise?.abort()
+    this.#ticklePromise.abort()
 
-    this.#disposePromise = Promise.allSettled([this.#liveSessionPromise, this.#ticklePromise]).then(
+    const liveSessionTokenPromise = this.#liveSessionTokenPromise
+
+    this.#liveSessionTokenPromise = undefined
+
+    return this.#disposePromise = Promise.allSettled([liveSessionTokenPromise, this.#ticklePromise]).then(
       async ([sessionResult, tickleResult]) => {
         if (sessionResult.status === 'fulfilled' && sessionResult.value !== undefined) {
-          const logoutUrl = urlJoin(this.#options.baseURL, 'v1/api/logout')
-
-          // todo skriv en guard og se hvad den returnerer
-          await HTTPClient.postOkJSON(logoutUrl, {
-            headers: {
-              Authorization: this.#generateSignedAuthorizationHeader({
-                method: 'POST',
-                url: logoutUrl,
-                signatureMethod: 'HMAC-SHA256',
-                liveSessionToken: sessionResult.value.token,
-              }),
-            },
-            timeout: 10_000,
-          })
+          debug.session.dispose(this.#options.accountId, 'logout')
+          await this.#logout({ liveSessionToken: sessionResult.value })
         } else if (sessionResult.status === 'rejected') {
           throw sessionResult.reason
         }
@@ -586,19 +660,204 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
       if (this.#error === undefined) {
         this.#error = ensureError(error)
       }
-
-      // throw this.#error
     }).finally(() => {
-      this.#liveSessionPromise = undefined
-      this.#ticklePromise = undefined
+      this.#liveSessionTokenPromise = undefined
+      this.#liveSessionToken = undefined
       this.#disposePromise = undefined
     })
-
-    return await this.#disposePromise
   }
 
+  /**
+   * Disposes the instance.
+   */
   dispose(): Promise<void> {
     return this[Symbol.asyncDispose]()
+  }
+
+  /**
+   * Checks if the given live session token matches the current live session token.
+   *
+   * @param liveSessionToken - The live session token to check.
+   * @returns True if the given live session token matches the current live session token; otherwise, false.
+   */
+  has({ liveSessionToken }: { readonly liveSessionToken: string }): boolean {
+    return this.#liveSessionToken === liveSessionToken
+  }
+
+  /**
+   * Resets the current live session token.
+   *
+   * @param liveSessionToken - Optional live session token to reset. If not provided, the current live session token will be reset.
+   * @returns True if the live session token was reset successfully; otherwise, false.
+   */
+  async reset({ liveSessionToken }: { readonly liveSessionToken: string }): Promise<boolean> {
+    debug.session.reset(this.#options.accountId)
+
+    let match = false
+
+    if (this.#liveSessionToken === liveSessionToken) {
+      this.#liveSessionToken = undefined
+      match = true
+    }
+
+    debug.session.reset(this.#options.accountId, 'logout')
+    await this.#logout({ liveSessionToken: 'abc' })
+
+    return match
+  }
+
+  /**
+   * Creates an authorization header for the given HTTP method and URL.
+   * @param method - The HTTP method to be used (GET, POST, etc.)
+   * @param url - The URL to be used for the request.
+   * @param liveSessionToken - The live session token to be used for the request.
+   * @returns The generated authorization header as a string.
+   */
+  authorizationHeader(
+    {
+      method,
+      url,
+      liveSessionToken,
+    }: {
+      readonly method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE'
+      readonly liveSessionToken: string
+      readonly url: URL | string
+    },
+  ): string {
+    debug.session.authorizationHeader(this.#options.accountId)
+    if (this.#error !== undefined) {
+      throw this.#error
+    }
+
+    if (this.#controller.signal.aborted) {
+      throw new Error(`${this.constructor.name} is disposed`)
+    }
+
+    return this.#generateSignedAuthorizationHeader({
+      method,
+      url,
+      signatureMethod: 'HMAC-SHA256',
+      liveSessionToken,
+    })
+  }
+
+  /**
+   * Authorizes and retrieves a live session token if one is not already available.
+   *
+   * @returns The live session token as a string.
+   */
+  // deno-lint-ignore require-await
+  async authorize(): Promise<string> {
+    if (this.#liveSessionTokenPromise !== undefined) {
+      return this.#liveSessionTokenPromise
+    }
+
+    if (this.#controller.signal.aborted) {
+      throw new Error(`${this.constructor.name} is disposed`)
+    }
+
+    if (this.#error !== undefined) {
+      throw this.#error
+    }
+
+    if (this.#liveSessionToken !== undefined) {
+      return this.#liveSessionToken
+    }
+
+    debug.session.authorize(this.#options.accountId)
+
+    return this.#liveSessionTokenPromise = PROMISE_VOID.then(async () => {
+      if (this.#error !== undefined) {
+        throw this.#error
+      }
+
+      try {
+        const liveSessionTokenUrl = urlJoin(this.#options.baseURL, 'v1/api/oauth/live_session_token')
+        const diffieHellmanPrivateKey = this.#generateDiffieHellmanPrivateKey()
+        const diffieHellmanChallenge = this.#generateDiffieHellmanChallenge({ key: diffieHellmanPrivateKey })
+
+        const authorizationHeader = this.#generateSignedAuthorizationHeader({
+          signatureMethod: 'RSA-SHA256',
+          diffieHellmanChallenge,
+          method: 'POST',
+          url: liveSessionTokenUrl,
+        })
+
+        debug.session.authorize(this.#options.accountId, 'token verification')
+
+        const liveSessionTokenResponse = await HTTPClient.postOkJSON(liveSessionTokenUrl, {
+          guard: LiveSessionTokenResponse,
+          headers: {
+            'Authorization': authorizationHeader,
+          },
+          signal: this.#controller.signal,
+        })
+
+        const liveSessionToken = this.#calculateLiveSessionToken({
+          diffieHellmanPrivateKey: diffieHellmanPrivateKey,
+          diffieHellmanResponse: liveSessionTokenResponse.diffie_hellman_response,
+        })
+
+        const isValid = this.#validateLiveSessionToken({
+          liveSessionToken,
+          liveSessionTokenSignature: liveSessionTokenResponse.live_session_token_signature,
+        })
+
+        if (isValid === false) {
+          debug.session.authorize(this.#options.accountId, 'token invalid')
+          throw new Error('Live session token is invalid')
+        }
+
+        // todo se hvad den returnerer og skriv en guard - fail fast hvis noget ikke er som vi forventer
+        const loginUrl = urlJoin(this.#options.baseURL, 'v1/api/iserver/auth/ssodh/init')
+        loginUrl.searchParams.set('compete', 'true')
+        loginUrl.searchParams.set('publish', 'true')
+
+        debug.session.authorize(this.#options.accountId, 'login')
+
+        const response = await HTTPClient.postOkJSON(loginUrl, {
+          headers: {
+            Authorization: this.#generateSignedAuthorizationHeader({
+              signatureMethod: 'HMAC-SHA256',
+              method: 'POST',
+              liveSessionToken: liveSessionToken,
+              url: loginUrl,
+            }),
+          },
+          guard: LoginResponse,
+          signal: this.#controller.signal,
+        })
+
+        if (response.authenticated === false || response.connected === false) {
+          debug.session.authorize(this.#options.accountId, 'login failed')
+          throw new Error(
+            `Failed to login. authenticated=${response.authenticated}, connected=${response.connected}`,
+          )
+        }
+
+        debug.session.authorize(this.#options.accountId, 'warm-up')
+        await this.#warmUp({ liveSessionToken })
+
+        this.#liveSessionToken = liveSessionToken
+
+        return liveSessionToken
+      } catch (error) {
+        if (error instanceof HTTPClientRequestAbortError && this.#controller.signal.aborted) {
+          throw new Error(`${this.constructor.name} is disposed`)
+        }
+
+        if (this.#error === undefined) {
+          this.#error = ensureError(error)
+        }
+
+        // Do NOT await dispose here, as it will cause a deadlock
+        this.dispose().catch(() => {})
+
+        throw error
+      }
+    }).finally(() => {
+      this.#liveSessionTokenPromise = undefined
+    })
   }
 }
 

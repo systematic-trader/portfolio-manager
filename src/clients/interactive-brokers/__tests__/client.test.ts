@@ -32,11 +32,31 @@ describe(InteractiveBrokersClient.name, () => {
     // Response ser ud til at ændre sig periodisk
     // Jeg har bare ændret den til "undefined" mens jeg tester
 
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     const status = await client.iserver.auth.status.post()
 
     debug(status)
+
+    await Timeout.wait(120_000)
+
+    let seconds = 0
+
+    while (true) {
+      await Timeout.wait(10_000)
+
+      seconds += 10
+
+      const status = await client.iserver.auth.status.post()
+
+      debug(status)
+
+      debug('seconds', seconds)
+
+      if (seconds > 350) {
+        break
+      }
+    }
   })
 
   test('Getting accountds', async () => {
@@ -65,7 +85,7 @@ describe(InteractiveBrokersClient.name, () => {
     // Forskellige endpoints returnerer IB's egne "exchange id'er", som vi kan bruge til at udvide vores liste (guard'en)
     // På et tidspunkt, må vi have fundet alle nuværende børser - og om ikke andet, så kan vi tilføje dem manuelt, som det bliver nødvendigt
 
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     const contracts = await client.trsrv.allConids.get({
       exchange: 'IBIS2', // Xetra (XETR)
@@ -96,7 +116,7 @@ describe(InteractiveBrokersClient.name, () => {
     // Man kan søge efter "symbol" eller "company name"
     // Jeg har ikke skrevet en guard til endpointet - det er ikke klart hvad der returneres$
 
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     const aaplBySymbol = await client.iserver.secdef.search.post({
       symbol: 'AAPL',
@@ -117,7 +137,7 @@ describe(InteractiveBrokersClient.name, () => {
   })
 
   test('Getting contract information', async ({ step }) => {
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     for (const [ticker, contractId] of Object.entries(CONTRACTS)) {
       await step(ticker, async () => {
@@ -135,7 +155,7 @@ describe(InteractiveBrokersClient.name, () => {
     // Jeg tror ikke vi skal bruge det her endpoint til noget
     // Det virker til at samme information er tilgængelig via app.iserver.contracts.infoAndRules.get
 
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     for (const [ticker, contractId] of Object.entries(CONTRACTS)) {
       await step(ticker, async () => {
@@ -155,7 +175,7 @@ describe(InteractiveBrokersClient.name, () => {
     // Angiver man "exchange-filter", så får man kun åbningstider for de udvalgte børser
     // Jeg er ikke sikker på hvad "exchange" er til
 
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     const aaplSchedule = await client.trsrv.secdef.schedule.get({
       assetClass: 'STK',
@@ -171,7 +191,7 @@ describe(InteractiveBrokersClient.name, () => {
     // At finde contracts er meget fragmenteret - sådan her finder man currency pairs
     // Læg mærke til hvordan typerne overhovedet ikke passer med dokumentationen
 
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     const contracts = await client.iserver.currency.pairs.get({
       currency: ['USD', 'DKK'],
@@ -193,7 +213,7 @@ describe(InteractiveBrokersClient.name, () => {
     // Jeg er ikke sikker på hvilken "rate" der returneres
     // Måske er det den vi kan veksle til på platformen
 
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     const eurusdRate = await client.iserver.exchangeRate.get({
       source: 'EUR',
@@ -210,7 +230,7 @@ describe(InteractiveBrokersClient.name, () => {
     // Market data snapshot er meget lignende, men returnere en simpel struktur bestående af "conid" og "updated"
     // Kun hvis nogle felter er ændret, vil de være inkluderet i responsen
 
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     // It's required that we call /iserver/accounts first (don't know why - but it's probably so IB can setup some streams behind the scene)
     const accounts = await client.iserver.accounts.get()
@@ -268,7 +288,7 @@ describe(InteractiveBrokersClient.name, () => {
 
     const accountId = Environment.get('IB_ACCOUNT_ID')
 
-    await using client = new InteractiveBrokersClient({ type: 'Live' })
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     // It's required that we call /iserver/accounts first (don't know why - but it's probably so IB can setup some streams behind the scene)
     const accounts = await client.iserver.accounts.get()
@@ -317,5 +337,22 @@ describe(InteractiveBrokersClient.name, () => {
 
     debug('accounts', accounts)
     expect(accounts).toBeDefined()
+  })
+
+  test.only('market data snapshot', async () => {
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+    while (true) {
+      const snapshot = await client.iserver.marketData.snapshot.get({
+        conids: [CONTRACTS['AAPL']],
+        fields: [
+          '31', // last price
+        ],
+      })
+
+      debug('snapshot', snapshot)
+
+      await Timeout.wait(5_000)
+    }
   })
 })

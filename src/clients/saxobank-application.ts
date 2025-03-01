@@ -249,7 +249,7 @@ export class SaxoBankApplication implements Disposable {
     const serviceGroupClient = new ServiceGroupClient({
       client: this.#httpClient,
       serviceURL,
-      onError: async (error, retries) => {
+      onError: async ({ error, retries }) => {
         // If the request fails with a 401 status code, initiate authorization.
         // If authorization succeeds, retry the request.
         if (
