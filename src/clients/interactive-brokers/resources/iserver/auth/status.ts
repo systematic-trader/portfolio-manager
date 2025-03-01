@@ -1,4 +1,27 @@
+import {
+  boolean,
+  type GuardType,
+  optional,
+  props,
+  string,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
+
+export const StatusResponse = props({
+  authenticated: boolean(),
+  competing: boolean(),
+  connected: boolean(),
+  message: optional(string()),
+  MAC: string(),
+  serverInfo: props({
+    serverName: string(),
+    serverVersion: string(),
+  }),
+  hardware_info: optional(string()),
+  fail: optional(string()),
+})
+
+export interface StatusResponse extends GuardType<typeof StatusResponse> {}
 
 export class Status {
   readonly #client: InteractiveBrokersResourceClient
@@ -10,9 +33,9 @@ export class Status {
   async post({ signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
-  } = {}): Promise<unknown> {
+  } = {}): Promise<StatusResponse> {
     return await this.#client.post({
-      guard: undefined, // todo i wrote BrokerageSessionStatus, but it seems to be breaking
+      guard: StatusResponse,
       signal,
       timeout,
     })
