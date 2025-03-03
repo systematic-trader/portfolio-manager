@@ -11,10 +11,6 @@ export class CombinedAbortSignal implements AbortSignal, Disposable {
     }
   }
 
-  get signal(): AbortSignal {
-    return this.#controller.signal
-  }
-
   constructor(...signals: ReadonlyArray<undefined | AbortSignal>) {
     this.#signals = signals.filter((signal): signal is AbortSignal => signal !== undefined)
 
