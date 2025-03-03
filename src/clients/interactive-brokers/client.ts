@@ -20,6 +20,7 @@ import { HTTPClient, HTTPClientRequestAbortError, HTTPError, HTTPServiceError } 
 import { InteractiveBrokersResourceClient } from './resource-client.ts'
 import { Iserver } from './resources/iserver.ts'
 import { StatusResponse } from './resources/iserver/auth/status.ts'
+import { Portfolio } from './resources/portfolio.ts'
 import { Trsrv } from './resources/trsrv.ts'
 
 const PROMISE_VOID = Promise.resolve()
@@ -136,6 +137,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
   readonly baseURL: URL
 
   readonly iserver: Iserver
+  readonly portfolio: Portfolio
   readonly trsrv: Trsrv
 
   constructor(options: Options) {
@@ -256,6 +258,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     })
 
     this.iserver = new Iserver(resourceClient)
+    this.portfolio = new Portfolio(resourceClient)
     this.trsrv = new Trsrv(resourceClient)
   }
 
