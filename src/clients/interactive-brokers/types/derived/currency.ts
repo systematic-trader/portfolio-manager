@@ -2,6 +2,8 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 
 export type Currency3 = GuardType<typeof Currency3>
 
+// TODO below is copy from Saxobank. Verify if it is correct for Interactive Brokers
+
 export const Currency3 = enums([
   'AED',
   'ARS',

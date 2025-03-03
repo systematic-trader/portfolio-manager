@@ -1,7 +1,7 @@
 import type { InteractiveBrokersResourceClient } from '../../resource-client.ts'
+import type { AssetClass } from '../../types/derived/asset-class.ts'
 import type { ExchangeCode } from '../../types/derived/exchange-code.ts'
 import { AllConidsResponse } from '../../types/record/all-conids-response.ts'
-import type { AssetClass } from '../../types/record/asset-class.ts'
 
 export class AllConids {
   readonly #client: InteractiveBrokersResourceClient

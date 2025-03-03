@@ -12,10 +12,10 @@ import {
   union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { extractValues } from '../../../../utils/object.ts'
+import { AssetClass } from '../derived/asset-class.ts'
 import { Currency3 } from '../derived/currency.ts'
 import { ExchangeCode } from '../derived/exchange-code.ts'
 import { TimeInForce } from '../derived/time-in-force.ts'
-import { AssetClass } from './asset-class.ts'
 
 // Indicates permitted order types for use with standard quantity trading
 const OrderType = enums([

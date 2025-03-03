@@ -1,6 +1,6 @@
 import { assertReturn, props, string } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
-import { AssetClass } from '../../../types/record/asset-class.ts'
+import { AssetClass } from '../../../types/derived/asset-class.ts'
 import { ContractInfo, type ContractInfoUnion } from '../../../types/record/contract-info.ts'
 
 export class InfoAndRules {
