@@ -2,7 +2,7 @@ import { Debug } from '../utils/debug.ts'
 import { ensureError } from '../utils/error.ts'
 import { EventSwitch } from '../utils/event-switch.ts'
 import { PromiseQueue } from '../utils/promise-queue.ts'
-import { mergeAbortSignals } from '../utils/signal.ts'
+import { CombinedAbortSignal } from '../utils/signal.ts'
 import { Timeout } from '../utils/timeout.ts'
 import { WebSocketClientInactivityMonitor } from './websocket-client-inactivity-monitor.ts'
 
@@ -231,10 +231,7 @@ export class WebSocketClient extends EventSwitch<{
     using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
 
     // Merge the AbortSignal from the options and the timeout signal to handle both cancellation and timeouts.
-    const signal = mergeAbortSignals(
-      options.signal,
-      timeout?.signal,
-    )
+    using signal = new CombinedAbortSignal(options.signal, timeout?.signal)
 
     // Resolve the URL to connect to, defaulting to the previously stored URL if none is provided.
     const url = options.url === undefined ? this.#url : new URL(options.url)

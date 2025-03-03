@@ -13,7 +13,7 @@ import crypto from 'node:crypto'
 import { Debug } from '../../utils/debug.ts'
 import { Environment } from '../../utils/environment.ts'
 import { ensureError } from '../../utils/error.ts'
-import { mergeAbortSignals } from '../../utils/signal.ts'
+import { CombinedAbortSignal } from '../../utils/signal.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { urlJoin } from '../../utils/url.ts'
 import { HTTPClient, HTTPClientRequestAbortError, HTTPError, HTTPServiceError } from '../http-client.ts'
@@ -188,24 +188,25 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
         }, request.headers)
       },
       onError: async ({ request, error, retries }) => {
+        const liveSessionToken = requestsMap.get(request)
+
         if (
-          error instanceof HTTPClient ||
-          error instanceof HTTPServiceError
+          // There should always be a live session token
+          liveSessionToken !== undefined &&
+          (
+            error instanceof HTTPClient ||
+            error instanceof HTTPServiceError
+          )
         ) {
           if (retries === 0) {
-            const liveSessionToken = requestsMap.get(request)
-
-            // There should always be a live session token
-            if (liveSessionToken === undefined) {
-              throw error
-            }
-
             // Check if the live session token has already been updated
             if (this.#session.has({ liveSessionToken }) === false) {
               return
             }
 
             const statusUrl = urlJoin(config.baseURL, 'v1/api/iserver/auth/status')
+
+            using combinedSignal = new CombinedAbortSignal(this.#session.signal, request.signal)
 
             const response = await HTTPClient.postOkJSON(statusUrl, {
               headers: {
@@ -215,6 +216,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
                   liveSessionToken,
                 }),
               },
+              signal: combinedSignal,
               guard: StatusResponse,
             }).catch(() => undefined)
 
@@ -319,6 +321,10 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
   #disposePromise: undefined | Promise<void>
   #ticklePromise: Timeout<void>
 
+  get signal(): AbortSignal {
+    return this.#controller.signal
+  }
+
   get error(): undefined | Error {
     return this.#error
   }
@@ -347,10 +353,10 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
     this.#disposePromise = undefined
 
     this.#ticklePromise = Timeout.repeat(60 * 1000, async (signal) => {
-      const mergedSignal = mergeAbortSignals(this.#controller.signal, signal)
+      using combinedSignal = new CombinedAbortSignal(this.#controller.signal, signal)
 
       if (
-        mergedSignal.aborted ||
+        combinedSignal.aborted ||
         this.#liveSessionToken === undefined ||
         this.#liveSessionTokenPromise !== undefined // new live session token is being generated
       ) {
@@ -360,7 +366,7 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
       debug.session.tickle(this.#options.accountId, 'token check')
 
       try {
-        const response = await this.#tickle({ liveSessionToken: this.#liveSessionToken, signal: mergedSignal })
+        const response = await this.#tickle({ liveSessionToken: this.#liveSessionToken, signal: combinedSignal })
 
         if (
           response.iserver.authStatus.authenticated !== true &&

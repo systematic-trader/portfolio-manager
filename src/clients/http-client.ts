@@ -6,7 +6,7 @@ import {
 import { Debug } from '../utils/debug.ts'
 import { ensureError } from '../utils/error.ts'
 import { stringifyJSON } from '../utils/json.ts'
-import { mergeAbortSignals } from '../utils/signal.ts'
+import { CombinedAbortSignal } from '../utils/signal.ts'
 import { Timeout } from '../utils/timeout.ts'
 
 const debug = {
@@ -930,7 +930,7 @@ async function executeRequest(url: string | URL, options: {
 
   using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
 
-  const signal = mergeAbortSignals(
+  using signal = new CombinedAbortSignal(
     options.signal,
     timeout?.signal,
   )

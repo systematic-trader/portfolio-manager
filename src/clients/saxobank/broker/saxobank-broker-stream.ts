@@ -13,7 +13,7 @@ import {
 import { ensureError } from '../../../utils/error.ts'
 import { mergeDeltaContent } from '../../../utils/merge-delta-content.ts'
 import { PromiseQueue } from '../../../utils/promise-queue.ts'
-import { mergeAbortSignals } from '../../../utils/signal.ts'
+import { CombinedAbortSignal } from '../../../utils/signal.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import { HTTPClientRequestAbortError } from '../../http-client.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
@@ -984,7 +984,7 @@ function createContext(signal: undefined | AbortSignal): {
   let error: undefined | Error = undefined
 
   const controller = new AbortController()
-  const mergedSignal = mergeAbortSignals(signal, controller.signal) ?? controller.signal
+  const combinedSignal = new CombinedAbortSignal(signal, controller.signal) ?? controller.signal
   const queue = new PromiseQueue((caughtError) => {
     error = caughtError
   })
@@ -1029,7 +1029,7 @@ function createContext(signal: undefined | AbortSignal): {
     return disposePromise
   }
 
-  mergedSignal.addEventListener('abort', () => {
+  combinedSignal.addEventListener('abort', () => {
     disposeContext().catch(() => {})
   }, { once: true })
 
@@ -1047,7 +1047,7 @@ function createContext(signal: undefined | AbortSignal): {
       const { promise, resolve, reject } = Promise.withResolvers<T>()
 
       queue.call(async () => {
-        if (mergedSignal.aborted) {
+        if (combinedSignal.aborted) {
           return
         }
 
@@ -1061,7 +1061,7 @@ function createContext(signal: undefined | AbortSignal): {
       return promise
     },
     isContextDisposed: () => controller.signal.aborted,
-    signal: mergedSignal,
+    signal: combinedSignal,
   }
 }
 
