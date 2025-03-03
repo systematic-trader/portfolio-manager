@@ -64,9 +64,20 @@ export class CombinedAbortSignal implements AbortSignal, Disposable {
   }
 
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/abort_event) */
-  onabort: ((this: AbortSignal, ev: Event) => unknown) | null = null
+  get onabort(): ((this: AbortSignal, ev: Event) => unknown) | null {
+    return this.#controller.signal.onabort
+  }
+
+  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/abort_event) */
+  set onabort(value: ((this: AbortSignal, ev: Event) => unknown) | null) {
+    this.#controller.signal.onabort = value
+  }
+
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/reason) */
-  readonly reason: unknown = undefined
+  get reason(): unknown {
+    return this.#controller.signal.reason
+  }
+
   /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/throwIfAborted) */
   throwIfAborted(): void {
     return this.#controller.signal.throwIfAborted()
