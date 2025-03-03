@@ -2,7 +2,7 @@ import { Debug } from '../../../../../../utils/debug.ts'
 import { Environment } from '../../../../../../utils/environment.ts'
 import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { Timeout } from '../../../../../../utils/timeout.ts'
-import { InteractiveBrokersClient, type InteractiveBrokersClientOptions } from '../../../../client.ts'
+import { InteractiveBrokersClient } from '../../../../client.ts'
 import type { OrderPlacementParametersSingle } from '../orders.ts'
 
 const debug = Debug('test')
@@ -15,20 +15,13 @@ const CONTRACTS = {
   'TSLA': 76792991,
   'NOVO.B': 652806383,
   'ES@20270617': 649180661, // 17/06/2027
-  'EUR.DKK': 39394687, // todo this naming seems off
-}
-
-// todo remove this, when it's implemented into the client
-async function prepareClient(client: InteractiveBrokersClient<InteractiveBrokersClientOptions>): Promise<void> {
-  await client.iserver.accounts.get()
-  await client.iserver.questions.suppress.post()
+  'EUR.DKK': 39394687,
 }
 
 describe('iserver/account/order', () => {
   describe('currency conversion', () => {
-    test('DKK -> EUR -> DKK', async () => {
+    test.only('DKK -> EUR -> DKK', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['EUR.DKK']
 
@@ -78,7 +71,6 @@ describe('iserver/account/order', () => {
   describe('placing single entry order', () => {
     test('limit', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['AAPL']
 
@@ -105,7 +97,6 @@ describe('iserver/account/order', () => {
 
     test('limit on close', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['AAPL']
 
@@ -132,7 +123,6 @@ describe('iserver/account/order', () => {
 
     test('market', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['AAPL']
 
@@ -159,7 +149,6 @@ describe('iserver/account/order', () => {
 
     test('market on close', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['AAPL']
 
@@ -185,7 +174,6 @@ describe('iserver/account/order', () => {
 
     test('midprice', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['AAPL']
 
@@ -212,7 +200,6 @@ describe('iserver/account/order', () => {
 
     test('stop', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['AAPL']
 
@@ -239,7 +226,6 @@ describe('iserver/account/order', () => {
 
     test('stop limit', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['AAPL']
 
@@ -268,7 +254,6 @@ describe('iserver/account/order', () => {
 
     test('trailing stop', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['AAPL']
 
@@ -297,7 +282,6 @@ describe('iserver/account/order', () => {
 
     test('trailing stop limit', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['AAPL']
 
@@ -330,7 +314,6 @@ describe('iserver/account/order', () => {
   describe('placing a single exit order', () => {
     test('market', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
-      await prepareClient(client)
 
       const contractId = CONTRACTS['NOVO.B']
 
@@ -381,7 +364,6 @@ describe('iserver/account/order', () => {
 
   test.only('delete all orders', async () => {
     await using client = new InteractiveBrokersClient({ type: 'Paper' })
-    await prepareClient(client)
 
     const { orders } = await client.iserver.account.orders.get({
       force: true,

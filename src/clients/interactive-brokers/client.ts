@@ -22,6 +22,7 @@ import { Iserver } from './resources/iserver.ts'
 import { StatusResponse } from './resources/iserver/auth/status.ts'
 import { Portfolio } from './resources/portfolio.ts'
 import { Trsrv } from './resources/trsrv.ts'
+import { SuppressibleMessageIdValues } from './types/record/suppressible-message-ids.ts'
 
 const PROMISE_VOID = Promise.resolve()
 
@@ -412,6 +413,35 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
       }
 
       await Timeout.wait(1000)
+    }
+
+    // Suppress any confirmational questions
+    // These are typically asked by IB when placing orders, and will have to be suppressed either:
+    // 1. After attempting to place an order (causes extra latency due to additionally required http call), or
+    // 2. Once, before placing the order (like we do here)
+    // We need to do this for every brokerage session, since suppression is not persisted by IB
+    const suppressQuestionsURL = urlJoin(this.#options.baseURL, 'v1/api/iserver/questions/suppress')
+    const suppressMessagesResponse = await HTTPClient.postOkJSON(suppressQuestionsURL, {
+      headers: {
+        Authorization: this.#generateSignedAuthorizationHeader({
+          signatureMethod: 'HMAC-SHA256',
+          method: 'POST',
+          liveSessionToken: liveSessionToken,
+          url: suppressQuestionsURL,
+        }),
+      },
+      body: JSON.stringify({
+        messageIds: SuppressibleMessageIdValues,
+      }),
+      signal: this.#controller.signal,
+    })
+
+    if (
+      typeof suppressMessagesResponse !== 'object' ||
+      suppressMessagesResponse === null ||
+      ('status' in suppressMessagesResponse && suppressMessagesResponse.status === 'submitted') === false
+    ) {
+      throw new Error('Could not suppress confirmational questions')
     }
 
     // TODO more warm-up
