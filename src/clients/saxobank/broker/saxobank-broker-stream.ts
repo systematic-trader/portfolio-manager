@@ -13,7 +13,7 @@ import {
 import { ensureError } from '../../../utils/error.ts'
 import { mergeDeltaContent } from '../../../utils/merge-delta-content.ts'
 import { PromiseQueue } from '../../../utils/promise-queue.ts'
-import { CombinedAbortSignal } from '../../../utils/signal.ts'
+import { CombinedSignalController } from '../../../utils/signal.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import { HTTPClientRequestAbortError } from '../../http-client.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
@@ -984,7 +984,7 @@ function createContext(signal: undefined | AbortSignal): {
   let error: undefined | Error = undefined
 
   const controller = new AbortController()
-  const combinedSignal = new CombinedAbortSignal(signal, controller.signal) ?? controller.signal
+  const combinedSignal = new CombinedSignalController(signal, controller.signal).signal ?? controller.signal
   const queue = new PromiseQueue((caughtError) => {
     error = caughtError
   })

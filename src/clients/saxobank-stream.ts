@@ -3,7 +3,7 @@ import { Debug } from '../utils/debug.ts'
 import { ensureError } from '../utils/error.ts'
 import { EventSwitch } from '../utils/event-switch.ts'
 import { PromiseQueue } from '../utils/promise-queue.ts'
-import { CombinedAbortSignal } from '../utils/signal.ts'
+import { CombinedSignalController } from '../utils/signal.ts'
 import { Timeout } from '../utils/timeout.ts'
 import { HTTPClientRequestAbortError } from './http-client.ts'
 import type { SaxoBankApplication } from './saxobank-application.ts'
@@ -184,7 +184,7 @@ export class SaxoBankStream extends EventSwitch<{
       },
     } as this['state']
 
-    this.#signal = new CombinedAbortSignal(this.#controller.signal, signal) ?? this.#controller.signal
+    this.#signal = new CombinedSignalController(this.#controller.signal, signal).signal ?? this.#controller.signal
 
     if (this.#signal.aborted === true) {
       this.#controller.abort()

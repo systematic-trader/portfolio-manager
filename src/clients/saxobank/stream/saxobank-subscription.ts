@@ -1,7 +1,7 @@
 import { AssertionError } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { EventSwitch } from '../../../utils/event-switch.ts'
 import type { PromiseQueue } from '../../../utils/promise-queue.ts'
-import { CombinedAbortSignal } from '../../../utils/signal.ts'
+import { CombinedSignalController } from '../../../utils/signal.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import type { SaxoBankApplication } from '../../saxobank-application.ts'
 import type { SaxoBankStream } from '../../saxobank-stream.ts'
@@ -340,7 +340,7 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
             contextId: this.#stream.contextId,
             referenceId: this.#referenceId,
             timeout,
-            signal: new CombinedAbortSignal(signal, this.#controller.signal),
+            signal: new CombinedSignalController(signal, this.#controller.signal).signal,
           })
         } else {
           previousReferenceId = this.#referenceId
@@ -352,7 +352,7 @@ export class SaxoBankSubscription<Message> extends EventSwitch<{
             referenceId: this.#referenceId,
             previousReferenceId,
             timeout,
-            signal: new CombinedAbortSignal(signal, this.#controller.signal),
+            signal: new CombinedSignalController(signal, this.#controller.signal).signal,
           })
         }
 

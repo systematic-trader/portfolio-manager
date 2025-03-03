@@ -1,4 +1,4 @@
-export class CombinedAbortSignal implements AbortSignal, Disposable {
+export class CombinedSignalController implements Disposable {
   readonly #controller = new AbortController()
   readonly #signals: ReadonlyArray<AbortSignal>
   readonly #listener = () => {
@@ -9,6 +9,10 @@ export class CombinedAbortSignal implements AbortSignal, Disposable {
     for (const signal of this.#signals) {
       signal.removeEventListener('abort', this.#listener)
     }
+  }
+
+  get signal(): AbortSignal {
+    return this.#controller.signal
   }
 
   constructor(...signals: ReadonlyArray<undefined | AbortSignal>) {
@@ -47,78 +51,14 @@ export class CombinedAbortSignal implements AbortSignal, Disposable {
     }
   }
 
-  any(signals: Iterable<AbortSignal>): AbortSignal {
-    return this.#controller.signal.any(signals)
-  }
-
-  dispatchEvent(event: Event): boolean {
-    return this.#controller.signal.dispatchEvent(event)
-  }
-
-  get aborted(): boolean {
-    return this.#controller.signal.aborted
-  }
-
-  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/abort_event) */
-  get onabort(): ((this: AbortSignal, ev: Event) => unknown) | null {
-    return this.#controller.signal.onabort
-  }
-
-  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/abort_event) */
-  set onabort(value: ((this: AbortSignal, ev: Event) => unknown) | null) {
-    this.#controller.signal.onabort = value
-  }
-
-  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/reason) */
-  get reason(): unknown {
-    return this.#controller.signal.reason
-  }
-
-  /** [MDN Reference](https://developer.mozilla.org/docs/Web/API/AbortSignal/throwIfAborted) */
-  throwIfAborted(): void {
-    return this.#controller.signal.throwIfAborted()
-  }
-
-  addEventListener<K extends keyof AbortSignalEventMap>(
-    type: K,
-    listener: (this: AbortSignal, ev: AbortSignalEventMap[K]) => unknown,
-    options?: boolean | AddEventListenerOptions,
-  ): void
-  addEventListener(
-    type: string,
-    listener: EventListenerOrEventListenerObject,
-    options?: boolean | AddEventListenerOptions,
-  ): void
-  addEventListener(
-    type: string,
-    listener: EventListenerOrEventListenerObject,
-    options?: boolean | AddEventListenerOptions,
-  ): void {
-    this.#controller.signal.addEventListener(type, listener, options)
-  }
-
-  removeEventListener<K extends keyof AbortSignalEventMap>(
-    type: K,
-    listener: (this: AbortSignal, ev: AbortSignalEventMap[K]) => undefined,
-    options?: boolean | EventListenerOptions,
-  ): void
-  removeEventListener(
-    type: string,
-    listener: EventListenerOrEventListenerObject,
-    options?: boolean | EventListenerOptions,
-  ): void
-  removeEventListener(
-    type: string,
-    listener: EventListenerOrEventListenerObject,
-    options?: boolean | EventListenerOptions,
-  ): void {
-    this.#controller.signal.removeEventListener(type, listener, options)
-  }
-
   [Symbol.dispose](): void {
     for (const signal of this.#signals) {
       signal.removeEventListener('abort', this.#listener)
     }
+  }
+
+  abort(): void {
+    this.#controller.abort()
   }
 
   dispose(): void {

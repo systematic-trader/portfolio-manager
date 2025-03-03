@@ -2,7 +2,7 @@ import { Debug } from '../utils/debug.ts'
 import { ensureError } from '../utils/error.ts'
 import { EventSwitch } from '../utils/event-switch.ts'
 import { PromiseQueue } from '../utils/promise-queue.ts'
-import { CombinedAbortSignal } from '../utils/signal.ts'
+import { CombinedSignalController } from '../utils/signal.ts'
 import { Timeout } from '../utils/timeout.ts'
 import { WebSocketClientInactivityMonitor } from './websocket-client-inactivity-monitor.ts'
 
@@ -231,13 +231,13 @@ export class WebSocketClient extends EventSwitch<{
     using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
 
     // Merge the AbortSignal from the options and the timeout signal to handle both cancellation and timeouts.
-    using signal = new CombinedAbortSignal(options.signal, timeout?.signal)
+    using controller = new CombinedSignalController(options.signal, timeout?.signal)
 
     // Resolve the URL to connect to, defaulting to the previously stored URL if none is provided.
     const url = options.url === undefined ? this.#url : new URL(options.url)
 
     // Check if the signal is already aborted before proceeding.
-    if (signal?.aborted) {
+    if (controller.signal.aborted) {
       return new WebSocketClientAbortError({ url: url.href })
     }
 
@@ -259,7 +259,7 @@ export class WebSocketClient extends EventSwitch<{
     }
 
     // Attach the abort listener to the signal to ensure it reacts to abort events.
-    signal?.addEventListener('abort', signalAbortListener, { once: true })
+    controller.signal.addEventListener('abort', signalAbortListener, { once: true })
 
     // Create a promise with resolvers to manage the connection flow asynchronously.
     const { promise, reject, resolve } = Promise.withResolvers<void>()
@@ -287,7 +287,7 @@ export class WebSocketClient extends EventSwitch<{
 
       // Cancel the timeout, clean up the signal listener, and close the WebSocket.
       timeout?.cancel()
-      signal?.removeEventListener('abort', signalAbortListener)
+      controller.signal.removeEventListener('abort', signalAbortListener)
       websocket.removeEventListener('open', openListener)
       websocket.close()
     }
@@ -296,7 +296,7 @@ export class WebSocketClient extends EventSwitch<{
     const openListener = (event: Event) => {
       // Cleanup after successfully opening the connection.
       timeout?.cancel()
-      signal?.removeEventListener('abort', signalAbortListener)
+      controller.signal.removeEventListener('abort', signalAbortListener)
       websocket.removeEventListener('close', closeListener)
       websocket.removeEventListener('error', errorListener)
 
@@ -331,7 +331,7 @@ export class WebSocketClient extends EventSwitch<{
     // Listener to handle the WebSocket `close` event during the connection phase.
     const closeListener = (_event: CloseEvent) => {
       timeout?.cancel()
-      signal?.removeEventListener('abort', signalAbortListener)
+      controller.signal.removeEventListener('abort', signalAbortListener)
       websocket.removeEventListener('open', openListener)
       websocket.removeEventListener('error', errorListener)
 

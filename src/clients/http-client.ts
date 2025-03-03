@@ -6,7 +6,7 @@ import {
 import { Debug } from '../utils/debug.ts'
 import { ensureError } from '../utils/error.ts'
 import { stringifyJSON } from '../utils/json.ts'
-import { CombinedAbortSignal } from '../utils/signal.ts'
+import { CombinedSignalController } from '../utils/signal.ts'
 import { Timeout } from '../utils/timeout.ts'
 
 const debug = {
@@ -930,12 +930,12 @@ async function executeRequest(url: string | URL, options: {
 
   using timeout = options.timeout === undefined ? undefined : Timeout.wait(options.timeout)
 
-  using signal = new CombinedAbortSignal(
+  using controller = new CombinedSignalController(
     options.signal,
     timeout?.signal,
   )
 
-  if (signal !== undefined && signal.aborted === true) {
+  if (controller.signal.aborted === true) {
     if (options.body === undefined || options.body === null) {
       debug[options.method](new URL(url).href)
     } else {
@@ -950,7 +950,7 @@ async function executeRequest(url: string | URL, options: {
     method: options.method,
     headers: HTTPClient.createHeaders(options.headers),
     body: options.body,
-    signal,
+    signal: controller.signal,
   }
 
   return await callFetch(

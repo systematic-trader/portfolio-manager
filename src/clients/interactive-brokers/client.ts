@@ -13,7 +13,7 @@ import crypto from 'node:crypto'
 import { Debug } from '../../utils/debug.ts'
 import { Environment } from '../../utils/environment.ts'
 import { ensureError } from '../../utils/error.ts'
-import { CombinedAbortSignal } from '../../utils/signal.ts'
+import { CombinedSignalController } from '../../utils/signal.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { urlJoin } from '../../utils/url.ts'
 import { HTTPClient, HTTPClientRequestAbortError, HTTPError, HTTPServiceError } from '../http-client.ts'
@@ -206,7 +206,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
 
             const statusUrl = urlJoin(config.baseURL, 'v1/api/iserver/auth/status')
 
-            using combinedSignal = new CombinedAbortSignal(this.#session.signal, request.signal)
+            using controller = new CombinedSignalController(this.#session.signal, request.signal)
 
             const response = await HTTPClient.postOkJSON(statusUrl, {
               headers: {
@@ -216,7 +216,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
                   liveSessionToken,
                 }),
               },
-              signal: combinedSignal,
+              signal: controller.signal,
               guard: StatusResponse,
             }).catch(() => undefined)
 
@@ -353,10 +353,10 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
     this.#disposePromise = undefined
 
     this.#ticklePromise = Timeout.repeat(60 * 1000, async (signal) => {
-      using combinedSignal = new CombinedAbortSignal(this.#controller.signal, signal)
+      using controller = new CombinedSignalController(this.#controller.signal, signal)
 
       if (
-        combinedSignal.aborted ||
+        controller.signal.aborted ||
         this.#liveSessionToken === undefined ||
         this.#liveSessionTokenPromise !== undefined // new live session token is being generated
       ) {
@@ -366,7 +366,7 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
       debug.session.tickle(this.#options.accountId, 'token check')
 
       try {
-        const response = await this.#tickle({ liveSessionToken: this.#liveSessionToken, signal: combinedSignal })
+        const response = await this.#tickle({ liveSessionToken: this.#liveSessionToken, signal: controller.signal })
 
         if (
           response.iserver.authStatus.authenticated !== true &&
