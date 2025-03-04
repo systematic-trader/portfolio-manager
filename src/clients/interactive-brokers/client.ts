@@ -43,6 +43,9 @@ const debug = {
     tickle: Debug('ib-client:session:tickle'),
     error: Debug('ib-client:session:error'),
   },
+  warmUp: {
+    accounts: Debug('ib-client:warm-up:accounts'),
+  },
 }
 
 const LiveSessionTokenResponse = props({
@@ -396,7 +399,7 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
 
     // Silly (but required) warm-up specified by IBKR
     while (true) {
-      const resp = await HTTPClient.getOkJSON(accountsURL, {
+      const response = await HTTPClient.getOkJSON(accountsURL, {
         headers: {
           Authorization: this.#generateSignedAuthorizationHeader({
             signatureMethod: 'HMAC-SHA256',
@@ -408,7 +411,8 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
         signal: this.#controller.signal,
       })
 
-      if (typeof resp === 'object' && resp !== null && 'accounts' in resp) {
+      if (typeof response === 'object' && response !== null && 'accounts' in response) {
+        debug.warmUp.accounts(response)
         break
       }
 
@@ -679,9 +683,12 @@ class InteractiveBrokersOAuth1a implements AsyncDisposable {
 
     return this.#disposePromise = Promise.allSettled([liveSessionTokenPromise, this.#ticklePromise]).then(
       async ([sessionResult, tickleResult]) => {
-        if (sessionResult.status === 'fulfilled' && sessionResult.value !== undefined) {
+        if (sessionResult.status === 'fulfilled') {
           debug.session.dispose(this.#options.accountId, 'logout')
-          await this.#logout({ liveSessionToken: sessionResult.value })
+          const liveSessionToken = sessionResult.value ?? this.#liveSessionToken
+          if (liveSessionToken !== undefined) {
+            await this.#logout({ liveSessionToken })
+          }
         } else if (sessionResult.status === 'rejected') {
           throw sessionResult.reason
         }
