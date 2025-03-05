@@ -3,7 +3,11 @@ import { Environment } from '../../../../../../utils/environment.ts'
 import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { Timeout } from '../../../../../../utils/timeout.ts'
 import { InteractiveBrokersClient } from '../../../../client.ts'
-import type { OrderPlacementParametersSingle } from '../orders.ts'
+import type {
+  OrderPlacementParametersRootWithOneAttached,
+  OrderPlacementParametersRootWithTwoAttached,
+  OrderPlacementParametersSingle,
+} from '../orders.ts'
 
 const debug = Debug('test')
 
@@ -18,15 +22,20 @@ const CONTRACTS = {
   'EUR.DKK': 39394687,
 }
 
+// todo check if we have enough funds to do what we need to do in the test
+// todo make a test showing what happens when we're converting from something we don't have
+
 describe('iserver/account/order', () => {
   describe('currency conversion', () => {
-    test.only('DKK -> EUR -> DKK', async () => {
+    test('DKK -> EUR -> DKK', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
       const contractId = CONTRACTS['EUR.DKK']
 
-      // todo check if we have enough funds in too do actually do this test
-      // todo make a test showing what happens when we're converting from something we don't have
+      const ledger = await client.portfolio.account.ledger.get({
+        accountId,
+      })
+      debug('ledger dkk', ledger.DKK)
 
       const toEURResponse = await client.iserver.account.orders.post({
         accountId,
@@ -65,6 +74,75 @@ describe('iserver/account/order', () => {
 
       debug('eur -> dkk response', toDKKResponse)
       expect(toDKKResponse).toBeDefined()
+    })
+
+    // it's not possible to place multiple currency conversion orders at the same time
+    test.skip('2x DKK -> EUR', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const ledgerBefore = await client.portfolio.account.ledger.get({
+        accountId,
+      })
+      if (ledgerBefore.BASE === undefined || ledgerBefore.DKK === undefined || ledgerBefore.EUR === undefined) {
+        throw new Error('Ledger before is undefined')
+      }
+
+      const contractId = CONTRACTS['EUR.DKK']
+
+      const toEURResponse = await client.iserver.account.orders.post({
+        accountId,
+        orders: [{
+          isCcyConv: true,
+          acctId: accountId,
+          orderType: 'MKT',
+          side: 'BUY',
+          cOID: `test-order-${Math.random()}`,
+          conidex: `${contractId}@SMART`,
+          fxQty: 500, // in dkk
+          manualIndicator: false,
+          tif: 'DAY',
+        }, {
+          isCcyConv: true,
+          acctId: accountId,
+          orderType: 'MKT',
+          side: 'BUY',
+          cOID: `test-order-${Math.random()}`,
+          conidex: `${contractId}@SMART`,
+          fxQty: 500, // in dkk
+          manualIndicator: false,
+          tif: 'DAY',
+        }] as never,
+      })
+
+      debug('dkk -> eur response', toEURResponse)
+      expect(toEURResponse).toBeDefined()
+
+      await Timeout.wait(5000) // wait a bit for the orders to be filled
+
+      const ledgerAfter = await client.portfolio.account.ledger.get({
+        accountId,
+      })
+      if (ledgerAfter.BASE === undefined || ledgerAfter.DKK === undefined || ledgerAfter.EUR === undefined) {
+        throw new Error('Ledger after is undefined')
+      }
+
+      debug('ledger before', {
+        BASE: ledgerBefore.BASE.cashbalance,
+        DKK: ledgerBefore.DKK.cashbalance,
+        EUR: ledgerBefore.EUR.cashbalance,
+      })
+
+      debug('ledger after', {
+        BASE: ledgerAfter.BASE.cashbalance,
+        DKK: ledgerAfter.DKK.cashbalance,
+        EUR: ledgerAfter.EUR.cashbalance,
+      })
+
+      debug('ledger difference', {
+        BASE: ledgerAfter.BASE.cashbalance - ledgerBefore.BASE.cashbalance,
+        DKK: ledgerAfter.DKK.cashbalance - ledgerBefore.DKK.cashbalance,
+        EUR: ledgerAfter.EUR.cashbalance - ledgerBefore.EUR.cashbalance,
+      })
     })
   })
 
@@ -362,30 +440,168 @@ describe('iserver/account/order', () => {
     })
   })
 
-  test.only('delete all orders', async () => {
-    await using client = new InteractiveBrokersClient({ type: 'Paper' })
+  describe('placing a root-order with attached orders', () => {
+    test('one leg (take profit)', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
-    const { orders } = await client.iserver.account.orders.get({
-      force: true,
-      filters: ['Inactive', 'PreSubmitted', 'Submitted'],
-      accountId,
+      const contractId = CONTRACTS['AAPL']
+
+      const response = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [
+            // Entry order
+            {
+              acctId: accountId,
+              conidex: `${contractId}@SMART`,
+              manualIndicator: false,
+              orderType: 'LMT',
+              price: 200, // Entry limit price - below current market
+              side: 'BUY',
+              tif: 'DAY',
+              quantity: 1,
+              cOID: `entry-test-order-${Math.random()}`,
+            },
+
+            // Take profit order
+            {
+              acctId: accountId,
+              conidex: `${contractId}@SMART`,
+              manualIndicator: false,
+              orderType: 'LMT',
+              price: 220, // Take profit price - above entry price
+              side: 'SELL',
+              tif: 'GTC', // Good till cancelled since this is a take profit
+              quantity: 1,
+              cOID: `take-profit-test-order-${Math.random()}`,
+            },
+          ],
+        } satisfies OrderPlacementParametersRootWithOneAttached,
+      )
+
+      debug('response', response)
+      expect(response).toBeDefined()
     })
 
-    if (orders === undefined || orders.length === 0) {
-      throw new Error('No orders to delete')
-    }
+    test('one leg (stop loss)', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
-    for (const order of orders) {
-      debug('deleting order', order)
+      const contractId = CONTRACTS['AAPL']
 
-      const deleteOrderResponse = await client.iserver.account.order.delete({
+      const response = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [
+            // Entry order
+            {
+              acctId: accountId,
+              conidex: `${contractId}@SMART`,
+              manualIndicator: false,
+              orderType: 'LMT',
+              price: 200, // Entry limit price - below current market
+              side: 'BUY',
+              tif: 'DAY',
+              quantity: 1,
+              cOID: `entry-test-order-${Math.random()}`,
+            },
+            // Stop loss order
+            {
+              acctId: accountId,
+              conidex: `${contractId}@SMART`,
+              manualIndicator: false,
+              orderType: 'STP',
+              price: 190, // Stop loss price - below entry price
+              side: 'SELL',
+              tif: 'GTC', // Good till cancelled since this is a stop loss
+              quantity: 1,
+              cOID: `stop-loss-test-order-${Math.random()}`,
+            },
+          ],
+        } satisfies OrderPlacementParametersRootWithOneAttached,
+      )
+
+      debug('response', response)
+      expect(response).toBeDefined()
+    })
+
+    test('two legs (take profit + stop loss)', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const contractId = CONTRACTS['AAPL']
+
+      const response = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [
+            // Entry order
+            {
+              acctId: accountId,
+              conidex: `${contractId}@SMART`,
+              manualIndicator: false,
+              orderType: 'LMT',
+              price: 200, // Entry limit price - below current market
+              side: 'BUY',
+              tif: 'DAY',
+              quantity: 1,
+              cOID: `entry-test-order-${Math.random()}`,
+            },
+            // Take profit order
+            {
+              acctId: accountId,
+              conidex: `${contractId}@SMART`,
+              manualIndicator: false,
+              orderType: 'LMT',
+              price: 220, // Take profit price - above entry price
+              side: 'SELL',
+              tif: 'GTC',
+              quantity: 1,
+              cOID: `take-profit-test-order-${Math.random()}`,
+            },
+            // Stop loss order
+            {
+              acctId: accountId,
+              conidex: `${contractId}@SMART`,
+              manualIndicator: false,
+              orderType: 'STP',
+              price: 190, // Stop loss price - below entry price
+              side: 'SELL',
+              tif: 'GTC',
+              quantity: 1,
+              cOID: `stop-loss-test-order-${Math.random()}`,
+            },
+          ],
+        } satisfies OrderPlacementParametersRootWithTwoAttached,
+      )
+
+      debug('response', response)
+      expect(response).toBeDefined()
+    })
+
+    test.only('delete all orders', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const { orders } = await client.iserver.account.orders.get({
+        force: true,
+        filters: ['Inactive', 'PreSubmitted', 'Submitted'],
         accountId,
-        orderId: order.orderId,
-        manualIndicator: false,
       })
 
-      debug('order deletion response', deleteOrderResponse)
-      expect(deleteOrderResponse).toBeDefined()
-    }
+      if (orders === undefined || orders.length === 0) {
+        throw new Error('No orders to delete')
+      }
+
+      for (const order of orders) {
+        debug('deleting order', order)
+
+        const deleteOrderResponse = await client.iserver.account.order.delete({
+          accountId,
+          orderId: order.orderId,
+          manualIndicator: false,
+        })
+
+        debug('order deletion response', deleteOrderResponse)
+        expect(deleteOrderResponse).toBeDefined()
+      }
+    })
   })
 })

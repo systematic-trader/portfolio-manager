@@ -303,20 +303,25 @@ export const OrderPlacementResponseError = props({
 
 export interface OrderPlacementResponseError extends GuardType<typeof OrderPlacementResponseError> {}
 
+type RootOrder = StaticParameters & ParametersByOrderType & ParametersByTimeInForce
+
+type AttachedOrder = StaticParameters & ParametersByOrderType & ParametersByTimeInForce
+
 // #region Method 1: Currency conversion order
 export type OrderPlacementParametersCurrencyConversion = {
   readonly accountId: string
   readonly orders: readonly [
-    Omit<StaticParameters, 'quantity'> & ParametersByOrderTypeMarket & ParametersByTimeInForce & {
+    Omit<RootOrder, 'quantity'> & {
+      readonly orderType: 'MKT'
       readonly isCcyConv: true
-      readonly fxQty: number
+      readonly fxQty: number // 'fxQty' must be specified instead of 'quantity'
     },
   ]
 }
 
 export const PlaceOrderResponseCurrencyConversion = union([
   tuple([OrderPlacementResponseSuccessElement]),
-  // tuple([ResponseConfirmationRequiredElement]), // todo this might not be needed
+  // tuple([ResponseConfirmationRequiredElement]), // todo this might not be needed anymore (we warmup requests)
   OrderPlacementResponseError,
 ])
 
@@ -326,17 +331,34 @@ export type ResponseCurrencyConversion = GuardType<typeof PlaceOrderResponseCurr
 // #region Method 2: Single order (without any related orders)
 export type OrderPlacementParametersSingle = {
   readonly accountId: string
-  readonly orders: readonly [StaticParameters & ParametersByOrderType & ParametersByTimeInForce]
+  readonly orders: readonly [RootOrder]
 }
 
-export const PlaceOrderResponseSingle = union([
+// #endregion
+
+// #region Method 3: Single root order with a single attached order
+export type OrderPlacementParametersRootWithOneAttached = {
+  readonly accountId: string
+  readonly orders: readonly [RootOrder, AttachedOrder]
+}
+
+// #endregion
+
+// #region Method 4: Single root order with two attached orders
+export type OrderPlacementParametersRootWithTwoAttached = {
+  readonly accountId: string
+  readonly orders: readonly [RootOrder, AttachedOrder, AttachedOrder]
+}
+
+// #endregion
+
+export const PlaceOrderResponse = union([
   tuple([OrderPlacementResponseSuccessElement]),
   // tuple([ResponseConfirmationRequiredElement]), // todo this might not be needed
   OrderPlacementResponseError,
 ])
 
-export type PlaceOrderResponseSingle = GuardType<typeof PlaceOrderResponseSingle>
-// #endregion
+export type PlaceOrderResponse = GuardType<typeof PlaceOrderResponse>
 
 // #endregion
 
@@ -414,24 +436,46 @@ export class Orders {
   async post(
     parameters: OrderPlacementParametersSingle,
     options?: { readonly timeout?: undefined | number },
-  ): Promise<PlaceOrderResponseSingle>
+  ): Promise<PlaceOrderResponse>
+
+  /**
+   * Method 3:
+   * Single root order with a single attached order
+   */
+  async post(
+    parameters: OrderPlacementParametersRootWithOneAttached,
+    options?: { readonly timeout?: undefined | number },
+  ): Promise<PlaceOrderResponse>
+
+  /**
+   * Method 4:
+   * Single root order with two attached orders
+   */
+  async post(
+    parameters: OrderPlacementParametersRootWithTwoAttached,
+    options?: { readonly timeout?: undefined | number },
+  ): Promise<PlaceOrderResponse>
 
   /**
    * Submit a new order(s) ticket, bracket, or OCA group.
    */
   async post(
-    { accountId, orders }: OrderPlacementParametersCurrencyConversion | OrderPlacementParametersSingle,
+    { accountId, orders }:
+      | OrderPlacementParametersCurrencyConversion
+      | OrderPlacementParametersSingle
+      | OrderPlacementParametersRootWithOneAttached
+      | OrderPlacementParametersRootWithTwoAttached,
     { signal, timeout }: {
       readonly signal?: undefined | AbortSignal
       readonly timeout?: undefined | number
     } = {},
-  ): Promise<unknown> {
+  ): Promise<ResponseCurrencyConversion | PlaceOrderResponse> {
     // Method 1
     if (orders.length === 1 && 'isCcyConv' in orders[0] && orders[0].isCcyConv === true) {
       return await this.#client.post({
         path: `${accountId}/orders`,
         body: { orders } as never,
-        guard: PlaceOrderResponseSingle,
+        guard: PlaceOrderResponse,
         signal,
         timeout,
       })
@@ -442,7 +486,53 @@ export class Orders {
       return await this.#client.post({
         path: `${accountId}/orders`,
         body: { orders } as never,
-        guard: PlaceOrderResponseSingle,
+        guard: PlaceOrderResponse,
+        signal,
+        timeout,
+      })
+    }
+
+    // Method 3
+    if (orders.length === 2) {
+      const [rootOrder, attachedOrder] = orders
+
+      return await this.#client.post({
+        path: `${accountId}/orders`,
+        body: {
+          orders: [
+            rootOrder,
+            {
+              ...attachedOrder,
+              parentId: rootOrder.cOID,
+            },
+          ],
+        } as never,
+        guard: PlaceOrderResponse,
+        signal,
+        timeout,
+      })
+    }
+
+    // Method 4
+    if (orders.length === 3) {
+      const [rootOrder, attachedOrderLeft, attachedOrderRight] = orders
+
+      return await this.#client.post({
+        path: `${accountId}/orders`,
+        body: {
+          orders: [
+            rootOrder,
+            {
+              ...attachedOrderLeft,
+              parentId: rootOrder.cOID,
+            },
+            {
+              ...attachedOrderRight,
+              parentId: rootOrder.cOID,
+            },
+          ],
+        } as never,
+        guard: PlaceOrderResponse,
         signal,
         timeout,
       })
