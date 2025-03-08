@@ -248,6 +248,7 @@ describe(InteractiveBrokersClient.name, () => {
       '87', // volume
       '88', // bid size
       '6004', // exchange
+      '6070', // The asset class of the instrument.
       '6509', // market data availability (eksempelvis "DPB" som betyder D = delayed, P = snapshot og B = Book)
       '7051', // company name
     ] as const
@@ -343,16 +344,33 @@ describe(InteractiveBrokersClient.name, () => {
     await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     while (true) {
-      const snapshot = await client.iserver.marketData.snapshot.get({
-        conids: [CONTRACTS['AAPL']],
-        fields: [
-          '31', // last price
-        ],
+      const snapshots = await client.iserver.marketData.snapshot.getByAssetClass({
+        assetClass: 'STK',
+        conIDs: [CONTRACTS['NOVO.B'], CONTRACTS['AAPL']],
       })
 
-      debug('snapshot', snapshot)
+      debug('snapshots', snapshots)
 
       await Timeout.wait(5_000)
     }
+  })
+
+  describe('websocket', () => {
+    test('connect', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Live' })
+
+      await client.connect()
+
+      while (true) {
+        await client.iserver.marketData.snapshot.get({
+          conids: [CONTRACTS['AAPL']],
+          fields: [
+            '31', // last price
+          ],
+        })
+
+        await Timeout.wait(5_000)
+      }
+    })
   })
 })

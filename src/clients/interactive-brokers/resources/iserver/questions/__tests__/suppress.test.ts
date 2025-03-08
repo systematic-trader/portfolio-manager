@@ -1,7 +1,7 @@
 import { Debug } from '../../../../../../utils/debug.ts'
 import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { InteractiveBrokersClient } from '../../../../client.ts'
-import { SuppressibleMessageIdValues } from '../../../../types/record/suppressible-message-ids.ts'
+import { SuppressibleMessageIdValues } from '../../../../types/derived/suppressible-message-ids.ts'
 
 const debug = Debug('test')
 

@@ -1,9 +1,9 @@
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
-import { SuppressQuestionsResponse } from '../../../types/record/suppres-questions-response.ts'
 import {
   type SuppressibleMessageIds,
   SuppressibleMessageIdValues,
-} from '../../../types/record/suppressible-message-ids.ts'
+} from '../../../types/derived/suppressible-message-ids.ts'
+import { SuppressQuestionsResponse } from '../../../types/record/suppres-questions-response.ts'
 import { Reset } from './suppress/reset.ts'
 
 export class Suppress {

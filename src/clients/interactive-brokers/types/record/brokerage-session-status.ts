@@ -2,11 +2,10 @@ import {
   boolean,
   type GuardType,
   literal,
-  nullable,
   props,
   string,
-  unknown,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { ServerInfo } from './server-info.ts'
 
 export const BrokerageSessionStatus = props({
   authenticated: boolean(),
@@ -14,10 +13,7 @@ export const BrokerageSessionStatus = props({
   connected: boolean(),
   message: string(),
   MAC: string(),
-  serverInfo: props({
-    serverName: nullable(unknown()),
-    serverVersion: nullable(unknown()),
-  }),
+  serverInfo: ServerInfo,
   hardware_info: string(),
   fail: literal(''),
 })

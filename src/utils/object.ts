@@ -31,3 +31,18 @@ export function invertRecord<T extends Record<string, string>>(record: T): {
     readonly [K in keyof T as T[K]]: K
   }
 }
+
+export function pick<T extends object, K extends keyof T>(
+  object: T,
+  keys: readonly K[],
+): { readonly [P in keyof Pick<T, K>]: Pick<T, K>[P] } {
+  const output = {} as Record<K, unknown>
+
+  for (const key of keys) {
+    if (key in object) {
+      output[key] = object[key]
+    }
+  }
+
+  return output as { readonly [P in keyof Pick<T, K>]: Pick<T, K>[P] }
+}

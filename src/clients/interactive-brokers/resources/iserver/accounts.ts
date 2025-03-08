@@ -1,5 +1,5 @@
 import type { InteractiveBrokersResourceClient } from '../../resource-client.ts'
-import { AccountsResponse } from '../../types/record/accounts-response.ts'
+import { Accounts as AccountsType } from '../../types/record/accounts.ts'
 
 export class Accounts {
   readonly #client: InteractiveBrokersResourceClient
@@ -11,9 +11,9 @@ export class Accounts {
   async get({ signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
-  } = {}): Promise<AccountsResponse> {
+  } = {}): Promise<AccountsType> {
     return await this.#client.get({
-      guard: AccountsResponse,
+      guard: AccountsType,
       signal,
       timeout,
     })
