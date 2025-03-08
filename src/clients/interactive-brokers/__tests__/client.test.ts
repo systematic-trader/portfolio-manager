@@ -355,22 +355,22 @@ describe(InteractiveBrokersClient.name, () => {
     }
   })
 
-  describe('websocket', () => {
-    test('connect', async () => {
-      await using client = new InteractiveBrokersClient({ type: 'Live' })
+  // describe('websocket', () => {
+  //   test('connect', async () => {
+  //     await using client = new InteractiveBrokersClient({ type: 'Live' })
 
-      await client.connect()
+  //     await client.connect()
 
-      while (true) {
-        await client.iserver.marketData.snapshot.get({
-          conids: [CONTRACTS['AAPL']],
-          fields: [
-            '31', // last price
-          ],
-        })
+  //     while (true) {
+  //       await client.iserver.marketData.snapshot.get({
+  //         conids: [CONTRACTS['AAPL']],
+  //         fields: [
+  //           '31', // last price
+  //         ],
+  //       })
 
-        await Timeout.wait(5_000)
-      }
-    })
-  })
+  //       await Timeout.wait(5_000)
+  //     }
+  //   })
+  // })
 })
