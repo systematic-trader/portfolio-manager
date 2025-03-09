@@ -7,13 +7,13 @@ import { Timeout } from '../utils/timeout.ts'
 import { WebSocketClientInactivityMonitor } from './websocket-client-inactivity-monitor.ts'
 
 const debug = {
-  create: Debug('websocket-client:create'),
-  open: Debug('websocket-client:open'),
-  closed: Debug('websocket-client:closed'),
-  failed: Debug('websocket-client:failed'),
-  send: Debug('websocket-client:send'),
-  error: Debug('websocket-client:error'),
-  message: Debug('websocket-client:message'),
+  create: Debug('ws-client:create'),
+  open: Debug('ws-client:open'),
+  closed: Debug('ws-client:closed'),
+  failed: Debug('ws-client:failed'),
+  send: Debug('ws-client:send'),
+  error: Debug('ws-client:error'),
+  message: Debug('ws-client:message'),
 }
 /**
  * WebSocketClient error.
@@ -639,7 +639,7 @@ export class WebSocketClient extends EventSwitch<{
 
     this.#websocket!.send(...args)
 
-    debug.send(this.#url.href, args)
+    debug.send(this.#url.href, ...args)
 
     return this
   }
