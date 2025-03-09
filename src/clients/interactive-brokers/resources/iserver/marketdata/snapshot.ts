@@ -84,7 +84,7 @@ export class Snapshot {
           continue
         }
 
-        const wrongAssetClass = invalidations.filter((invalidation) => {
+        const invalidAssetClass = invalidations.filter((invalidation) => {
           return invalidation.path.length === 1 &&
             invalidation.path[0] === '6070' &&
             invalidation.rule === 'logical' &&
@@ -92,8 +92,8 @@ export class Snapshot {
             typeof invalidation.setting === 'string'
         })[0]?.setting as undefined | string
 
-        if (wrongAssetClass !== undefined && wrongAssetClass !== options.assetClass) {
-          throw new Error(`Expected asset class "${options.assetClass}" but got "${wrongAssetClass}".`)
+        if (invalidAssetClass !== undefined && invalidAssetClass !== options.assetClass) {
+          throw new Error(`Expected asset class "${options.assetClass}" but got "${invalidAssetClass}".`)
         }
 
         if (invalidations.some((invalidation) => invalidation.rule === 'type' && invalidation.actual !== 'undefined')) {
