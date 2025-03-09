@@ -1,6 +1,6 @@
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
+import type { AssetClass } from '../../../types/derived/asset-class.ts'
 import type { ExchangeCode } from '../../../types/derived/exchange-code.ts'
-import type { SecurityType } from '../../../types/record/security-type.ts'
 
 export class Info {
   readonly #client: InteractiveBrokersResourceClient
@@ -17,7 +17,7 @@ export class Info {
     readonly conid: string | number
 
     /** Security type of the requested contract of interest */
-    readonly secType?: undefined | SecurityType
+    readonly secType?: undefined | AssetClass
 
     /** Expiration month for the given derivative. */
     // todo probably only relevant for options and futures

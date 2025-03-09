@@ -1,5 +1,5 @@
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
-import type { SecurityType } from '../../../types/record/security-type.ts'
+import type { AssetClass } from '../../../types/derived/asset-class.ts'
 
 export class Search {
   readonly #client: InteractiveBrokersResourceClient
@@ -21,7 +21,7 @@ export class Search {
      *   IND - Represents an underlying as an Index security type
      *   BOND - Represents an underlying as a Bond security type
      */
-    readonly secType?: undefined | Extract<SecurityType, 'STK' | 'IND' | 'BOND'>
+    readonly secType?: undefined | Extract<AssetClass, 'STK' | 'IND' | 'BOND'>
 
     /** Denotes if the symbol value is the ticker symbol or part of the company's name */
     readonly name?: undefined | boolean
