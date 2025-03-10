@@ -356,7 +356,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
         ordersResponse === null ||
         ('orders' in ordersResponse) === false
       ) {
-        throw new Error('Could not warm up orders resource')
+        throw new Error('Unexpected response during warm-up of orders endpoint')
       }
 
       return ordersResponse
