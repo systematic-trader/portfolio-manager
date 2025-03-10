@@ -328,10 +328,14 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
       return suppressQuestionsResponse
     })
 
-    // Warm up the orders endpoint by calling it once
-    // This will return an empty array initially - we don't know if this is because the endpoint
-    // is not warm yet, or if there simply are no orders.
-    // However, by calling it once here, we can be more certain that it will be warm when we need it.
+    // Preload the orders endpoint with an initial request
+    // The endpoint behavior:
+    // - First call: Always returns an empty array regardless of order existence
+    // - Subsequent calls: Returns actual orders if they exist
+    //
+    // This initial call ensures the endpoint is properly initialized.
+    // Without this warmup, we cannot reliably determine if a user truly has no orders
+    // or if the endpoint simply hasn't been activated yet.
     const ordersURL = urlJoin(this.#options.baseURL, 'v1/api/iserver/account/orders')
     const ordersPromise = HTTPClient.getOkJSON(ordersURL, {
       headers: {
