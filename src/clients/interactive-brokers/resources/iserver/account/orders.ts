@@ -3,6 +3,7 @@ import {
   boolean,
   type GuardType,
   literal,
+  never,
   number,
   optional,
   props,
@@ -10,8 +11,6 @@ import {
   tuple,
   union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { debug } from 'node:console'
-import { Timeout } from '../../../../../utils/timeout.ts'
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
 import type {
   OrderParametersByOrderType,
@@ -45,6 +44,13 @@ const GetOrdersResponse = props({
 })
 
 type GetOrdersResponse = GuardType<typeof GetOrdersResponse>
+
+const GetForceOrdersResponse = props({
+  orders: optional(never()), // empty array gets converted to undefined
+  snapshot: boolean(),
+})
+
+type GetForceOrdersResponse = GuardType<typeof GetForceOrdersResponse>
 // #endregion
 
 // #region Post Orders
@@ -181,8 +187,6 @@ export type PlaceOrderOCAResponse = GuardType<typeof PlaceOrderOCAResponse>
 export class Orders {
   readonly #client: InteractiveBrokersResourceClient
 
-  #getOrdersWarm = false
-
   constructor(client: InteractiveBrokersResourceClient) {
     this.#client = client
   }
@@ -190,7 +194,7 @@ export class Orders {
   /**
    * Retrieves open orders and filled or cancelled orders submitted during the current brokerage session.
    */
-  async get(parameters: {
+  async get({ force, ...parameters }: {
     /** Filter results using a comma-separated list of Order Status values */
     readonly filters?: undefined | OrderStatusFilter | readonly OrderStatusFilter[]
 
@@ -207,33 +211,26 @@ export class Orders {
     readonly timeout?: undefined | number
     readonly delay?: undefined | number
   } = {}): Promise<GetOrdersResponse> {
-    let force = parameters.force
-
-    while (true) {
-      const response = await this.#client.get({
+    // If force was specified, we will make the request once without returning it
+    // This will give IB some time to do what they need to do
+    // After this request, we immediately make another request without force to return the orders
+    if (force === true) {
+      await this.#client.get({
         path: 'orders',
         searchParams: { ...parameters, force },
-        guard: GetOrdersResponse,
+        guard: GetForceOrdersResponse, // when using 'force', the response will be an empty array
         signal,
         timeout,
       })
-
-      debug(response)
-
-      // If we get 0 results, and the get orders endpoint is not warmed up, we'll wait a bit and try again
-      // If 'force' was set to true, the next request should not have 'force' set (that would end up in an infinite loop)
-      const hasOrders = response.orders !== undefined && response.orders.length > 0
-      if (hasOrders === false && this.#getOrdersWarm === false) {
-        await Timeout.wait(1000)
-
-        this.#getOrdersWarm = true
-        force = undefined
-
-        continue
-      }
-
-      return response
     }
+
+    return await this.#client.get({
+      path: 'orders',
+      searchParams: parameters,
+      guard: GetOrdersResponse,
+      signal,
+      timeout,
+    })
   }
 
   /**

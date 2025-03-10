@@ -300,7 +300,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
     // additional confirmation requests will add unacceptable latency to order execution.
     // Note: IBKR does not persist these suppressions between sessions
     const suppressQuestionsURL = urlJoin(this.#options.baseURL, 'v1/api/iserver/questions/suppress')
-    const suppressQuestionsResponse = await HTTPClient.postOkJSON(suppressQuestionsURL, {
+    const suppressQuestionsResponsePromise = HTTPClient.postOkJSON(suppressQuestionsURL, {
       headers: {
         Authorization: generateSignedAuthorizationHeader({
           signatureMethod: 'HMAC-SHA256',
@@ -316,14 +316,53 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
         messageIds: SuppressibleMessageIdValues,
       }),
       signal: this.#controller.signal,
+    }).then((suppressQuestionsResponse) => {
+      if (
+        typeof suppressQuestionsResponse !== 'object' ||
+        suppressQuestionsResponse === null ||
+        ('status' in suppressQuestionsResponse && suppressQuestionsResponse.status === 'submitted') === false
+      ) {
+        throw new Error('Could not suppress confirmational questions')
+      }
+
+      return suppressQuestionsResponse
     })
 
-    if (
-      typeof suppressQuestionsResponse !== 'object' ||
-      suppressQuestionsResponse === null ||
-      ('status' in suppressQuestionsResponse && suppressQuestionsResponse.status === 'submitted') === false
-    ) {
-      throw new Error('Could not suppress confirmational questions')
+    // Warm up the orders endpoint by calling it once
+    // This will return an empty array initially - we don't know if this is because the endpoint
+    // is not warm yet, or if there simply are no orders.
+    // However, by calling it once here, we can be more certain that it will be warm when we need it.
+    const ordersURL = urlJoin(this.#options.baseURL, 'v1/api/iserver/account/orders')
+    const ordersPromise = HTTPClient.getOkJSON(ordersURL, {
+      headers: {
+        Authorization: generateSignedAuthorizationHeader({
+          signatureMethod: 'HMAC-SHA256',
+          method: 'GET',
+          liveSessionToken: liveSessionToken,
+          url: suppressQuestionsURL,
+          accessToken: this.#options.accessToken,
+          consumerKey: this.#options.consumerKey,
+          realm: this.#options.realm,
+        }),
+      },
+      signal: this.#controller.signal,
+    }).then((ordersResponse) => {
+      if (
+        typeof ordersResponse !== 'object' ||
+        ordersResponse === null ||
+        ('orders' in ordersResponse) === false
+      ) {
+        throw new Error('Could not warm up orders resource')
+      }
+
+      return ordersResponse
+    })
+
+    // Wait for all warm-up requests to complete
+    for (const result of await Promise.allSettled([suppressQuestionsResponsePromise, ordersPromise])) {
+      if (result.status === 'rejected') {
+        throw result.reason
+      }
     }
 
     // TODO more warm-up
