@@ -365,6 +365,33 @@ describe('iserver/account/order', () => {
       expect(response).toBeDefined()
     })
 
+    test.only('all or none', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const contractId = CONTRACTS['AAPL']
+
+      const response = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [{
+            acctId: accountId,
+            conidex: `${contractId}@SMART`,
+            manualIndicator: false,
+            orderType: 'LMT',
+            price: 200,
+            side: 'BUY',
+            tif: 'DAY',
+            quantity: 1,
+            allOrNone: true, // <--
+            cOID: `test-order-${Math.random()}`,
+          }],
+        } satisfies OrderPlacementParametersSingle,
+      )
+
+      debug('response', response)
+      expect(response).toBeDefined()
+    })
+
     test('trailing stop limit', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
@@ -773,6 +800,110 @@ describe('iserver/account/order', () => {
 
       debug('attached response', attachedResponse)
       expect(attachedResponse).toBeDefined()
+    })
+  })
+
+  describe('modifying orders', () => {
+    test('updating the limit price', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const contractId = CONTRACTS['AAPL']
+      const conidex = `${contractId}@SMART` as const
+
+      const orderParameters = {
+        conidex,
+        manualIndicator: false,
+        orderType: 'LMT',
+        price: 200, // Entry limit price - below current market
+        side: 'BUY',
+        tif: 'DAY',
+        quantity: 1,
+      } as const
+
+      // Place root entry order
+      const entryResponse = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [{
+            ...orderParameters,
+            acctId: accountId,
+            cOID: `entry-test-order-${Math.random()}`,
+          }],
+        } satisfies OrderPlacementParametersSingle,
+      )
+
+      if ('error' in entryResponse) {
+        throw new Error('Could not place entry order')
+      }
+
+      debug('entry response', entryResponse)
+      expect(entryResponse).toBeDefined()
+
+      const entryOrderId = entryResponse[0].order_id
+
+      // Attach take profit order
+      const modifiedResponse = await client.iserver.account.order.post(
+        {
+          accountId,
+          orderId: entryOrderId,
+          ...orderParameters,
+          price: 201, // new limit price
+        },
+      )
+
+      debug('modified response', modifiedResponse)
+      expect(modifiedResponse).toBeDefined()
+    })
+
+    test('updating the quantity', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const contractId = CONTRACTS['AAPL']
+      const conidex = `${contractId}@SMART` as const
+
+      const orderParameters = {
+        conidex,
+        manualIndicator: false,
+        orderType: 'LMT',
+        price: 200, // Entry limit price - below current market
+        side: 'BUY',
+        tif: 'DAY',
+        quantity: 1,
+      } as const
+
+      // Place root entry order
+      const entryResponse = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [{
+            ...orderParameters,
+            acctId: accountId,
+            cOID: `entry-test-order-${Math.random()}`,
+          }],
+        } satisfies OrderPlacementParametersSingle,
+      )
+
+      if ('error' in entryResponse) {
+        throw new Error('Could not place entry order')
+      }
+
+      debug('entry response', entryResponse)
+      expect(entryResponse).toBeDefined()
+
+      const entryOrderId = entryResponse[0].order_id
+
+      // Attach take profit order
+      const modifiedResponse = await client.iserver.account.order.post(
+        {
+          accountId,
+          orderId: entryOrderId,
+          ...orderParameters,
+          quantity: 2, // new quantity (1 more)
+        },
+      )
+
+      debug('modified response', modifiedResponse)
+      expect(modifiedResponse).toBeDefined()
     })
   })
 
