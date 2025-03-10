@@ -4,6 +4,9 @@ import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { Timeout } from '../../../../../../utils/timeout.ts'
 import { InteractiveBrokersClient } from '../../../../client.ts'
 import type {
+  OrderPlacementParametersCurrencyConversion,
+  OrderPlacementParametersExistingRootDouble,
+  OrderPlacementParametersExistingRootSingle,
   OrderPlacementParametersRootWithOneAttached,
   OrderPlacementParametersRootWithTwoAttached,
   OrderPlacementParametersSingle,
@@ -37,20 +40,24 @@ describe('iserver/account/order', () => {
       })
       debug('ledger dkk', ledger.DKK)
 
-      const toEURResponse = await client.iserver.account.orders.post({
-        accountId,
-        orders: [{
-          isCcyConv: true,
-          acctId: accountId,
-          orderType: 'MKT',
-          side: 'BUY',
-          cOID: `test-order-${Math.random()}`,
-          conidex: `${contractId}@SMART`,
-          fxQty: 500, // in dkk
-          manualIndicator: false,
-          tif: 'DAY',
-        }],
-      })
+      const toEURResponse = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [
+            {
+              isCcyConv: true,
+              acctId: accountId,
+              orderType: 'MKT',
+              side: 'BUY',
+              cOID: `test-order-${Math.random()}`,
+              conidex: `${contractId}@SMART`,
+              fxQty: 500, // in dkk
+              manualIndicator: false,
+              tif: 'DAY',
+            },
+          ],
+        } satisfies OrderPlacementParametersCurrencyConversion,
+      )
 
       debug('dkk -> eur response', toEURResponse)
       expect(toEURResponse).toBeDefined()
@@ -440,7 +447,7 @@ describe('iserver/account/order', () => {
     })
   })
 
-  describe('placing a root-order with attached orders', () => {
+  describe('placing a new root-order with attached orders', () => {
     test('one leg (take profit)', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
@@ -461,6 +468,7 @@ describe('iserver/account/order', () => {
               tif: 'DAY',
               quantity: 1,
               cOID: `entry-test-order-${Math.random()}`,
+              isSingleGroup: true,
             },
 
             // Take profit order
@@ -474,6 +482,7 @@ describe('iserver/account/order', () => {
               tif: 'GTC', // Good till cancelled since this is a take profit
               quantity: 1,
               cOID: `take-profit-test-order-${Math.random()}`,
+              isSingleGroup: true,
             },
           ],
         } satisfies OrderPlacementParametersRootWithOneAttached,
@@ -503,6 +512,7 @@ describe('iserver/account/order', () => {
               tif: 'DAY',
               quantity: 1,
               cOID: `entry-test-order-${Math.random()}`,
+              isSingleGroup: true,
             },
             // Stop loss order
             {
@@ -515,6 +525,7 @@ describe('iserver/account/order', () => {
               tif: 'GTC', // Good till cancelled since this is a stop loss
               quantity: 1,
               cOID: `stop-loss-test-order-${Math.random()}`,
+              isSingleGroup: true,
             },
           ],
         } satisfies OrderPlacementParametersRootWithOneAttached,
@@ -544,6 +555,7 @@ describe('iserver/account/order', () => {
               tif: 'DAY',
               quantity: 1,
               cOID: `entry-test-order-${Math.random()}`,
+              isSingleGroup: true,
             },
             // Take profit order
             {
@@ -556,6 +568,7 @@ describe('iserver/account/order', () => {
               tif: 'GTC',
               quantity: 1,
               cOID: `take-profit-test-order-${Math.random()}`,
+              isSingleGroup: true,
             },
             // Stop loss order
             {
@@ -568,6 +581,7 @@ describe('iserver/account/order', () => {
               tif: 'GTC',
               quantity: 1,
               cOID: `stop-loss-test-order-${Math.random()}`,
+              isSingleGroup: true,
             },
           ],
         } satisfies OrderPlacementParametersRootWithTwoAttached,
@@ -576,32 +590,216 @@ describe('iserver/account/order', () => {
       debug('response', response)
       expect(response).toBeDefined()
     })
+  })
 
-    test.only('delete all orders', async () => {
+  describe('placing attached orders to existing root order', () => {
+    test('one leg (take profit)', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
-      const { orders } = await client.iserver.account.orders.get({
-        force: true,
-        filters: ['Inactive', 'PreSubmitted', 'Submitted'],
+      const contractId = CONTRACTS['AAPL']
+
+      // Place root entry order
+      const entryResponse = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [{
+            acctId: accountId,
+            conidex: `${contractId}@SMART`,
+            manualIndicator: false,
+            orderType: 'LMT',
+            price: 200, // Entry limit price - below current market
+            side: 'BUY',
+            tif: 'DAY',
+            quantity: 1,
+            cOID: `entry-test-order-${Math.random()}`,
+          }],
+        } satisfies OrderPlacementParametersSingle,
+      )
+
+      if ('error' in entryResponse) {
+        throw new Error('Could not place entry order')
+      }
+
+      debug('entry response', entryResponse)
+      expect(entryResponse).toBeDefined()
+
+      const parentOrderId = entryResponse[0].order_id
+
+      // Attach take profit order
+      const attachedResponse = await client.iserver.account.orders.post(
+        {
+          accountId,
+          parentOrderId,
+          orders: [{
+            acctId: accountId,
+            conidex: `${contractId}@SMART`,
+            manualIndicator: false,
+            orderType: 'LMT',
+            price: 220, // Take profit price - above entry price
+            side: 'SELL',
+            tif: 'GTC',
+            quantity: 1,
+            cOID: `take-profit-test-order-${Math.random()}`,
+            isSingleGroup: true,
+          }],
+        } satisfies OrderPlacementParametersExistingRootSingle,
+      )
+
+      debug('attached response', attachedResponse)
+      expect(attachedResponse).toBeDefined()
+    })
+
+    test('one leg (stop loss)', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const contractId = CONTRACTS['AAPL']
+
+      // Place root entry order
+      const entryResponse = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [{
+            acctId: accountId,
+            conidex: `${contractId}@SMART`,
+            manualIndicator: false,
+            orderType: 'LMT',
+            price: 200, // Entry limit price - below current market
+            side: 'BUY',
+            tif: 'DAY',
+            quantity: 1,
+            cOID: `entry-test-order-${Math.random()}`,
+          }],
+        } satisfies OrderPlacementParametersSingle,
+      )
+
+      debug('entry response', entryResponse)
+      expect(entryResponse).toBeDefined()
+
+      if (!Array.isArray(entryResponse) || !('order_id' in entryResponse[0])) {
+        throw new Error('Invalid entry response')
+      }
+
+      const parentOrderId = entryResponse[0].order_id
+
+      // Attach stop loss order
+      const attachedResponse = await client.iserver.account.orders.post(
+        {
+          accountId,
+          parentOrderId,
+          orders: [{
+            acctId: accountId,
+            conidex: `${contractId}@SMART`,
+            manualIndicator: false,
+            orderType: 'STP',
+            price: 190, // Stop loss price - below entry price
+            side: 'SELL',
+            tif: 'GTC',
+            quantity: 1,
+            cOID: `stop-loss-test-order-${Math.random()}`,
+            isSingleGroup: true,
+          }],
+        } satisfies OrderPlacementParametersExistingRootSingle,
+      )
+
+      debug('attached response', attachedResponse)
+      expect(attachedResponse).toBeDefined()
+    })
+
+    test('two legs (take profit + stop loss)', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const contractId = CONTRACTS['AAPL']
+
+      // Place root entry order
+      const entryResponse = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [{
+            acctId: accountId,
+            conidex: `${contractId}@SMART`,
+            manualIndicator: false,
+            orderType: 'LMT',
+            price: 200, // Entry limit price - below current market
+            side: 'BUY',
+            tif: 'DAY',
+            quantity: 1,
+            cOID: `entry-test-order-${Math.random()}`,
+          }],
+        } satisfies OrderPlacementParametersSingle,
+      )
+
+      debug('entry response', entryResponse)
+      expect(entryResponse).toBeDefined()
+
+      if (!Array.isArray(entryResponse) || !('order_id' in entryResponse[0])) {
+        throw new Error('Invalid entry response')
+      }
+
+      const parentOrderId = entryResponse[0].order_id
+
+      // Attach both take profit and stop loss orders
+      const attachedResponse = await client.iserver.account.orders.post(
+        {
+          accountId,
+          parentOrderId,
+          orders: [
+            {
+              acctId: accountId,
+              conidex: `${contractId}@SMART`,
+              manualIndicator: false,
+              orderType: 'LMT',
+              price: 220, // Take profit price - above entry price
+              side: 'SELL',
+              tif: 'GTC',
+              quantity: 1,
+              cOID: `take-profit-test-order-${Math.random()}`,
+              isSingleGroup: true,
+            },
+            {
+              acctId: accountId,
+              conidex: `${contractId}@SMART`,
+              manualIndicator: false,
+              orderType: 'STP',
+              price: 190, // Stop loss price - below entry price
+              side: 'SELL',
+              tif: 'GTC',
+              quantity: 1,
+              cOID: `stop-loss-test-order-${Math.random()}`,
+              isSingleGroup: true,
+            },
+          ],
+        } satisfies OrderPlacementParametersExistingRootDouble,
+      )
+
+      debug('attached response', attachedResponse)
+      expect(attachedResponse).toBeDefined()
+    })
+  })
+
+  test.only('delete all orders', async () => {
+    await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+    const { orders } = await client.iserver.account.orders.get({
+      force: true,
+      filters: ['Inactive', 'PreSubmitted', 'Submitted'],
+      accountId,
+    })
+
+    if (orders === undefined || orders.length === 0) {
+      throw new Error('No orders to delete')
+    }
+
+    for (const order of orders) {
+      debug('deleting order', order)
+
+      const deleteOrderResponse = await client.iserver.account.order.delete({
         accountId,
+        orderId: order.orderId,
+        manualIndicator: false,
       })
 
-      if (orders === undefined || orders.length === 0) {
-        throw new Error('No orders to delete')
-      }
-
-      for (const order of orders) {
-        debug('deleting order', order)
-
-        const deleteOrderResponse = await client.iserver.account.order.delete({
-          accountId,
-          orderId: order.orderId,
-          manualIndicator: false,
-        })
-
-        debug('order deletion response', deleteOrderResponse)
-        expect(deleteOrderResponse).toBeDefined()
-      }
-    })
+      debug('order deletion response', deleteOrderResponse)
+      expect(deleteOrderResponse).toBeDefined()
+    }
   })
 })
