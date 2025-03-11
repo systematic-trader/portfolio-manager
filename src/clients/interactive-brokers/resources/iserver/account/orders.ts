@@ -1,10 +1,6 @@
 import {
-  array,
-  boolean,
   type GuardType,
   literal,
-  never,
-  number,
   optional,
   props,
   string,
@@ -18,6 +14,7 @@ import type {
   OrderParametersStatic,
 } from '../../../types/derived/order-parameters.ts'
 import { OrderStatus } from '../../../types/derived/order-status.ts'
+import { OrdersResponse } from '../../../types/record/orders-response.ts'
 
 // #region Get Orders
 // Filtering by other order statuses is will return a http 500 error (internal server error)
@@ -29,28 +26,6 @@ type OrderStatusFilter = Extract<
   | 'PreSubmitted'
   | 'Submitted'
 >
-
-const GetOrdersResponse = props({
-  orders: optional(array(
-    props({
-      orderId: number(),
-      order_ref: string(), // the cOID from the order placement request
-      status: OrderStatus,
-    }, {
-      extendable: true, // we probably don't need the get API for orders, so i'll leave it unknown for now just so i can see what's going on
-    }),
-  )),
-  snapshot: boolean(),
-})
-
-type GetOrdersResponse = GuardType<typeof GetOrdersResponse>
-
-const GetForceOrdersResponse = props({
-  orders: optional(never()), // empty array gets converted to undefined
-  snapshot: boolean(),
-})
-
-type GetForceOrdersResponse = GuardType<typeof GetForceOrdersResponse>
 // #endregion
 
 // #region Post Orders
@@ -210,7 +185,7 @@ export class Orders {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
     readonly delay?: undefined | number
-  } = {}): Promise<GetOrdersResponse> {
+  } = {}): Promise<OrdersResponse> {
     // If force was specified, we will make the request once without returning it
     // This will give IB some time to do what they need to do
     // After this request, we immediately make another request without force to return the orders
@@ -218,7 +193,7 @@ export class Orders {
       await this.#client.get({
         path: 'orders',
         searchParams: { ...parameters, force },
-        guard: GetForceOrdersResponse, // when using 'force', the response will be an empty array
+        guard: OrdersResponse, // when using 'force', the response will be an empty array
         signal,
         timeout,
       })
@@ -227,7 +202,7 @@ export class Orders {
     return await this.#client.get({
       path: 'orders',
       searchParams: parameters,
-      guard: GetOrdersResponse,
+      guard: OrdersResponse,
       signal,
       timeout,
     })

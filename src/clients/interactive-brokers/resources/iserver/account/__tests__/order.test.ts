@@ -337,7 +337,7 @@ describe('iserver/account/order', () => {
       expect(response).toBeDefined()
     })
 
-    test('trailing stop', async () => {
+    test('trailing stop (percentage)', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
       const contractId = CONTRACTS['AAPL']
@@ -365,7 +365,7 @@ describe('iserver/account/order', () => {
       expect(response).toBeDefined()
     })
 
-    test.only('all or none', async () => {
+    test('trailing stop (amount)', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
       const contractId = CONTRACTS['AAPL']
@@ -377,12 +377,13 @@ describe('iserver/account/order', () => {
             acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
-            orderType: 'LMT',
-            price: 200,
+            orderType: 'TRAIL',
+            price: 200, // current price for apple is around 240 - adjust this if needed
+            trailingAmt: 5,
+            trailingType: 'amt',
             side: 'BUY',
             tif: 'DAY',
             quantity: 1,
-            allOrNone: true, // <--
             cOID: `test-order-${Math.random()}`,
           }],
         } satisfies OrderPlacementParametersSingle,
@@ -413,6 +414,33 @@ describe('iserver/account/order', () => {
             side: 'BUY',
             tif: 'DAY',
             quantity: 1,
+            cOID: `test-order-${Math.random()}`,
+          }],
+        } satisfies OrderPlacementParametersSingle,
+      )
+
+      debug('response', response)
+      expect(response).toBeDefined()
+    })
+
+    test('all or none', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const contractId = CONTRACTS['AAPL']
+
+      const response = await client.iserver.account.orders.post(
+        {
+          accountId,
+          orders: [{
+            acctId: accountId,
+            conidex: `${contractId}@SMART`,
+            manualIndicator: false,
+            orderType: 'LMT',
+            price: 200,
+            side: 'BUY',
+            tif: 'DAY',
+            quantity: 1,
+            allOrNone: true, // <--
             cOID: `test-order-${Math.random()}`,
           }],
         } satisfies OrderPlacementParametersSingle,
