@@ -204,7 +204,7 @@ export class WebSocketClient extends EventSwitch<{
       },
     } as WebSocketClient['state']
 
-    debug.create(binaryType, url)
+    debug.create(binaryType, this.#url.href)
   }
 
   async #connect(
@@ -349,6 +349,8 @@ export class WebSocketClient extends EventSwitch<{
     websocket.addEventListener('close', closeListener, { once: true })
 
     try {
+      this.#websocket = websocket
+
       // Wait for the WebSocket to either open or fail during the connection process.
       await promise
 
@@ -356,9 +358,9 @@ export class WebSocketClient extends EventSwitch<{
       if (websocket.readyState !== WebSocket.OPEN) {
         throw new Error(`Something went wrong internally! The WebSocket.readyState is "${websocket.readyState}"`)
       }
-
-      this.#websocket = websocket
     } catch (error) {
+      this.#websocket = undefined
+
       // Return the encountered error.
       return ensureError(error)
     }
@@ -633,7 +635,8 @@ export class WebSocketClient extends EventSwitch<{
   send(...args: Parameters<WebSocket['send']>): this {
     if (this.#state.status !== 'open') {
       throw new WebSocketClientError(
-        'Must be "open". Check the "state.status" property before calling "send"',
+        'Must be "open". Check the "state.status" property before calling "send"' +
+          ` (current state: ${this.#websocket?.readyState})`,
       )
     }
 
