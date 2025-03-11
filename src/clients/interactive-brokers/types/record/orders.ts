@@ -3,6 +3,7 @@ import {
   boolean,
   enums,
   type GuardType,
+  literal,
   number,
   optional,
   props,
@@ -11,7 +12,9 @@ import {
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { AssetClass } from '../derived/asset-class.ts'
 import { Currency3 } from '../derived/currency.ts'
-import { OrderCPPStatus } from '../derived/order-cpp-status.ts'
+import { ExchangeCode } from '../derived/exchange-code.ts'
+import { OrderCCPStatus } from '../derived/order-ccp-status.ts'
+import { OrderSide } from '../derived/order-side.ts'
 import { OrderStatus } from '../derived/order-status.ts'
 
 // These are different values than used elsewhere in the API
@@ -51,13 +54,13 @@ const OrderStockBase = OrderBase.merge({
   lastExecutionTime_r: number(),
   lastExecutionTime: string(),
   listingExchange: string(),
-  order_ccp_status: OrderCPPStatus,
+  order_ccp_status: OrderCCPStatus,
   orderDesc: string(),
   origOrderType: string(), // Similar to orderType, but with different casing
   outsideRTH: optional(boolean()),
   remainingQuantity: number(),
   secType: AssetClass.extract(['STK']),
-  side: enums(['BUY', 'SELL']),
+  side: OrderSide,
   sizeAndFills: string(),
   status: OrderStatus,
   supportsTaxOpt: string(),
@@ -148,7 +151,45 @@ const OrderTypeNotImplemented = OrderBase.merge(props({
 }, { extendable: true }))
 // #endregion
 
+// #endregion
+
+// #region Cash
+const OrderCash = OrderBase.merge({
+  account: string(),
+  acct: string(),
+  avgPrice: optional(string({ format: 'number' })),
+  bgColor: string(),
+  cashCcy: Currency3,
+  companyName: string(),
+  conid: number(),
+  conidex: string(),
+  description1: string(),
+  exchange: ExchangeCode,
+  fgColor: string(),
+  filledQuantity: number(),
+  isEventTrading: string(),
+  lastExecutionTime: string(),
+  lastExecutionTime_r: number(),
+  listingExchange: ExchangeCode,
+  orderDesc: string(),
+  orderType: literal('Market'),
+  order_ccp_status: OrderCCPStatus,
+  origOrderType: literal('MARKET'),
+  remainingQuantity: number(),
+  secType: AssetClass.extract(['CASH']),
+  side: OrderSide,
+  sizeAndFills: string(),
+  status: OrderStatus,
+  supportsTaxOpt: string(),
+  ticker: string(),
+  timeInForce: string(), // todo 'CLOSE'
+  totalCashSize: number(),
+  totalSize: number(),
+})
+// #endregion
+
 export const OrderTypes = [
+  // Stock
   OrderStockLimit,
   OrderStockLimitOnClose,
   OrderStockMarket,
@@ -158,6 +199,11 @@ export const OrderTypes = [
   OrderStockStopLimit,
   OrderStockTrailingStop,
   OrderStockTrailingStopLimit,
+
+  // Cash (currency conversion)
+  OrderCash,
+
+  // Remaining
   OrderTypeNotImplemented,
 ]
 

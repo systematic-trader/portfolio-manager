@@ -2,6 +2,7 @@ import { Debug } from '../../../utils/debug.ts'
 import { describe, test } from '../../../utils/testing.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import { InteractiveBrokersClient } from '../client.ts'
+import type { OrderPlacementParametersCurrencyConversion } from '../resources/iserver/account/orders.ts'
 import { InteractiveBrokersStream } from '../stream.ts'
 
 const debug = {
@@ -14,6 +15,7 @@ const CONTRACTS = {
   'TSLA': 76792991,
   'TL0': 78046366, // Tysk Tesla
   'NOVO.B': 652806383,
+  'DKK.SEK': 28027110,
 }
 
 describe('stream', () => {
@@ -25,6 +27,8 @@ describe('stream', () => {
         STK: [CONTRACTS['NOVO.B']],
       },
     })
+
+    const { accountId } = InteractiveBrokersClient.CONFIG[client.type]
 
     // while (true) {
     //   const snapshots = [stream.marketData.STK?.get(CONTRACTS['TL0']), stream.marketData.STK?.get(CONTRACTS['NOVO.B'])]
@@ -48,8 +52,6 @@ describe('stream', () => {
     using repeater = Timeout.repeat(5_000, () => {
       debug.info('orders:', ['ignored'] /*stream.orders.filter((order) => order.status !== 'Cancelled')*/)
     })
-
-    // const { accountId } = InteractiveBrokersClient.CONFIG[client.type]
 
     // const [order] = await client.iserver.account.orders.post(
     //   {
@@ -80,6 +82,24 @@ describe('stream', () => {
     //   tif: 'DAY',
     //   quantity: 1,
     // })
+
+    // dkk -> sek
+    await client.iserver.account.orders.post(
+      {
+        accountId,
+        orders: [{
+          acctId: accountId,
+          cOID: `ccv-${Math.random()}`,
+          conidex: `${CONTRACTS['DKK.SEK']}@SMART`,
+          fxQty: 500,
+          isCcyConv: true,
+          manualIndicator: true,
+          orderType: 'MKT',
+          side: 'SELL',
+          tif: 'DAY',
+        }],
+      } satisfies OrderPlacementParametersCurrencyConversion,
+    )
 
     await repeater
   })
