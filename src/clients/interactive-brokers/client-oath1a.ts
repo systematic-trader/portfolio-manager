@@ -63,10 +63,19 @@ const TickleResponse = props({
 
 interface TickleResponse extends GuardType<typeof TickleResponse> {}
 
+export interface InteractiveBrokersOAuth1aSession {
+  readonly liveSessionToken: string
+  readonly tickleSessionToken: string
+  readonly expirationIn: number
+}
+
+type Writable<T> = {
+  -readonly [P in keyof T]: T[P]
+}
+
 export class InteractiveBrokersOAuth1a extends EventSwitch<
   {
-    readonly 'live-session-token': readonly [token: string]
-    readonly 'tickle-session-token': readonly [token: string]
+    readonly 'session': readonly [session: InteractiveBrokersOAuth1aSession]
     readonly disposed: readonly []
   }
 > implements AsyncDisposable {
@@ -88,11 +97,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
   #error: undefined | Error
   #loginPromise:
     | undefined
-    | Promise<{
-      liveSessionToken: string
-      liveSessionTokenExpiration: number
-      tickleSessionToken: string
-    }>
+    | Promise<Writable<InteractiveBrokersOAuth1aSession>>
   #disposePromise: undefined | Promise<void>
   #ticklePromise: Timeout<void>
 
@@ -108,11 +113,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
     return this.#controller.signal.aborted ? 'disposed' : 'active'
   }
 
-  #active: undefined | {
-    liveSessionToken: string
-    liveSessionTokenExpiration: number
-    tickleSessionToken: string
-  }
+  #active: undefined | Writable<InteractiveBrokersOAuth1aSession>
 
   constructor(options: {
     readonly accountId: string
@@ -163,8 +164,8 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
         })
 
         if (
-          response.iserver.authStatus.authenticated !== true &&
-          response.iserver.authStatus.connected !== true
+          response.iserver.authStatus.authenticated === false ||
+          response.iserver.authStatus.connected === false
         ) {
           debug.session.tickle(this.#options.accountId, 'token invalid')
 
@@ -173,9 +174,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
           debug.session.tickle(this.#options.accountId, 'token valid')
 
           if (this.#active.tickleSessionToken !== response.session) {
-            this.#active.tickleSessionToken = response.session
-
-            this.emit('tickle-session-token', response.session)
+            throw new Error('Tickle session token mismatch')
           }
         }
       } catch (error) {
@@ -402,11 +401,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
    * @returns The live session token as a string.
    */
   // deno-lint-ignore require-await
-  async #ensureActiveSession(): Promise<{
-    liveSessionToken: string
-    liveSessionTokenExpiration: number
-    tickleSessionToken: string
-  }> {
+  async ensureActiveSession(): Promise<InteractiveBrokersOAuth1aSession> {
     if (this.#loginPromise !== undefined) {
       return this.#loginPromise
     }
@@ -529,12 +524,11 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
 
         this.#active = {
           liveSessionToken,
-          liveSessionTokenExpiration: liveSessionTokenResponse.live_session_token_expiration,
           tickleSessionToken: tickle.session,
+          expirationIn: liveSessionTokenResponse.live_session_token_expiration,
         }
 
-        this.emit('live-session-token', this.#active.liveSessionToken)
-        this.emit('tickle-session-token', this.#active.tickleSessionToken)
+        this.emit('session', this.#active)
 
         return this.#active
       } catch (error) {
@@ -554,18 +548,6 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
     }).finally(() => {
       this.#loginPromise = undefined
     })
-  }
-
-  async liveSessionToken(): Promise<string> {
-    const session = await this.#ensureActiveSession()
-
-    return session.liveSessionToken
-  }
-
-  async tickleSessionToken(): Promise<string> {
-    const session = await this.#ensureActiveSession()
-
-    return session.tickleSessionToken
   }
 
   /**
