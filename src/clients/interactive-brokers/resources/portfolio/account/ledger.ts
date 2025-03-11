@@ -1,5 +1,5 @@
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
-import { LedgerResponse } from '../../../types/record/ledger-response.ts'
+import { Ledger as LedgerResponse } from '../../../types/record/ledger.ts'
 
 export class Ledger {
   readonly #client: InteractiveBrokersResourceClient

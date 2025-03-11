@@ -17,6 +17,7 @@ export const ChartPeriodValues = [
   '4h',
   '8h',
   '1d',
+  '2d',
   '1w',
 ] as const
 

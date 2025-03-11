@@ -1,7 +1,9 @@
 import {
   array,
   AssertionError,
+  boolean,
   coerce,
+  props,
   record,
   string,
   unknown,
@@ -10,13 +12,18 @@ import {
 import { CombinedSignalController } from '../../../../../utils/signal.ts'
 import { Timeout } from '../../../../../utils/timeout.ts'
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
-import type { AssetClass } from '../../../types/derived/asset-class.ts'
 import { Snapshot as SnapshotType, SnapshotFields } from '../../../types/record/snapshot.ts'
 
+const UnsubscribeResponse = props({
+  success: boolean(),
+})
+
 export class Snapshot {
+  readonly #parent: InteractiveBrokersResourceClient
   readonly #client: InteractiveBrokersResourceClient
 
   constructor(client: InteractiveBrokersResourceClient) {
+    this.#parent = client
     this.#client = client.appendPath('snapshot')
   }
 
@@ -28,8 +35,8 @@ export class Snapshot {
    * The endpoint /iserver/accounts must be called prior to /iserver/marketdata/snapshot.
    * For derivative contracts the endpoint /iserver/secdef/search must be called first.
    */
-  async get({ conids, fields }: {
-    readonly conids: readonly (string | number)[]
+  async get({ conIDs, fields }: {
+    readonly conIDs: readonly (string | number)[]
     readonly fields?: undefined | readonly (string | number)[]
   }, { signal, timeout }: {
     readonly signal?: undefined | AbortSignal
@@ -37,7 +44,7 @@ export class Snapshot {
   } = {}): Promise<ReadonlyArray<Record<string, unknown>>> {
     return await this.#client.get({
       searchParams: {
-        conids: conids.join(','),
+        conids: conIDs.join(','),
         fields: fields?.join(','),
       },
       guard: array(record(string(), unknown())),
@@ -46,7 +53,24 @@ export class Snapshot {
     })
   }
 
-  async getByAssetClass<T extends Extract<AssetClass, 'STK'>, const ConIDs extends readonly number[]>(
+  async unsubscribe({ conID }: { readonly conID: number }, { signal, timeout }: {
+    readonly signal?: undefined | AbortSignal
+    readonly timeout?: undefined | number
+  } = {}): Promise<boolean> {
+    const response = await this.#parent.post({
+      path: 'unsubscribe',
+      body: {
+        conid: conID,
+      },
+      guard: UnsubscribeResponse,
+      signal,
+      timeout,
+    })
+
+    return response.success
+  }
+
+  async getByAssetClass<T extends keyof SnapshotType, const ConIDs extends readonly number[]>(
     options: {
       readonly assetClass: T
       readonly conIDs: ConIDs
@@ -67,7 +91,7 @@ export class Snapshot {
 
     while (true) {
       const snapshots = await this.get({
-        conids: options.conIDs,
+        conIDs: options.conIDs,
         fields: fields,
       }, {
         signal: controller?.signal,
@@ -84,17 +108,17 @@ export class Snapshot {
           continue
         }
 
-        const invalidAssetClass = invalidations.filter((invalidation) => {
-          return invalidation.path.length === 1 &&
-            invalidation.path[0] === '6070' &&
-            invalidation.rule === 'logical' &&
-            invalidation.function === 'equals' &&
-            typeof invalidation.setting === 'string'
-        })[0]?.setting as undefined | string
+        // const invalidAssetClass = invalidations.filter((invalidation) => {
+        //   return invalidation.path.length === 1 &&
+        //     invalidation.path[0] === '6070' &&
+        //     invalidation.rule === 'logical' &&
+        //     invalidation.function === 'equals' &&
+        //     typeof invalidation.setting === 'string'
+        // })[0]?.actual as undefined | string
 
-        if (invalidAssetClass !== undefined && invalidAssetClass !== options.assetClass) {
-          throw new Error(`Expected asset class "${options.assetClass}" but got "${invalidAssetClass}".`)
-        }
+        // if (invalidAssetClass !== undefined && invalidAssetClass !== options.assetClass) {
+        //   throw new Error(`Expected asset class "${options.assetClass}" but got "${invalidAssetClass}".`)
+        // }
 
         if (invalidations.some((invalidation) => invalidation.rule === 'type' && invalidation.actual !== 'undefined')) {
           throw new AssertionError(invalidations, snapshot)

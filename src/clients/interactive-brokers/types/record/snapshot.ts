@@ -1,7 +1,6 @@
 import {
   type GuardType,
   integer,
-  literal,
   number,
   optional,
   props,
@@ -142,7 +141,7 @@ const SnapshotBase = props({
 
 export const SnapshotFields = {
   STK: {
-    '6070': literal('STK'),
+    // '6070': literal('STK'),
     ...pick(Fields, [
       '31', // last price
       '55', // symbol
@@ -170,8 +169,8 @@ export const Snapshot = {
   STK: SnapshotBase.merge(SnapshotFields.STK),
 }
 
-export interface SnapshotSTK extends GuardType<typeof Snapshot.STK> {}
-
-export interface Snapshot {
-  readonly STK: SnapshotSTK
+type SnapshotProps = {
+  readonly [K in ((keyof typeof Snapshot) & (keyof typeof SnapshotFields))]: GuardType<typeof Snapshot[K]>
 }
+
+export interface Snapshot extends SnapshotProps {}

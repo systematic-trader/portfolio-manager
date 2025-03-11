@@ -15,7 +15,7 @@ import { OrderCPPStatus } from '../derived/order-cpp-status.ts'
 import { OrderStatus } from '../derived/order-status.ts'
 
 // These are different values than used elsewhere in the API
-const OrderType = enums([
+const OrderExecutionType = enums([
   'Limit',
   'LIMITONCLOSE',
   'Market',
@@ -27,23 +27,25 @@ const OrderType = enums([
   'TRAILING_STOP_LIMIT',
 ])
 
-// #region Common
-const OrderCommon = props({
+// #region Base
+const OrderBase = props({
   orderId: number(),
   order_ref: string(), // the cOID from the order placement request
 })
 // #endregion
 
 // #region Stock
-const OrderStockBase = OrderCommon.merge({
-  secType: AssetClass.extract(['STK']),
+const OrderStockBase = OrderBase.merge({
   account: string(),
   acct: string(),
+  avgPrice: optional(string()),
+  bgColor: string(), // Useless property
   cashCcy: Currency3,
   companyName: string(),
   conid: number(),
   conidex: string(),
   description1: string(),
+  fgColor: string(), // Useless property
   filledQuantity: number(),
   isEventTrading: string(),
   lastExecutionTime_r: number(),
@@ -54,6 +56,7 @@ const OrderStockBase = OrderCommon.merge({
   origOrderType: string(), // Similar to orderType, but with different casing
   outsideRTH: optional(boolean()),
   remainingQuantity: number(),
+  secType: AssetClass.extract(['STK']),
   side: enums(['BUY', 'SELL']),
   sizeAndFills: string(),
   status: OrderStatus,
@@ -61,70 +64,54 @@ const OrderStockBase = OrderCommon.merge({
   ticker: string(),
   timeInForce: enums(['CLOSE']), // todo add more
   totalSize: number(),
-
-  // Useless properties
-  fgColor: string(),
-  bgColor: string(),
 })
 
 // #region Limit
-export const OrderStockLimit = OrderStockBase.merge({
-  orderType: OrderType.extract(['Limit']),
+const OrderStockLimit = OrderStockBase.merge({
+  orderType: OrderExecutionType.extract(['Limit']),
   price: string({ format: 'number' }),
 })
-
-export interface OrderStockLimit extends GuardType<typeof OrderStockLimit> {}
 // #endregion
 
 // #region LimitOnClose
-export const OrderStockLimitOnClose = OrderStockBase.merge({
-  orderType: OrderType.extract(['LIMITONCLOSE']),
+const OrderStockLimitOnClose = OrderStockBase.merge({
+  orderType: OrderExecutionType.extract(['LIMITONCLOSE']),
   price: string({ format: 'number' }),
 })
-
-export interface OrderStockLimitOnClose extends GuardType<typeof OrderStockLimitOnClose> {}
 // #endregion
 
 // #region Market
-export const OrderStockMarket = OrderStockBase.merge({
-  orderType: OrderType.extract(['Market']),
+const OrderStockMarket = OrderStockBase.merge({
+  orderType: OrderExecutionType.extract(['Market']),
 })
-
-export interface OrderStockMarket extends GuardType<typeof OrderStockMarket> {}
 // #endregion
 
 // #region MarketOnClose
-export const OrderStockMarketOnClose = OrderStockBase.merge({
-  orderType: OrderType.extract(['MARKETONCLOSE']),
+const OrderStockMarketOnClose = OrderStockBase.merge({
+  orderType: OrderExecutionType.extract(['MARKETONCLOSE']),
 })
-
-export interface OrderStockMarketOnClose extends GuardType<typeof OrderStockMarketOnClose> {}
 // #endregion
 
 // #region Midprice
-export const OrderStockMidPrice = OrderStockBase.merge({
-  orderType: OrderType.extract(['MidPrice']),
+const OrderStockMidPrice = OrderStockBase.merge({
+  orderType: OrderExecutionType.extract(['MidPrice']),
   price: string({ format: 'number' }),
 })
-
-export interface OrderStockMidPrice extends GuardType<typeof OrderStockMidPrice> {}
 // #endregion
 
 // #region Stop
-export const OrderStockStop = OrderStockBase.merge({
-  orderType: OrderType.extract(['Stop']),
+const OrderStockStop = OrderStockBase.merge({
+  orderType: OrderExecutionType.extract(['Stop']),
 
   // these two values seems to be the same ("stop price")
   auxPrice: string({ format: 'number' }),
   stop_price: string({ format: 'number' }),
 })
-
-export interface OrderStockStop extends GuardType<typeof OrderStockStop> {}
 // #endregion
 
 // #region StopLimit
-export const OrderStockStopLimit = OrderStockBase.merge({
-  orderType: OrderType.extract(['Stop Limit']),
+const OrderStockStopLimit = OrderStockBase.merge({
+  orderType: OrderExecutionType.extract(['Stop Limit']),
 
   // limit price
   price: string({ format: 'number' }),
@@ -133,34 +120,35 @@ export const OrderStockStopLimit = OrderStockBase.merge({
   auxPrice: string({ format: 'number' }),
   stop_price: string({ format: 'number' }),
 })
-
-export interface OrderStockStopLimit extends GuardType<typeof OrderStockStopLimit> {}
 // #endregion
 
 // #region TrailingStop
-export const OrderStockTrailingStop = OrderStockBase.merge({
-  orderType: OrderType.extract(['TRAILING_STOP']),
+const OrderStockTrailingStop = OrderStockBase.merge({
+  orderType: OrderExecutionType.extract(['TRAILING_STOP']),
 
   stop_price: string({ format: 'number' }),
   auxPrice: string(), // e.g. "5" or "5%" (depends on the trailing type specified when placing the order)
 })
-
-export interface OrderStockTrailingStop extends GuardType<typeof OrderStockTrailingStop> {}
 // #endregion
 
 // #region TrailingStop
-export const OrderStockTrailingStopLimit = OrderStockBase.merge({
-  orderType: OrderType.extract(['TRAILING_STOP_LIMIT']),
+const OrderStockTrailingStopLimit = OrderStockBase.merge({
+  orderType: OrderExecutionType.extract(['TRAILING_STOP_LIMIT']),
 
   price: string({ format: 'number' }), // limit price
   stop_price: string({ format: 'number' }), // stop price
   auxPrice: string(), // e.g. "5" or "5%" (depends on the trailing type specified when placing the order)
 })
-
-export interface OrderStockTrailingStopLimit extends GuardType<typeof OrderStockTrailingStopLimit> {}
 // #endregion
 
-export const OrderStock = union([
+// #region Unknown
+const OrderTypeNotImplemented = OrderBase.merge(props({
+  status: OrderStatus,
+  orderType: string(),
+}, { extendable: true }))
+// #endregion
+
+export const OrderTypes = [
   OrderStockLimit,
   OrderStockLimitOnClose,
   OrderStockMarket,
@@ -170,26 +158,16 @@ export const OrderStock = union([
   OrderStockStopLimit,
   OrderStockTrailingStop,
   OrderStockTrailingStopLimit,
-])
+  OrderTypeNotImplemented,
+]
 
-export type OrderStock = GuardType<typeof OrderStock>
+export const Order = union(OrderTypes)
 
-// #endregion
+export type Order = GuardType<typeof Order>
 
-// #region Unknown
-export const OrderUnknown = OrderCommon.merge(props({
-  status: OrderStatus,
-}))
-// #endregion
-
-export const OrdersResponse = props({
-  orders: optional(array(
-    union([
-      OrderStock,
-      OrderUnknown,
-    ]),
-  )),
+export const Orders = props({
+  orders: optional(array(Order)),
   snapshot: boolean(),
 })
 
-export type OrdersResponse = GuardType<typeof OrdersResponse>
+export type Orders = GuardType<typeof Orders>

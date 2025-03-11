@@ -257,7 +257,7 @@ describe(InteractiveBrokersClient.name, () => {
 
     while (++iteration <= 100) {
       const snapshot = await client.iserver.marketData.snapshot.get({
-        conids: [CONTRACTS['AAPL']], // skift kontrakten ud her med en stock på en børs, som du ved er åben (hvis den er lukket, får du ingen data før de første mange kald)
+        conIDs: [CONTRACTS['AAPL']], // skift kontrakten ud her med en stock på en børs, som du ved er åben (hvis den er lukket, får du ingen data før de første mange kald)
         fields,
       })
 
@@ -340,7 +340,7 @@ describe(InteractiveBrokersClient.name, () => {
     expect(accounts).toBeDefined()
   })
 
-  test.only('market data snapshot', async () => {
+  test('market data snapshot', async () => {
     await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     while (true) {
@@ -354,23 +354,4 @@ describe(InteractiveBrokersClient.name, () => {
       await Timeout.wait(5_000)
     }
   })
-
-  // describe('websocket', () => {
-  //   test('connect', async () => {
-  //     await using client = new InteractiveBrokersClient({ type: 'Live' })
-
-  //     await client.connect()
-
-  //     while (true) {
-  //       await client.iserver.marketData.snapshot.get({
-  //         conids: [CONTRACTS['AAPL']],
-  //         fields: [
-  //           '31', // last price
-  //         ],
-  //       })
-
-  //       await Timeout.wait(5_000)
-  //     }
-  //   })
-  // })
 })

@@ -14,7 +14,7 @@ import type {
   OrderParametersStatic,
 } from '../../../types/derived/order-parameters.ts'
 import { OrderStatus } from '../../../types/derived/order-status.ts'
-import { OrdersResponse } from '../../../types/record/orders-response.ts'
+import { Orders as OrdersResponse } from '../../../types/record/orders.ts'
 
 // #region Get Orders
 // Filtering by other order statuses is will return a http 500 error (internal server error)
@@ -61,12 +61,6 @@ export const OrderPlacementOCAResponseSuccessElement = props({
 
 export interface OrderPlacementResponseSuccessElement extends GuardType<typeof OrderPlacementResponseSuccessElement> {}
 
-export const OrderPlacementResponseError = props({
-  error: string(),
-}, { extendable: true })
-
-export interface OrderPlacementResponseError extends GuardType<typeof OrderPlacementResponseError> {}
-
 type OrderParametersSingle = OrderParametersStatic & OrderParametersByOrderType & OrderParametersByTimeInForce & {
   readonly isSingleGroup?: undefined | false
 }
@@ -92,10 +86,7 @@ export type OrderPlacementParametersCurrencyConversion = {
   ]
 }
 
-export const PlaceOrderResponseCurrencyConversion = union([
-  tuple([OrderPlacementResponseSuccessElement]),
-  OrderPlacementResponseError,
-])
+export const PlaceOrderResponseCurrencyConversion = tuple([OrderPlacementResponseSuccessElement])
 
 export type PlaceOrderResponseCurrencyConversion = GuardType<typeof PlaceOrderResponseCurrencyConversion>
 // #endregion
@@ -143,21 +134,21 @@ export type OrderPlacementParametersExistingRootDouble = {
 }
 // #endregion
 
-export const PlaceOrderSingleResponse = union([
-  tuple([OrderPlacementResponseSuccessElement]),
-  OrderPlacementResponseError,
-])
+export const PlaceOrderSingleResponse = tuple([OrderPlacementResponseSuccessElement])
 
 export type PlaceOrderSingleResponse = GuardType<typeof PlaceOrderSingleResponse>
 
-export const PlaceOrderOCAResponse = union([
-  tuple([OrderPlacementResponseSuccessElement, OrderPlacementResponseSuccessElement]),
-  OrderPlacementResponseError,
-])
+export const PlaceOrderOCAResponse = tuple([OrderPlacementResponseSuccessElement, OrderPlacementResponseSuccessElement])
 
 export type PlaceOrderOCAResponse = GuardType<typeof PlaceOrderOCAResponse>
 
 // #endregion
+
+const OrderPlacementResponseError = props({
+  error: string(),
+}, { extendable: true })
+
+interface OrderPlacementResponseError extends GuardType<typeof OrderPlacementResponseError> {}
 
 export class Orders {
   readonly #client: InteractiveBrokersResourceClient
@@ -184,7 +175,6 @@ export class Orders {
   }, { signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
-    readonly delay?: undefined | number
   } = {}): Promise<OrdersResponse> {
     // If force was specified, we will make the request once without returning it
     // This will give IB some time to do what they need to do
@@ -278,35 +268,38 @@ export class Orders {
       readonly timeout?: undefined | number
     } = {},
   ): Promise<PlaceOrderResponseCurrencyConversion | PlaceOrderSingleResponse | PlaceOrderOCAResponse> {
+    let response:
+      | undefined
+      | OrderPlacementResponseError
+      | PlaceOrderResponseCurrencyConversion
+      | PlaceOrderSingleResponse
+      | PlaceOrderOCAResponse = undefined
+
     // Method 1
     if (
       parentOrderId === undefined && orders.length === 1 && 'isCcyConv' in orders[0] && orders[0].isCcyConv === true
     ) {
-      return await this.#client.post({
+      response = await this.#client.post({
         path: `${accountId}/orders`,
         body: { orders } as never,
-        guard: PlaceOrderSingleResponse,
+        guard: union([PlaceOrderSingleResponse, OrderPlacementResponseError]),
         signal,
         timeout,
       })
-    }
-
-    // Method 2
-    if (parentOrderId === undefined && orders.length === 1) {
-      return await this.#client.post({
+    } // Method 2
+    else if (parentOrderId === undefined && orders.length === 1) {
+      response = await this.#client.post({
         path: `${accountId}/orders`,
         body: { orders } as never,
-        guard: PlaceOrderSingleResponse,
+        guard: union([PlaceOrderSingleResponse, OrderPlacementResponseError]),
         signal,
         timeout,
       })
-    }
-
-    // Method 3
-    if (parentOrderId === undefined && orders.length === 2) {
+    } // Method 3
+    else if (parentOrderId === undefined && orders.length === 2) {
       const [rootOrder, attachedOrder] = orders
 
-      return await this.#client.post({
+      response = await this.#client.post({
         path: `${accountId}/orders`,
         body: {
           orders: [
@@ -317,17 +310,15 @@ export class Orders {
             },
           ],
         } as never,
-        guard: PlaceOrderSingleResponse,
+        guard: union([PlaceOrderSingleResponse, OrderPlacementResponseError]),
         signal,
         timeout,
       })
-    }
-
-    // Method 4
-    if (parentOrderId === undefined && orders.length === 3) {
+    } // Method 4
+    else if (parentOrderId === undefined && orders.length === 3) {
       const [rootOrder, attachedOrderLeft, attachedOrderRight] = orders
 
-      return await this.#client.post({
+      response = await this.#client.post({
         path: `${accountId}/orders`,
         body: {
           orders: [
@@ -342,15 +333,13 @@ export class Orders {
             },
           ],
         } as never,
-        guard: PlaceOrderSingleResponse,
+        guard: union([PlaceOrderSingleResponse, OrderPlacementResponseError]),
         signal,
         timeout,
       })
-    }
-
-    // Method 5
-    if (parentOrderId !== undefined && orders.length === 1) {
-      return await this.#client.post({
+    } // Method 5
+    else if (parentOrderId !== undefined && orders.length === 1) {
+      response = await this.#client.post({
         path: `${accountId}/orders`,
         body: {
           orders: orders.map((order) => ({
@@ -358,15 +347,13 @@ export class Orders {
             parentId: parentOrderId,
           })),
         } as never,
-        guard: PlaceOrderSingleResponse,
+        guard: union([PlaceOrderSingleResponse, OrderPlacementResponseError]),
         signal,
         timeout,
       })
-    }
-
-    // Method 6
-    if (parentOrderId !== undefined && orders.length === 2) {
-      return await this.#client.post({
+    } // Method 6
+    else if (parentOrderId !== undefined && orders.length === 2) {
+      response = await this.#client.post({
         path: `${accountId}/orders`,
         body: {
           orders: orders.map((order) => ({
@@ -374,12 +361,20 @@ export class Orders {
             parentId: parentOrderId,
           })),
         } as never,
-        guard: PlaceOrderOCAResponse,
+        guard: union([PlaceOrderOCAResponse, OrderPlacementResponseError]),
         signal,
         timeout,
       })
     }
 
-    throw new Error('Unknown order method')
+    if (response === undefined) {
+      throw new Error('Unknown order method')
+    }
+
+    if ('error' in response) {
+      throw new Error(`Unable to place order (message=${response.error})`)
+    }
+
+    return response
   }
 }
