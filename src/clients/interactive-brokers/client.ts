@@ -19,14 +19,6 @@ const debug = {
   created: Debug('ib-client:created'),
   disposed: Debug('ib-client:disposed'),
   error: Debug('ib-client:error'),
-
-  websocket: {
-    open: Debug('ib-client:websocket:open'),
-    close: Debug('ib-client:websocket:close'),
-    error: Debug('ib-client:websocket:error'),
-    message: Debug('ib-client:websocket:message'),
-    send: Debug('ib-client:websocket:send'),
-  },
 }
 
 export interface InteractiveBrokersClientOptions {
@@ -84,7 +76,6 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
   } as const
 
   readonly #http: HTTPClient
-  // readonly #websocket: WebSocketClient
 
   readonly type: Options['type']
   readonly baseURL: URL
@@ -128,7 +119,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
         }
 
         // 20250228-21:05 8V1j/Yzlty5KhqyUl0zz2bfOw3s=
-        const liveSessionToken = await this.session.liveSessionToken()
+        const { liveSessionToken } = await this.session.ensureActiveSession()
 
         requestsMap.set(request, liveSessionToken)
 
@@ -211,25 +202,6 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
       },
     })
 
-    // const websocketURL = new URL(InteractiveBrokersClient.CONFIG.websocketURL)
-    // websocketURL.searchParams.set('oauth_token', config.accessToken)
-
-    // this.#websocket = new WebSocketClient({
-    //   url: websocketURL,
-    // })
-
-    // this.#websocket.addListener('open', () => debug.websocket.open(config.accountId))
-    // this.#websocket.addListener('close', () => debug.websocket.close(config.accountId))
-    // this.#websocket.addListener('error', (error) => debug.websocket.error(config.accountId, error))
-    // this.#websocket.addListener(
-    //   'message',
-    //   async (message) =>
-    //     debug.websocket.message(
-    //       config.accountId,
-    //       message.data instanceof Blob ? (await message.data.text()) : undefined,
-    //     ),
-    // )
-
     const resourceClient = new InteractiveBrokersResourceClient({
       http: this.#http,
       url: urlJoin(this.baseURL, 'v1/api'),
@@ -247,38 +219,6 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
   dispose(): Promise<void> {
     return this[Symbol.asyncDispose]()
   }
-
-  // async connect(): Promise<WebSocketClient> {
-  //   let session: undefined | string = undefined
-
-  //   this.session.addListener('tickle-session-token', async (newSession) => {
-  //     if (newSession !== session) {
-  //       session = newSession
-
-  //       await this.#websocket.reconnect()
-
-  //       debug.websocket.send(JSON.stringify({ session }))
-
-  //       this.#websocket.send(JSON.stringify({ session }))
-  //     }
-  //   })
-
-  //   this.#websocket.addListener('open', async () => {
-  //     session = await this.session.tickleSessionToken()
-
-  //     debug.websocket.send(JSON.stringify({ session }))
-
-  //     this.#websocket.send(JSON.stringify({ session }))
-  //   })
-
-  //   await this.#websocket.connect()
-
-  //   debug.websocket.send(JSON.stringify({ session }))
-
-  //   this.#websocket.send(JSON.stringify({ session }))
-
-  //   return this.#websocket
-  // }
 }
 
 /**
