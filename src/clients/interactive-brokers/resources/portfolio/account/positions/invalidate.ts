@@ -22,14 +22,12 @@ export class Invalidate {
    * Instructs IB to discard cached portfolio positions for a given account,
    * so that the next request for positions delivers freshly obtained data.
    */
-  async post({ accountId }: {
-    readonly accountId: string
-  }, { signal, timeout }: {
+  async post({ signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<InvalidatePositionsResponse> {
     return await this.#client.post({
-      path: `${accountId}/positions/invalidate`,
+      path: `${this.#client.accountID}/positions/invalidate`,
       guard: InvalidatePositionsResponse,
       signal,
       timeout,

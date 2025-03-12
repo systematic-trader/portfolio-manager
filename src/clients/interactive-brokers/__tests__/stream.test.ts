@@ -28,8 +28,6 @@ describe('stream', () => {
       },
     })
 
-    const { accountId } = InteractiveBrokersClient.CONFIG[client.type]
-
     // while (true) {
     //   const snapshots = [stream.marketData.STK?.get(CONTRACTS['TL0']), stream.marketData.STK?.get(CONTRACTS['NOVO.B'])]
 
@@ -86,9 +84,7 @@ describe('stream', () => {
     // dkk -> sek
     await client.iserver.account.orders.post(
       {
-        accountId,
         orders: [{
-          acctId: accountId,
           cOID: `ccv-${Math.random()}`,
           conidex: `${CONTRACTS['DKK.SEK']}@SMART`,
           fxQty: 500,

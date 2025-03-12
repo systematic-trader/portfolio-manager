@@ -33,9 +33,8 @@ export class Order {
     this.#client = client
   }
 
-  async post({ accountId, orderId, ...body }:
+  async post({ orderId, ...body }:
     & {
-      readonly accountId: string
       readonly orderId: number | string
     }
     & Omit<OrderParametersStatic, 'acctId' | 'cOID'>
@@ -45,7 +44,7 @@ export class Order {
       readonly timeout?: undefined | number
     } = {}): Promise<OrderModifiedResponse> {
     return await this.#client.post({
-      path: `${accountId}/order/${orderId}`,
+      path: `${this.#client.accountID}/order/${orderId}`,
       body,
       guard: OrderModifiedResponse,
       signal,
@@ -53,8 +52,7 @@ export class Order {
     })
   }
 
-  async delete({ accountId, orderId, manualIndicator }: {
-    readonly accountId: string
+  async delete({ orderId, manualIndicator }: {
     readonly orderId: number | string
     readonly manualIndicator: boolean
   }, { signal, timeout }: {
@@ -62,7 +60,7 @@ export class Order {
     readonly timeout?: undefined | number
   } = {}): Promise<DeleteOrderResponse> {
     return await this.#client.delete({
-      path: `${accountId}/order/${orderId}`,
+      path: `${this.#client.accountID}/order/${orderId}`,
       searchParams: {
         manualIndicator,
       },

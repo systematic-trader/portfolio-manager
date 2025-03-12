@@ -1,7 +1,6 @@
 import type { ExchangeCode } from './exchange-code.ts'
 
 export interface OrderParametersStatic {
-  readonly acctId: string
   readonly cOID: string
   readonly conidex: `${string}@${ExchangeCode}`
   readonly manualIndicator: boolean

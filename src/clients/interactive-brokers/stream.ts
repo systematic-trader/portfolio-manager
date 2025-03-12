@@ -138,9 +138,9 @@ export async function InteractiveBrokersStream(
 
   let { accounts, ledger, marketData, orders } = await Promise.allSettled([
     client.iserver.accounts.get(),
-    client.portfolio.account.ledger.get({ accountId }),
+    client.portfolio.account.ledger.get(),
     loadMarketData(client, options.marketData),
-    client.iserver.account.orders.get({ accountId }),
+    client.iserver.account.orders.get(),
   ]).then(([accountsResult, ledgerResult, marketDataResult, ordersResult]) => {
     if (accountsResult.status === 'rejected') {
       throw accountsResult.reason

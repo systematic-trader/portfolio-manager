@@ -19,10 +19,7 @@ export class Positions {
   /**
    * Get all positions in an account.
    */
-  async get({ accountId }: {
-    /** Account ID whose positions are requested. */
-    readonly accountId: string
-  }, { signal, timeout }: {
+  async get({ signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<PositionsResponse> {
@@ -32,7 +29,7 @@ export class Positions {
 
     while (true) {
       const page = await this.#client.get({
-        path: `${accountId}/positions/${pageIndex}`,
+        path: `${this.#client.accountID}/positions/${pageIndex}`,
         searchParams: {
           waitForSecDef: true,
         },

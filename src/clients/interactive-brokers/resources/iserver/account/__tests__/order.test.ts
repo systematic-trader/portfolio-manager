@@ -35,18 +35,14 @@ describe('iserver/account/order', () => {
 
       const contractId = CONTRACTS['EUR.DKK']
 
-      const ledger = await client.portfolio.account.ledger.get({
-        accountId,
-      })
+      const ledger = await client.portfolio.account.ledger.get()
       debug('ledger dkk', ledger.DKK)
 
       const toEURResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [
             {
               isCcyConv: true,
-              acctId: accountId,
               orderType: 'MKT',
               side: 'BUY',
               cOID: `test-order-${Math.random()}`,
@@ -64,20 +60,20 @@ describe('iserver/account/order', () => {
 
       await Timeout.wait(5000)
 
-      const toDKKResponse = await client.iserver.account.orders.post({
-        accountId,
-        orders: [{
-          isCcyConv: true,
-          acctId: accountId,
-          orderType: 'MKT',
-          side: 'SELL',
-          cOID: `test-order-${Math.random()}`,
-          conidex: `${contractId}@SMART`,
-          fxQty: 450, // still in dkk (a bit less to account for 2 USD in conversion fees - which will be deduced in the account base currency)
-          manualIndicator: false,
-          tif: 'DAY',
-        }],
-      })
+      const toDKKResponse = await client.iserver.account.orders.post(
+        {
+          orders: [{
+            isCcyConv: true,
+            orderType: 'MKT',
+            side: 'SELL',
+            cOID: `test-order-${Math.random()}`,
+            conidex: `${contractId}@SMART`,
+            fxQty: 450, // still in dkk (a bit less to account for 2 USD in conversion fees - which will be deduced in the account base currency)
+            manualIndicator: false,
+            tif: 'DAY',
+          }],
+        } satisfies OrderPlacementParametersCurrencyConversion,
+      )
 
       debug('eur -> dkk response', toDKKResponse)
       expect(toDKKResponse).toBeDefined()
@@ -87,9 +83,7 @@ describe('iserver/account/order', () => {
     test.skip('2x DKK -> EUR', async () => {
       await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
-      const ledgerBefore = await client.portfolio.account.ledger.get({
-        accountId,
-      })
+      const ledgerBefore = await client.portfolio.account.ledger.get()
       if (ledgerBefore.BASE === undefined || ledgerBefore.DKK === undefined || ledgerBefore.EUR === undefined) {
         throw new Error('Ledger before is undefined')
       }
@@ -97,7 +91,6 @@ describe('iserver/account/order', () => {
       const contractId = CONTRACTS['EUR.DKK']
 
       const toEURResponse = await client.iserver.account.orders.post({
-        accountId,
         orders: [{
           isCcyConv: true,
           acctId: accountId,
@@ -126,9 +119,7 @@ describe('iserver/account/order', () => {
 
       await Timeout.wait(5000) // wait a bit for the orders to be filled
 
-      const ledgerAfter = await client.portfolio.account.ledger.get({
-        accountId,
-      })
+      const ledgerAfter = await client.portfolio.account.ledger.get()
       if (ledgerAfter.BASE === undefined || ledgerAfter.DKK === undefined || ledgerAfter.EUR === undefined) {
         throw new Error('Ledger after is undefined')
       }
@@ -161,9 +152,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'LMT',
@@ -187,9 +176,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'LOC',
@@ -213,9 +200,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'MKT',
@@ -239,9 +224,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'MOC',
@@ -264,9 +247,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'MIDPRICE',
@@ -290,9 +271,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'STP',
@@ -316,9 +295,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'STOP_LIMIT',
@@ -344,9 +321,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'TRAIL',
@@ -372,9 +347,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'TRAIL',
@@ -400,9 +373,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'TRAILLMT',
@@ -430,9 +401,7 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'LMT',
@@ -459,9 +428,7 @@ describe('iserver/account/order', () => {
 
       const entryResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'MKT',
@@ -482,9 +449,7 @@ describe('iserver/account/order', () => {
 
       const exitResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'MKT',
@@ -510,11 +475,9 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [
             // Entry order
             {
-              acctId: accountId,
               conidex: `${contractId}@SMART`,
               manualIndicator: false,
               orderType: 'LMT',
@@ -528,7 +491,6 @@ describe('iserver/account/order', () => {
 
             // Take profit order
             {
-              acctId: accountId,
               conidex: `${contractId}@SMART`,
               manualIndicator: false,
               orderType: 'LMT',
@@ -554,11 +516,9 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [
             // Entry order
             {
-              acctId: accountId,
               conidex: `${contractId}@SMART`,
               manualIndicator: false,
               orderType: 'LMT',
@@ -571,7 +531,6 @@ describe('iserver/account/order', () => {
             },
             // Stop loss order
             {
-              acctId: accountId,
               conidex: `${contractId}@SMART`,
               manualIndicator: false,
               orderType: 'STP',
@@ -597,11 +556,9 @@ describe('iserver/account/order', () => {
 
       const response = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [
             // Entry order
             {
-              acctId: accountId,
               conidex: `${contractId}@SMART`,
               manualIndicator: false,
               orderType: 'LMT',
@@ -614,7 +571,6 @@ describe('iserver/account/order', () => {
             },
             // Take profit order
             {
-              acctId: accountId,
               conidex: `${contractId}@SMART`,
               manualIndicator: false,
               orderType: 'LMT',
@@ -627,7 +583,6 @@ describe('iserver/account/order', () => {
             },
             // Stop loss order
             {
-              acctId: accountId,
               conidex: `${contractId}@SMART`,
               manualIndicator: false,
               orderType: 'STP',
@@ -656,9 +611,7 @@ describe('iserver/account/order', () => {
       // Place root entry order
       const entryResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'LMT',
@@ -683,10 +636,8 @@ describe('iserver/account/order', () => {
       // Attach take profit order
       const attachedResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           parentOrderId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'LMT',
@@ -712,9 +663,7 @@ describe('iserver/account/order', () => {
       // Place root entry order
       const entryResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'LMT',
@@ -739,10 +688,8 @@ describe('iserver/account/order', () => {
       // Attach stop loss order
       const attachedResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           parentOrderId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'STP',
@@ -768,9 +715,7 @@ describe('iserver/account/order', () => {
       // Place root entry order
       const entryResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
-            acctId: accountId,
             conidex: `${contractId}@SMART`,
             manualIndicator: false,
             orderType: 'LMT',
@@ -795,11 +740,9 @@ describe('iserver/account/order', () => {
       // Attach both take profit and stop loss orders
       const attachedResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           parentOrderId,
           orders: [
             {
-              acctId: accountId,
               conidex: `${contractId}@SMART`,
               manualIndicator: false,
               orderType: 'LMT',
@@ -811,7 +754,6 @@ describe('iserver/account/order', () => {
               isSingleGroup: true,
             },
             {
-              acctId: accountId,
               conidex: `${contractId}@SMART`,
               manualIndicator: false,
               orderType: 'STP',
@@ -851,10 +793,8 @@ describe('iserver/account/order', () => {
       // Place root entry order
       const entryResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
             ...orderParameters,
-            acctId: accountId,
             cOID: `entry-test-order-${Math.random()}`,
           }],
         } satisfies OrderPlacementParametersSingle,
@@ -872,7 +812,6 @@ describe('iserver/account/order', () => {
       // Attach take profit order
       const modifiedResponse = await client.iserver.account.order.post(
         {
-          accountId,
           orderId: entryOrderId,
           ...orderParameters,
           price: 201, // new limit price
@@ -902,10 +841,8 @@ describe('iserver/account/order', () => {
       // Place root entry order
       const entryResponse = await client.iserver.account.orders.post(
         {
-          accountId,
           orders: [{
             ...orderParameters,
-            acctId: accountId,
             cOID: `entry-test-order-${Math.random()}`,
           }],
         } satisfies OrderPlacementParametersSingle,
@@ -923,7 +860,6 @@ describe('iserver/account/order', () => {
       // Attach take profit order
       const modifiedResponse = await client.iserver.account.order.post(
         {
-          accountId,
           orderId: entryOrderId,
           ...orderParameters,
           quantity: 2, // new quantity (1 more)
@@ -941,7 +877,6 @@ describe('iserver/account/order', () => {
     const { orders } = await client.iserver.account.orders.get({
       force: true,
       filters: ['Inactive', 'PreSubmitted', 'Submitted'],
-      accountId,
     })
 
     if (orders === undefined || orders.length === 0) {
@@ -952,7 +887,6 @@ describe('iserver/account/order', () => {
       debug('deleting order', order)
 
       const deleteOrderResponse = await client.iserver.account.order.delete({
-        accountId,
         orderId: order.orderId,
         manualIndicator: false,
       })

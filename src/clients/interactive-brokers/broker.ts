@@ -15,8 +15,6 @@ export async function InteractiveBrokers<Type extends 'Live' | 'Paper'>(
     marketData: options.marketData,
   })
 
-  const { accountId } = InteractiveBrokersClient.CONFIG[client.type]
-
   let accounts = structuredClone(stream.accounts)
   let marketData = structuredClone(stream.marketData)
   let orders = structuredClone(stream.orders)
@@ -78,10 +76,8 @@ export async function InteractiveBrokers<Type extends 'Live' | 'Paper'>(
       // We ignore IBKR's request rate limit, since it seems to be a soft limit
       orderDrafts.values().map(async (draft) => {
         const [{ order_id }] = await client.iserver.account.orders.post({
-          accountId,
           orders: [
             {
-              acctId: accountId,
               conidex: `${draft.contractID}@SMART`,
               manualIndicator: false,
               orderType: 'MKT',
