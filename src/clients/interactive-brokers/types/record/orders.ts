@@ -168,12 +168,12 @@ const OrderCash = OrderBase.merge({
   fgColor: string(),
   filledQuantity: number(),
   isEventTrading: string(),
-  lastExecutionTime: string(),
   lastExecutionTime_r: number(),
+  lastExecutionTime: string(),
   listingExchange: ExchangeCode,
+  order_ccp_status: OrderCCPStatus,
   orderDesc: string(),
   orderType: literal('Market'),
-  order_ccp_status: OrderCCPStatus,
   origOrderType: literal('MARKET'),
   remainingQuantity: number(),
   secType: AssetClass.extract(['CASH']),
@@ -182,10 +182,11 @@ const OrderCash = OrderBase.merge({
   status: OrderStatus,
   supportsTaxOpt: string(),
   ticker: string(),
-  timeInForce: string(), // todo 'CLOSE'
+  timeInForce: enums(['CLOSE']), // todo 'CLOSE'
   totalCashSize: number(),
   totalSize: number(),
 })
+
 // #endregion
 
 export const OrderTypes = [
