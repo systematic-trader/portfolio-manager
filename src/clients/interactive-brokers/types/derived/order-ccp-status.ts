@@ -3,6 +3,7 @@ import { enums, type GuardType } from 'https://raw.githubusercontent.com/systema
 export const OrderCCPStatus = enums([
   'Cancelled',
   'Filled',
+  'Partially Filled',
   'Pending Submit',
   'Submitted',
 ])

@@ -1,4 +1,9 @@
-import { enums, type GuardType } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import {
+  enums,
+  type GuardType,
+  literal,
+  union,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 
 export type Currency3 = GuardType<typeof Currency3>
 
@@ -96,3 +101,10 @@ export const Currency3 = enums([
   'ZAR',
   'ZAX',
 ])
+
+export const Currency3OrBase = union([
+  literal('BASE'),
+  Currency3,
+])
+
+export type Currency3OrBase = GuardType<typeof Currency3OrBase>

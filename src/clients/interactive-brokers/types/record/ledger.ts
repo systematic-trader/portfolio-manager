@@ -1,20 +1,13 @@
 import {
   type GuardType,
   integer,
-  literal,
   number,
   optional,
   props,
   record,
   string,
-  union,
 } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
-import { Currency3 } from '../derived/currency.ts'
-
-const Currency3OrBase = union([
-  Currency3,
-  literal('BASE'),
-])
+import { Currency3OrBase } from '../derived/currency.ts'
 
 export const LedgerEntry = props({
   acctcode: string(),
@@ -57,31 +50,31 @@ export const Ledger = record(Currency3OrBase, optional(LedgerEntry))
 export type Ledger = GuardType<typeof Ledger>
 
 export const LedgerMessage = props({
-  'acctCode': optional(string()),
-  'cashbalance': optional(number()),
-  'cashBalanceFXSegment': optional(number()),
-  'commodityMarketValue': optional(number()),
-  'corporateBondsMarketValue': optional(number()),
-  'dividends': optional(number()),
-  'exchangeRate': optional(number()),
-  'funds': optional(number()),
-  'interest': optional(number()),
-  'issueOptionsMarketValue': optional(number()),
+  'acctCode': string(),
+  'cashbalance': number(),
+  'cashBalanceFXSegment': number(),
+  'commodityMarketValue': number(),
+  'corporateBondsMarketValue': number(),
+  'dividends': number(),
+  'exchangeRate': number(),
+  'funds': number(),
+  'interest': number(),
+  'issueOptionsMarketValue': number(),
   'key': string(),
-  'marketValue': optional(number()),
-  'moneyFunds': optional(number()),
-  'netLiquidationValue': optional(number()),
-  'optionMarketValue': optional(number()),
-  'realizedPnl': optional(number()),
-  'secondKey': optional(Currency3OrBase),
-  'settledCash': optional(number()),
-  'severity': optional(number()),
-  'stockMarketValue': optional(number()),
-  'tBillsMarketValue': optional(number()),
-  'tBondsMarketValue': optional(number()),
+  'marketValue': number(),
+  'moneyFunds': number(),
+  'netLiquidationValue': number(),
+  'optionMarketValue': number(),
+  'realizedPnl': number(),
+  'secondKey': Currency3OrBase,
+  'settledCash': number(),
+  'severity': number(),
+  'stockMarketValue': number(),
+  'tBillsMarketValue': number(),
+  'tBondsMarketValue': number(),
   'timestamp': number(),
-  'unrealizedPnl': optional(number()),
-  'warrantsMarketValue': optional(number()),
+  'unrealizedPnl': number(),
+  'warrantsMarketValue': number(),
 })
 
 export interface LedgerMessage extends GuardType<typeof LedgerMessage> {}

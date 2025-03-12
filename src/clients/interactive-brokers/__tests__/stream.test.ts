@@ -2,7 +2,6 @@ import { Debug } from '../../../utils/debug.ts'
 import { describe, test } from '../../../utils/testing.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import { InteractiveBrokersClient } from '../client.ts'
-import type { OrderPlacementParametersCurrencyConversion } from '../resources/iserver/account/orders.ts'
 import { InteractiveBrokersStream } from '../stream.ts'
 
 const debug = {
@@ -16,6 +15,8 @@ const CONTRACTS = {
   'TL0': 78046366, // Tysk Tesla
   'NOVO.B': 652806383,
   'DKK.SEK': 28027110,
+  'DKK.JPY': 110616600,
+  'DKK.NOK': 110616599,
 }
 
 describe('stream', () => {
@@ -48,54 +49,46 @@ describe('stream', () => {
     // expect(stream.accounts).toBeDefined()
 
     using repeater = Timeout.repeat(5_000, () => {
-      debug.info('orders:', ['ignored'] /*stream.orders.filter((order) => order.status !== 'Cancelled')*/)
+      const cashCurrencies = Object.fromEntries(
+        Object.entries(stream.ledger).map(([currency, ledger]) => [currency, ledger?.cashbalance]),
+      )
+
+      debug.info('Currencies:', cashCurrencies)
     })
 
-    // const [order] = await client.iserver.account.orders.post(
-    //   {
-    //     accountId,
-    //     orders: [{
-    //       acctId: accountId,
-    //       conidex: `${CONTRACTS['NOVO.B']}@SMART`,
-    //       manualIndicator: false,
-    //       orderType: 'LMT',
-    //       price: 200, // current price for apple is around 240 - adjust this if needed
-    //       side: 'BUY',
-    //       tif: 'DAY',
-    //       quantity: 1,
-    //       cOID: `test-order-${Math.random()}`,
-    //     }],
-    //   } satisfies OrderPlacementParametersSingle,
-    // )
-
-    // await Timeout.wait(1_000)
-
-    // await client.iserver.account.order.post({
-    //   accountId,
-    //   orderId: order.order_id,
-    //   conidex: `${CONTRACTS['NOVO.B']}@SMART`,
-    //   manualIndicator: false,
-    //   orderType: 'MKT',
-    //   side: 'BUY',
-    //   tif: 'DAY',
-    //   quantity: 1,
+    // // dkk -> sek
+    // await Timeout.defer(5_000, async () => {
+    //   await client.iserver.account.orders.post(
+    //     {
+    //       orders: [{
+    //         cOID: `ccv-${Math.random()}`,
+    //         conidex: `${CONTRACTS['DKK.NOK']}@SMART`,
+    //         fxQty: 500,
+    //         isCcyConv: true,
+    //         manualIndicator: true,
+    //         orderType: 'MKT',
+    //         side: 'SELL',
+    //         tif: 'DAY',
+    //       }],
+    //     } satisfies OrderPlacementParametersCurrencyConversion,
+    //   )
     // })
 
-    // dkk -> sek
-    await client.iserver.account.orders.post(
-      {
-        orders: [{
-          cOID: `ccv-${Math.random()}`,
-          conidex: `${CONTRACTS['DKK.SEK']}@SMART`,
-          fxQty: 500,
-          isCcyConv: true,
-          manualIndicator: true,
-          orderType: 'MKT',
-          side: 'SELL',
-          tif: 'DAY',
-        }],
-      } satisfies OrderPlacementParametersCurrencyConversion,
-    )
+    // await Timeout.defer(10_000, async () => {
+    //   await client.iserver.account.orders.post(
+    //     {
+    //       orders: [{
+    //         conidex: `${CONTRACTS['NOVO.B']}@SMART`,
+    //         manualIndicator: false,
+    //         orderType: 'MKT',
+    //         side: 'BUY',
+    //         tif: 'DAY',
+    //         quantity: 1,
+    //         cOID: `test-order-${Math.random()}`,
+    //       }],
+    //     } satisfies OrderPlacementParametersSingle,
+    //   )
+    // })
 
     await repeater
   })

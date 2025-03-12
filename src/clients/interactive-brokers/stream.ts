@@ -20,12 +20,11 @@ import { WebSocketClient, WebSocketClientEventError } from '../websocket-client.
 import { InteractiveBrokersClient, type InteractiveBrokersClientOptions } from './client.ts'
 import { StatusResponse } from './resources/iserver/auth/status.ts'
 import { sanitize } from './sanitize.ts'
+import type { Currency3OrBase } from './types/derived/currency.ts'
 import { Accounts } from './types/record/accounts.ts'
-import { type Ledger, LedgerEntry, LedgerMessage } from './types/record/ledger.ts'
-import { type Order, OrderTypes } from './types/record/orders.ts'
+import { LedgerMessage } from './types/record/ledger.ts'
+import { Order } from './types/record/orders.ts'
 import { Snapshot, SnapshotFields } from './types/record/snapshot.ts'
-
-type Writable<T> = { -readonly [P in keyof T]: T[P] }
 
 const debug = {
   open: Debug('ib-client:ws:open'),
@@ -110,11 +109,9 @@ const Topic = {
   }),
   sld: props({
     topic: startsWith('sld+'),
-    result: optional(array(LedgerMessage)),
+    result: optional(array(LedgerMessage.pick(['key', 'timestamp'], { extendable: true }))),
   }),
 }
-
-const FullOrderType = union(OrderTypes.map((guard) => guard.merge({ acct: string() })))
 
 export interface InteractiveBrokersStreamOptions {
   readonly client: InteractiveBrokersClient<InteractiveBrokersClientOptions>
@@ -123,7 +120,7 @@ export interface InteractiveBrokersStreamOptions {
 
 export interface InteractiveBrokersStream extends AsyncDisposable {
   readonly accounts: Accounts
-  readonly ledger: Ledger
+  readonly ledger: Record<Currency3OrBase, undefined | LedgerMessage>
   readonly marketData: Record<string, ReadonlyMap<number, Record<string, unknown>>>
   readonly orders: ReadonlyMap<number, Order>
   readonly serviceTime: number
@@ -132,49 +129,11 @@ export interface InteractiveBrokersStream extends AsyncDisposable {
 }
 
 export async function InteractiveBrokersStream(
-  { client, ...options }: InteractiveBrokersStreamOptions,
+  options: InteractiveBrokersStreamOptions,
 ): Promise<InteractiveBrokersStream> {
-  const { accessToken, accountId } = InteractiveBrokersClient.CONFIG[client.type]
+  const { accessToken, accountId } = InteractiveBrokersClient.CONFIG[options.client.type]
 
-  let { accounts, ledger, marketData, orders } = await Promise.allSettled([
-    client.iserver.accounts.get(),
-    client.portfolio.account.ledger.get(),
-    loadMarketData(client, options.marketData),
-    client.iserver.account.orders.get(),
-  ]).then(([accountsResult, ledgerResult, marketDataResult, ordersResult]) => {
-    if (accountsResult.status === 'rejected') {
-      throw accountsResult.reason
-    }
-
-    if (ledgerResult.status === 'rejected') {
-      throw ledgerResult.reason
-    }
-
-    if (marketDataResult.status === 'rejected') {
-      throw marketDataResult.reason
-    }
-
-    if (ordersResult.status === 'rejected') {
-      throw ordersResult.reason
-    }
-
-    const ordersMap = new Map<number, Order>()
-
-    if (ordersResult.value.orders !== undefined) {
-      for (const order of ordersResult.value.orders) {
-        ordersMap.set(order.orderId, order)
-      }
-    }
-
-    return {
-      accounts: accountsResult.value,
-      ledger: ledgerResult.value as { [P in keyof Ledger]: Writable<Ledger[P]> },
-      marketData: marketDataResult.value,
-      orders: ordersMap,
-    }
-  })
-
-  debug.info(accountId, 'ledger', ledger)
+  let { accounts, ledger, marketData, orders } = await loadData(options)
 
   const assetClassByConID = Object.entries(options.marketData).reduce(
     (map, [assetClass, conIDs]) => {
@@ -249,6 +208,26 @@ export async function InteractiveBrokersStream(
     },
   }
 
+  async function reconnect(): Promise<void> {
+    try {
+      await websocket.close()
+
+      const updates = await loadData(options)
+
+      accounts = updates.accounts
+      ledger = updates.ledger
+      marketData = updates.marketData
+      orders = updates.orders
+
+      await websocket.connect()
+    } catch (error) {
+      // Do NOT await the stream.dispose() here, as it will cause a deadlock
+      stream.dispose()
+
+      throw error
+    }
+  }
+
   // IBKR recommend 60s
   const pingRepeater = Timeout.repeat(30_000, () => {
     if (websocket.state.status === 'open') {
@@ -257,6 +236,7 @@ export async function InteractiveBrokersStream(
     }
   })
 
+  // IBKR says heartbeat should arrive every 10 seconds
   const heartbeatRepeater = Timeout.repeat(5_000, async () => {
     if (Date.now() - serviceTime > 30_000) {
       serviceTime = Date.now()
@@ -264,7 +244,7 @@ export async function InteractiveBrokersStream(
       if (websocket.state.status === 'open') {
         debug.info(accountId, 'reconnecting - heartbeat timeout')
 
-        await websocket.reconnect()
+        await reconnect()
       }
     }
   })
@@ -285,19 +265,19 @@ export async function InteractiveBrokersStream(
       stream.dispose()
     })
 
-    let session = await client.session.ensureActiveSession()
+    let session = await options.client.session.ensureActiveSession()
 
-    client.session.addListener('session', async (newSession) => {
+    options.client.session.addListener('session', async (newSession) => {
       session = newSession
 
       if (websocket.state.status === 'open') {
         debug.info(accountId, 'reconnecting - session changed')
 
-        await websocket.reconnect()
+        await reconnect()
       }
     })
 
-    // både manuel-hent og subscribe af orders, skal ske som det første
+    // både manual-hent og subscribe af orders, skal ske som det første
 
     websocket.addListener('open', () => {
       serviceTime = Date.now()
@@ -367,8 +347,8 @@ export async function InteractiveBrokersStream(
                   if (data.args.authenticated === false || data.args.connected === false) {
                     debug.info(accountId, 'session reset due to authentication failure')
 
-                    await client.session.reset({ liveSessionToken: session.liveSessionToken })
-                    await client.session.ensureActiveSession()
+                    await options.client.session.reset({ liveSessionToken: session.liveSessionToken })
+                    await options.client.session.ensureActiveSession()
                   }
 
                   return
@@ -383,8 +363,8 @@ export async function InteractiveBrokersStream(
                     ) {
                       debug.info(accountId, 'session reset due to ping authentication failure')
 
-                      await client.session.reset({ liveSessionToken: session.liveSessionToken })
-                      await client.session.ensureActiveSession()
+                      await options.client.session.reset({ liveSessionToken: session.liveSessionToken })
+                      await options.client.session.ensureActiveSession()
                     }
 
                     return
@@ -396,8 +376,8 @@ export async function InteractiveBrokersStream(
                     } else {
                       debug.info(accountId, 'session reset due to ping alive failure')
 
-                      await client.session.reset({ liveSessionToken: session.liveSessionToken })
-                      await client.session.ensureActiveSession()
+                      await options.client.session.reset({ liveSessionToken: session.liveSessionToken })
+                      await options.client.session.ensureActiveSession()
                     }
 
                     return
@@ -444,87 +424,17 @@ export async function InteractiveBrokersStream(
                   }
 
                   for (const message of data.result) {
-                    const key = message.key.substring(10) as keyof typeof ledger
+                    const currency3OrBase = message.key.substring('LedgerList'.length) as Currency3OrBase
 
-                    const existing = key in ledger ? ledger[key] : undefined
+                    const existing = currency3OrBase in ledger ? ledger[currency3OrBase] : undefined
 
                     if (existing === undefined) {
-                      const newEntry: Partial<LedgerEntry> = {
-                        // acctcode: message.acctCode,
-                        // cashbalance: message.cashbalance,
-                        // cashbalancefxsegment: message.cashBalanceFXSegment,
-                        // commoditymarketvalue: message.commodityMarketValue,
-                        // corporatebondsmarketvalue: message.corporateBondsMarketValue,
-                        // cryptocurrencyvalue: existing.cryptocurrencyvalue,
-                        // currency: message.secondKey ?? existing.currency,
-                        // dividends: message.dividends ?? existing.dividends,
-                        // endofbundle: existing.endofbundle,
-                        // exchangerate: message.exchangeRate ?? existing.exchangerate,
-                        // funds: message.funds ?? existing.funds,
-                        // futuremarketvalue: existing.futuremarketvalue,
-                        // futureoptionmarketvalue: existing.futureoptionmarketvalue,
-                        // futuresonlypnl: existing.futuresonlypnl,
-                        // interest: message.interest ?? existing.interest,
-                        // issueroptionsmarketvalue: message.issueOptionsMarketValue ?? existing.issueroptionsmarketvalue,
-                        // key: message.key ?? existing.key,
-                        // moneyfunds: message.moneyFunds ?? existing.moneyfunds,
-                        // netliquidationvalue: message.netLiquidationValue ?? existing.netliquidationvalue,
-                        // realizedpnl: message.realizedPnl ?? existing.realizedpnl,
-                        // secondkey: message.secondKey ?? existing.secondkey,
-                        // sessionid: existing.sessionid,
-                        // settledcash: message.settledCash ?? existing.settledcash,
-                        // severity: message.severity ?? existing.severity,
-                        // stockmarketvalue: message.stockMarketValue ?? existing.stockmarketvalue,
-                        // stockoptionmarketvalue: existing.stockoptionmarketvalue,
-                        // tbillsmarketvalue: message.tBillsMarketValue ?? existing.tbillsmarketvalue,
-                        // tbondsmarketvalue: message.tBondsMarketValue ?? existing.tbondsmarketvalue,
-                        // timestamp: message.timestamp ?? existing.timestamp,
-                        // unrealizedpnl: message.unrealizedPnl ?? existing.unrealizedpnl,
-                        // warrantsmarketvalue: message.warrantsMarketValue ?? existing.warrantsmarketvalue,
-                      }
-
-                      ledger[key] = assertReturn(LedgerEntry, newEntry)
-                      // TODO
+                      ledger[currency3OrBase] = assertReturn(LedgerMessage, message)
                     } else {
-                      const updatedEntry: LedgerEntry = {
-                        acctcode: message.acctCode ?? existing.acctcode,
-                        cashbalance: message.cashbalance ?? existing.cashbalance,
-                        cashbalancefxsegment: message.cashBalanceFXSegment ?? existing.cashbalancefxsegment,
-                        commoditymarketvalue: message.commodityMarketValue ?? existing.commoditymarketvalue,
-                        corporatebondsmarketvalue: message.corporateBondsMarketValue ??
-                          existing.corporatebondsmarketvalue,
-                        cryptocurrencyvalue: existing.cryptocurrencyvalue,
-                        currency: message.secondKey ?? existing.currency,
-                        dividends: message.dividends ?? existing.dividends,
-                        endofbundle: existing.endofbundle,
-                        exchangerate: message.exchangeRate ?? existing.exchangerate,
-                        funds: message.funds ?? existing.funds,
-                        futuremarketvalue: existing.futuremarketvalue,
-                        futureoptionmarketvalue: existing.futureoptionmarketvalue,
-                        futuresonlypnl: existing.futuresonlypnl,
-                        interest: message.interest ?? existing.interest,
-                        issueroptionsmarketvalue: message.issueOptionsMarketValue ?? existing.issueroptionsmarketvalue,
-                        key: message.key ?? existing.key,
-                        moneyfunds: message.moneyFunds ?? existing.moneyfunds,
-                        netliquidationvalue: message.netLiquidationValue ?? existing.netliquidationvalue,
-                        realizedpnl: message.realizedPnl ?? existing.realizedpnl,
-                        secondkey: message.secondKey ?? existing.secondkey,
-                        sessionid: existing.sessionid,
-                        settledcash: message.settledCash ?? existing.settledcash,
-                        severity: message.severity ?? existing.severity,
-                        stockmarketvalue: message.stockMarketValue ?? existing.stockmarketvalue,
-                        stockoptionmarketvalue: existing.stockoptionmarketvalue,
-                        tbillsmarketvalue: message.tBillsMarketValue ?? existing.tbillsmarketvalue,
-                        tbondsmarketvalue: message.tBondsMarketValue ?? existing.tbondsmarketvalue,
-                        timestamp: message.timestamp ?? existing.timestamp,
-                        unrealizedpnl: message.unrealizedPnl ?? existing.unrealizedpnl,
-                        warrantsmarketvalue: message.warrantsMarketValue ?? existing.warrantsmarketvalue,
-                      }
-
-                      ledger[key] = assertReturn(LedgerEntry, updatedEntry)
+                      ledger[currency3OrBase] = assertReturn(LedgerMessage, Object.assign({}, existing, message))
                     }
 
-                    debug.info(accountId, `ledger data received for "${key}"`)
+                    debug.info(accountId, `ledger data "${currency3OrBase}"`)
                   }
 
                   return
@@ -567,15 +477,13 @@ export async function InteractiveBrokersStream(
 
                   debug.info(
                     accountId,
-                    `market data received for asset="${expectedAssetClass}" symbol="${existingSnapshot['55']}"`,
+                    `market data asset="${expectedAssetClass}" symbol="${existingSnapshot['55']}"`,
                   )
 
                   return
                 }
 
                 case 'sor': {
-                  debug.info(accountId, 'orders payload received:', payload)
-
                   const data = parsePayload(Topic[topic], payload)
 
                   if (data.args === undefined) {
@@ -586,17 +494,23 @@ export async function InteractiveBrokersStream(
                     const existingOrder = orders.get(orderMessage.orderId)
 
                     if (existingOrder === undefined) {
-                      const newOrder = assertReturn(FullOrderType, orderMessage)
+                      const newOrder = assertReturn(Order, orderMessage)
 
                       orders.set(newOrder.orderId, newOrder)
 
-                      debug.info(accountId, 'new order received')
+                      debug.info(
+                        accountId,
+                        `order asset="${newOrder.secType}" description="${newOrder.description1}" status="${newOrder.status}"`,
+                      )
                     } else {
-                      const updatedOrder = assertReturn(FullOrderType, Object.assign({}, existingOrder, orderMessage))
+                      const updatedOrder = assertReturn(Order, Object.assign({}, existingOrder, orderMessage))
 
                       orders.set(updatedOrder.orderId, updatedOrder)
 
-                      debug.info(accountId, 'existing order updated')
+                      debug.info(
+                        accountId,
+                        `order asset="${updatedOrder.secType}" description="${updatedOrder.description1}" status="${updatedOrder.status}"`,
+                      )
                     }
                   }
 
@@ -638,6 +552,90 @@ export async function InteractiveBrokersStream(
 
     throw error
   }
+}
+
+type Writable<T> = { -readonly [P in keyof T]: T[P] }
+
+async function loadData(options: InteractiveBrokersStreamOptions): Promise<{
+  accounts: Accounts
+  ledger: Record<Currency3OrBase, undefined | Writable<LedgerMessage>>
+  marketData: Record<string, ReadonlyMap<number, Record<string, unknown>>>
+  orders: Map<number, Order>
+}> {
+  return await Promise.allSettled([
+    options.client.iserver.accounts.get(),
+    options.client.portfolio.account.ledger.get(),
+    loadMarketData(options.client, options.marketData),
+    options.client.iserver.account.orders.get(),
+  ]).then(([accountsResult, ledgerResult, marketDataResult, ordersResult]) => {
+    if (accountsResult.status === 'rejected') {
+      throw accountsResult.reason
+    }
+
+    if (ledgerResult.status === 'rejected') {
+      throw ledgerResult.reason
+    }
+
+    if (marketDataResult.status === 'rejected') {
+      throw marketDataResult.reason
+    }
+
+    if (ordersResult.status === 'rejected') {
+      throw ordersResult.reason
+    }
+
+    const ordersMap = new Map<number, Order>()
+
+    if (ordersResult.value.orders !== undefined) {
+      for (const order of ordersResult.value.orders) {
+        ordersMap.set(order.orderId, order)
+      }
+    }
+
+    const ledger = Object.values(ledgerResult.value)
+      .reduce((result, ledger) => {
+        if (ledger === undefined) {
+          return result
+        }
+
+        result[ledger.secondkey] = {
+          acctCode: ledger.acctcode,
+          cashbalance: ledger.cashbalance,
+          cashBalanceFXSegment: ledger.cashbalancefxsegment,
+          commodityMarketValue: ledger.commoditymarketvalue,
+          corporateBondsMarketValue: ledger.corporatebondsmarketvalue,
+          dividends: ledger.dividends,
+          exchangeRate: ledger.exchangerate,
+          funds: ledger.funds,
+          interest: ledger.interest,
+          issueOptionsMarketValue: ledger.issueroptionsmarketvalue,
+          key: ledger.key === 'LedgerList' ? `LedgerList${ledger.secondkey}` : ledger.key,
+          marketValue: ledger.stockmarketvalue,
+          moneyFunds: ledger.moneyfunds,
+          netLiquidationValue: ledger.netliquidationvalue,
+          optionMarketValue: ledger.stockoptionmarketvalue,
+          realizedPnl: ledger.realizedpnl,
+          secondKey: ledger.secondkey,
+          settledCash: ledger.settledcash,
+          severity: ledger.severity,
+          stockMarketValue: ledger.stockmarketvalue,
+          tBillsMarketValue: ledger.tbillsmarketvalue,
+          tBondsMarketValue: ledger.tbondsmarketvalue,
+          timestamp: ledger.timestamp,
+          unrealizedPnl: ledger.unrealizedpnl,
+          warrantsMarketValue: ledger.warrantsmarketvalue,
+        }
+
+        return result
+      }, {} as Record<Currency3OrBase, undefined | Writable<LedgerMessage>>)
+
+    return {
+      accounts: accountsResult.value,
+      ledger,
+      marketData: marketDataResult.value,
+      orders: ordersMap,
+    }
+  })
 }
 
 function getType(value: unknown): string {

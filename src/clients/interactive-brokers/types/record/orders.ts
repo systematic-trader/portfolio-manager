@@ -50,8 +50,10 @@ const Common = props({
   order_ref: string(), // the cOID from the order placement request
   orderDesc: string(),
   orderId: number(),
+  orderType: string(),
   origOrderType: string(), // use "orderType" instead
   remainingQuantity: number(),
+  secType: string(), // AssetClass
   side: OrderSide,
   sizeAndFills: string(),
   status: OrderStatus,
@@ -78,10 +80,15 @@ const OrderStock = Common.merge({
 })
 
 const Type = {
-  NotImplemented: Common.pick(['orderId', 'order_ref']).merge({
-    status: OrderStatus,
-    orderType: string(),
-  }, { extendable: true }),
+  NotImplemented: Common.pick([
+    'description1',
+    'orderId',
+    'order_ref',
+    'orderType',
+    'secType',
+    'status',
+    'ticker',
+  ], { extendable: true }),
   Cash: {
     Market: OrderCash.merge({
       orderType: literal('Market'),
