@@ -163,7 +163,7 @@ export class Orders {
      * Response will be an empty array
      */
     readonly force?: undefined | boolean
-  }, { signal, timeout }: {
+  } = {}, { signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<OrdersResponse> {
