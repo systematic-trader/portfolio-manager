@@ -18,13 +18,11 @@ describe('portfolio/account/positions', () => {
 
     const response1 = await client.portfolio.account.positions.get({
       accountId,
-      pageId: 0,
     })
     debug('response1', response1)
 
     const response2 = await client.portfolio.account.positions.get({
       accountId,
-      pageId: 0,
     })
     debug('response2', response2)
 
