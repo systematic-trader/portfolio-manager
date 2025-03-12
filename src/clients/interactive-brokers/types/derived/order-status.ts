@@ -4,6 +4,7 @@ export const OrderStatus = enums([
   'Cancelled',
   'Filled',
   'Inactive',
+  'PendingCancel',
   'PendingSubmit',
   'PreSubmitted',
   'Submitted',
