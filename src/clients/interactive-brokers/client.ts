@@ -211,6 +211,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     const resourceClient = new InteractiveBrokersResourceClient({
       http: this.#http,
       url: urlJoin(this.baseURL, 'v1/api'),
+      accountID: config.accountId,
     })
 
     this.iserver = new Iserver(resourceClient)

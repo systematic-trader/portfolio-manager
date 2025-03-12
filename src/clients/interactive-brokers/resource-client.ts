@@ -11,18 +11,23 @@ export class InteractiveBrokersResourceClient {
   readonly #http: HTTPClient
   readonly #url: URL
 
-  constructor({ url, http }: {
+  readonly accountID: string
+
+  constructor({ url, http, accountID }: {
     readonly url: string | URL
     readonly http: HTTPClient
+    readonly accountID: string
   }) {
     this.#http = http
     this.#url = new URL(url)
+    this.accountID = accountID
   }
 
   appendPath(path: string): InteractiveBrokersResourceClient {
     return new InteractiveBrokersResourceClient({
       http: this.#http,
       url: urlJoin(this.#url, path),
+      accountID: this.accountID,
     })
   }
 
