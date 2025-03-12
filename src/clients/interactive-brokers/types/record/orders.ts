@@ -18,153 +18,28 @@ import { OrderSide } from '../derived/order-side.ts'
 import { OrderStatus } from '../derived/order-status.ts'
 
 // These are different values than used elsewhere in the API
-const OrderExecutionType = enums([
-  'Limit',
-  'LIMITONCLOSE',
-  'Market',
-  'MARKETONCLOSE',
-  'MidPrice',
-  'Stop',
-  'Stop Limit',
-  'TRAILING_STOP',
-  'TRAILING_STOP_LIMIT',
-])
+const OrderType = {
+  Limit: literal('Limit'),
+  LimitOnClose: literal('LIMITONCLOSE'),
+  Market: literal('Market'),
+  MarketOnClose: literal('MARKETONCLOSE'),
+  MidPrice: literal('MidPrice'),
+  Stop: literal('Stop'),
+  StopLimit: literal('Stop Limit'),
+  TrailingStop: literal('TRAILING_STOP'),
+  TrailingStopLimit: literal('TRAILING_STOP_LIMIT'),
+}
 
-// #region Base
-const OrderBase = props({
-  orderId: number(),
-  order_ref: string(), // the cOID from the order placement request
-})
-// #endregion
-
-// #region Stock
-const OrderStockBase = OrderBase.merge({
+const Common = props({
   account: string(),
   acct: string(),
-  avgPrice: optional(string()),
+  avgPrice: optional(string({ format: 'number' })),
   bgColor: string(), // Useless property
   cashCcy: Currency3,
   companyName: string(),
   conid: number(),
   conidex: string(),
   description1: string(),
-  fgColor: string(), // Useless property
-  filledQuantity: number(),
-  isEventTrading: string(),
-  lastExecutionTime_r: number(),
-  lastExecutionTime: string(),
-  listingExchange: string(),
-  order_ccp_status: OrderCCPStatus,
-  orderDesc: string(),
-  origOrderType: string(), // Similar to orderType, but with different casing
-  outsideRTH: optional(boolean()),
-  remainingQuantity: number(),
-  secType: AssetClass.extract(['STK']),
-  side: OrderSide,
-  sizeAndFills: string(),
-  status: OrderStatus,
-  supportsTaxOpt: string(),
-  ticker: string(),
-  timeInForce: enums(['CLOSE']), // todo add more
-  totalSize: number(),
-})
-
-// #region Limit
-const OrderStockLimit = OrderStockBase.merge({
-  orderType: OrderExecutionType.extract(['Limit']),
-  price: string({ format: 'number' }),
-})
-// #endregion
-
-// #region LimitOnClose
-const OrderStockLimitOnClose = OrderStockBase.merge({
-  orderType: OrderExecutionType.extract(['LIMITONCLOSE']),
-  price: string({ format: 'number' }),
-})
-// #endregion
-
-// #region Market
-const OrderStockMarket = OrderStockBase.merge({
-  orderType: OrderExecutionType.extract(['Market']),
-})
-// #endregion
-
-// #region MarketOnClose
-const OrderStockMarketOnClose = OrderStockBase.merge({
-  orderType: OrderExecutionType.extract(['MARKETONCLOSE']),
-})
-// #endregion
-
-// #region Midprice
-const OrderStockMidPrice = OrderStockBase.merge({
-  orderType: OrderExecutionType.extract(['MidPrice']),
-  price: string({ format: 'number' }),
-})
-// #endregion
-
-// #region Stop
-const OrderStockStop = OrderStockBase.merge({
-  orderType: OrderExecutionType.extract(['Stop']),
-
-  // these two values seems to be the same ("stop price")
-  auxPrice: string({ format: 'number' }),
-  stop_price: string({ format: 'number' }),
-})
-// #endregion
-
-// #region StopLimit
-const OrderStockStopLimit = OrderStockBase.merge({
-  orderType: OrderExecutionType.extract(['Stop Limit']),
-
-  // limit price
-  price: string({ format: 'number' }),
-
-  // stop price (both are the same)
-  auxPrice: string({ format: 'number' }),
-  stop_price: string({ format: 'number' }),
-})
-// #endregion
-
-// #region TrailingStop
-const OrderStockTrailingStop = OrderStockBase.merge({
-  orderType: OrderExecutionType.extract(['TRAILING_STOP']),
-
-  stop_price: string({ format: 'number' }),
-  auxPrice: string(), // e.g. "5" or "5%" (depends on the trailing type specified when placing the order)
-})
-// #endregion
-
-// #region TrailingStop
-const OrderStockTrailingStopLimit = OrderStockBase.merge({
-  orderType: OrderExecutionType.extract(['TRAILING_STOP_LIMIT']),
-
-  price: string({ format: 'number' }), // limit price
-  stop_price: string({ format: 'number' }), // stop price
-  auxPrice: string(), // e.g. "5" or "5%" (depends on the trailing type specified when placing the order)
-})
-// #endregion
-
-// #region Unknown
-const OrderTypeNotImplemented = OrderBase.merge(props({
-  status: OrderStatus,
-  orderType: string(),
-}, { extendable: true }))
-// #endregion
-
-// #endregion
-
-// #region Cash
-const OrderCash = OrderBase.merge({
-  account: string(),
-  acct: string(),
-  avgPrice: optional(string({ format: 'number' })),
-  bgColor: string(),
-  cashCcy: Currency3,
-  companyName: string(),
-  conid: number(),
-  conidex: string(),
-  description1: string(),
-  exchange: ExchangeCode,
   fgColor: string(),
   filledQuantity: number(),
   isEventTrading: string(),
@@ -172,40 +47,167 @@ const OrderCash = OrderBase.merge({
   lastExecutionTime: string(),
   listingExchange: ExchangeCode,
   order_ccp_status: OrderCCPStatus,
+  order_ref: string(), // the cOID from the order placement request
   orderDesc: string(),
-  orderType: literal('Market'),
-  origOrderType: literal('MARKET'),
+  orderId: number(),
+  origOrderType: string(), // use "orderType" instead
   remainingQuantity: number(),
-  secType: AssetClass.extract(['CASH']),
   side: OrderSide,
   sizeAndFills: string(),
   status: OrderStatus,
   supportsTaxOpt: string(),
   ticker: string(),
-  timeInForce: enums(['CLOSE']), // todo 'CLOSE'
-  totalCashSize: number(),
+  timeInForce: enums(['CLOSE']),
   totalSize: number(),
 })
+
+const OrderCash = Common.merge({
+  exchange: ExchangeCode, // might be legacy and use "listingExchange" instead
+  secType: AssetClass.extract(['CASH']),
+  totalCashSize: number(),
+})
+
+const OrderFuture = Common.merge({
+  exchange: ExchangeCode, // might be legacy and use "listingExchange" instead
+  secType: AssetClass.extract(['FUT']),
+})
+
+const OrderStock = Common.merge({
+  outsideRTH: optional(boolean()),
+  secType: AssetClass.extract(['STK']),
+})
+
+const Type = {
+  NotImplemented: Common.pick(['orderId', 'order_ref']).merge({
+    status: OrderStatus,
+    orderType: string(),
+  }, { extendable: true }),
+  Cash: {
+    Market: OrderCash.merge({
+      orderType: literal('Market'),
+    }),
+  },
+  Future: {
+    Limit: OrderFuture.merge({
+      orderType: OrderType.Limit,
+      price: string({ format: 'number' }),
+    }),
+    LimitOnClose: OrderFuture.merge({
+      orderType: OrderType.LimitOnClose,
+      price: string({ format: 'number' }),
+    }),
+    Market: OrderFuture.merge({
+      orderType: OrderType.Market,
+    }),
+    MarketOnClose: OrderFuture.merge({
+      orderType: OrderType.MarketOnClose,
+    }),
+    MidPrice: OrderFuture.merge({
+      orderType: OrderType.MidPrice,
+      price: string({ format: 'number' }),
+    }),
+    Stop: OrderFuture.merge({
+      orderType: OrderType.Stop,
+      // these two values seems to be the same ("stop price")
+      auxPrice: string({ format: 'number' }),
+      stop_price: string({ format: 'number' }),
+    }),
+    StopLimit: OrderFuture.merge({
+      orderType: OrderType.StopLimit,
+      price: string({ format: 'number' }), // limit price
+      // stop price (both are the same)
+      auxPrice: string({ format: 'number' }),
+      stop_price: string({ format: 'number' }),
+    }),
+    TrailingStop: OrderFuture.merge({
+      orderType: OrderType.TrailingStop,
+
+      auxPrice: string(), // e.g. "5" or "5%" (depends on the trailing type specified when placing the order)
+      stop_price: string({ format: 'number' }),
+    }),
+    TrailingStopLimit: OrderFuture.merge({
+      orderType: OrderType.TrailingStopLimit,
+
+      price: string({ format: 'number' }), // limit price
+      auxPrice: string(), // e.g. "5" or "5%" (depends on the trailing type specified when placing the order)
+      stop_price: string({ format: 'number' }), // stop price
+    }),
+  },
+  Stock: {
+    Limit: OrderStock.merge({
+      orderType: OrderType.Limit,
+      price: string({ format: 'number' }),
+    }),
+    LimitOnClose: OrderStock.merge({
+      orderType: OrderType.LimitOnClose,
+      price: string({ format: 'number' }),
+    }),
+    Market: OrderStock.merge({
+      orderType: OrderType.Market,
+    }),
+    MarketOnClose: OrderStock.merge({
+      orderType: OrderType.MarketOnClose,
+    }),
+    MidPrice: OrderStock.merge({
+      orderType: OrderType.MidPrice,
+      price: string({ format: 'number' }),
+    }),
+    Stop: OrderStock.merge({
+      orderType: OrderType.Stop,
+      // these two values seems to be the same ("stop price")
+      auxPrice: string({ format: 'number' }),
+      stop_price: string({ format: 'number' }),
+    }),
+    StopLimit: OrderStock.merge({
+      orderType: OrderType.StopLimit,
+      price: string({ format: 'number' }), // limit price
+      // stop price (both are the same)
+      auxPrice: string({ format: 'number' }),
+      stop_price: string({ format: 'number' }),
+    }),
+    TrailingStop: OrderStock.merge({
+      orderType: OrderType.TrailingStop,
+
+      auxPrice: string(), // e.g. "5" or "5%" (depends on the trailing type specified when placing the order)
+      stop_price: string({ format: 'number' }),
+    }),
+    TrailingStopLimit: OrderStock.merge({
+      orderType: OrderType.TrailingStopLimit,
+
+      price: string({ format: 'number' }), // limit price
+      auxPrice: string(), // e.g. "5" or "5%" (depends on the trailing type specified when placing the order)
+      stop_price: string({ format: 'number' }), // stop price
+    }),
+  },
+}
 
 // #endregion
 
 export const OrderTypes = [
-  // Stock
-  OrderStockLimit,
-  OrderStockLimitOnClose,
-  OrderStockMarket,
-  OrderStockMarketOnClose,
-  OrderStockMidPrice,
-  OrderStockStop,
-  OrderStockStopLimit,
-  OrderStockTrailingStop,
-  OrderStockTrailingStopLimit,
+  Type.Cash.Market, // Cash (currency conversion)
 
-  // Cash (currency conversion)
-  OrderCash,
+  Type.Stock.Limit,
+  Type.Stock.LimitOnClose,
+  Type.Stock.Market,
+  Type.Stock.MarketOnClose,
+  Type.Stock.MidPrice,
+  Type.Stock.Stop,
+  Type.Stock.StopLimit,
+  Type.Stock.TrailingStop,
+  Type.Stock.TrailingStopLimit,
+
+  Type.Future.Limit,
+  Type.Future.LimitOnClose,
+  Type.Future.Market,
+  Type.Future.MarketOnClose,
+  Type.Future.MidPrice,
+  Type.Future.Stop,
+  Type.Future.StopLimit,
+  Type.Future.TrailingStop,
+  Type.Future.TrailingStopLimit,
 
   // Remaining
-  OrderTypeNotImplemented,
+  Type.NotImplemented,
 ]
 
 export const Order = union(OrderTypes)
