@@ -1,5 +1,4 @@
 import { Debug } from '../../../../../../utils/debug.ts'
-import { Environment } from '../../../../../../utils/environment.ts'
 import { describe, expect, test } from '../../../../../../utils/testing.ts'
 import { Timeout } from '../../../../../../utils/timeout.ts'
 import { InteractiveBrokersClient } from '../../../../client.ts'
@@ -13,8 +12,6 @@ import type {
 } from '../orders.ts'
 
 const debug = Debug('test')
-
-const accountId = Environment.get('IB_PAPER_ACCOUNT_ID')
 
 const CONTRACTS = {
   'IWDA': 100292038,
@@ -93,7 +90,6 @@ describe('iserver/account/order', () => {
       const toEURResponse = await client.iserver.account.orders.post({
         orders: [{
           isCcyConv: true,
-          acctId: accountId,
           orderType: 'MKT',
           side: 'BUY',
           cOID: `test-order-${Math.random()}`,
@@ -103,7 +99,6 @@ describe('iserver/account/order', () => {
           tif: 'DAY',
         }, {
           isCcyConv: true,
-          acctId: accountId,
           orderType: 'MKT',
           side: 'BUY',
           cOID: `test-order-${Math.random()}`,
