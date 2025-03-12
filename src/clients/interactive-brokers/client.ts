@@ -5,7 +5,13 @@ import { Debug } from '../../utils/debug.ts'
 import { Environment } from '../../utils/environment.ts'
 import { CombinedSignalController } from '../../utils/signal.ts'
 import { urlJoin } from '../../utils/url.ts'
-import { HTTPClient, HTTPClientRequestAbortError, HTTPError, HTTPServiceError } from '../http-client.ts'
+import {
+  HTTPClient,
+  HTTPClientError,
+  HTTPClientRequestAbortError,
+  HTTPError,
+  HTTPServiceError,
+} from '../http-client.ts'
 import { InteractiveBrokersOAuth1a } from './client-oath1a.ts'
 import { InteractiveBrokersResourceClient } from './resource-client.ts'
 import { Iserver } from './resources/iserver.ts'
@@ -139,7 +145,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
           // There should always be a live session token
           liveSessionToken !== undefined &&
           (
-            error instanceof HTTPClient ||
+            error instanceof HTTPClientError ||
             error instanceof HTTPServiceError
           )
         ) {
