@@ -1,5 +1,4 @@
 import { Debug } from '../../../utils/debug.ts'
-import { Environment } from '../../../utils/environment.ts'
 import { describe, expect, test } from '../../../utils/testing.ts'
 import { Timeout } from '../../../utils/timeout.ts'
 import { InteractiveBrokersClient } from '../client.ts'
@@ -287,41 +286,26 @@ describe(InteractiveBrokersClient.name, () => {
     // Fun fact:
     // Ud over at skulle kalde /accounts først, så virker det til at disse endpoint ikke skal "varme op" på samme måde som de andre endpoints
 
-    const accountId = Environment.get('IB_ACCOUNT_ID')
-
     await using client = new InteractiveBrokersClient({ type: 'Paper' })
 
     // It's required that we call /iserver/accounts first (don't know why - but it's probably so IB can setup some streams behind the scene)
-    const accounts = await client.iserver.accounts.get()
-    debug('accounts', accounts)
-
-    const summary = await client.iserver.account.summary.get({
-      accountId,
-    })
+    const summary = await client.iserver.account.summary.get()
     debug('summary', summary)
     expect(summary).toBeDefined()
 
-    const availableFunds = await client.iserver.account.summary.availableFunds.get({
-      accountId,
-    })
+    const availableFunds = await client.iserver.account.summary.availableFunds.get()
     debug('available funds', availableFunds)
     expect(availableFunds).toBeDefined()
 
-    const balances = await client.iserver.account.summary.balances.get({
-      accountId,
-    })
+    const balances = await client.iserver.account.summary.balances.get()
     debug('balances', balances)
     expect(balances).toBeDefined()
 
-    const margins = await client.iserver.account.summary.margins.get({
-      accountId,
-    })
+    const margins = await client.iserver.account.summary.margins.get()
     debug('margins', margins)
     expect(margins).toBeDefined()
 
-    const marketValue = await client.iserver.account.summary.marketValue.get({
-      accountId,
-    })
+    const marketValue = await client.iserver.account.summary.marketValue.get()
     debug('market value', marketValue)
     expect(marketValue).toBeDefined()
   })

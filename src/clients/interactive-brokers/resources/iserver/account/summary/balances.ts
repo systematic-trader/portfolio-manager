@@ -7,14 +7,12 @@ export class Balances {
     this.#client = client
   }
 
-  async get({ accountId }: {
-    readonly accountId: string
-  }, { signal, timeout }: {
+  async get({ signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<unknown> {
     return await this.#client.get({
-      path: `${accountId}/summary/balances`,
+      path: `${this.#client.accountID}/summary/balances`,
       guard: undefined, // todo write guard
       signal,
       timeout,

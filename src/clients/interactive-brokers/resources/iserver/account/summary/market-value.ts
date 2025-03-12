@@ -7,14 +7,12 @@ export class MarketValue {
     this.#client = client
   }
 
-  async get({ accountId }: {
-    readonly accountId: string
-  }, { signal, timeout }: {
+  async get({ signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<unknown> {
     return await this.#client.get({
-      path: `${accountId}/summary/market_value`,
+      path: `${this.#client.accountID}/summary/market_value`,
       guard: undefined, // todo write guard
       signal,
       timeout,
