@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { Debug } from '../../utils/debug.ts'
 import { Environment } from '../../utils/environment.ts'
 import { CombinedSignalController } from '../../utils/signal.ts'
+import { Timeout } from '../../utils/timeout.ts'
 import { urlJoin } from '../../utils/url.ts'
 import {
   HTTPClient,
@@ -113,6 +114,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     })
 
     const requestsMap = new WeakMap<object, string>()
+    const goneMap = new WeakMap<object, number>()
 
     this.#http = new HTTPClient({
       headers: async ({ request }) => {
@@ -139,6 +141,16 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
         }, request.headers)
       },
       onError: async ({ request, error, retries }) => {
+        const goneCount = goneMap.get(request) ?? 0
+
+        if (error instanceof HTTPClientError && error.statusCode === 410 && goneCount < 5) {
+          goneMap.set(request, goneCount + 1)
+
+          await Timeout.wait(1000)
+
+          return
+        }
+
         const liveSessionToken = requestsMap.get(request)
 
         if (
@@ -149,7 +161,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
             error instanceof HTTPServiceError
           )
         ) {
-          if (retries === 0) {
+          if ((retries - goneCount) === 0) {
             // Check if the live session token has already been updated
             if (this.session.has({ liveSessionToken }) === false) {
               return
