@@ -120,8 +120,8 @@ export interface InteractiveBrokersStreamOptions {
 
 export interface InteractiveBrokersStream extends AsyncDisposable {
   readonly accounts: Accounts
-  readonly ledger: Record<Currency3OrBase, undefined | LedgerMessage>
-  readonly marketData: Record<string, ReadonlyMap<number, Record<string, unknown>>>
+  readonly ledger: ReadonlyMap<Currency3OrBase, LedgerMessage>
+  readonly marketData: ReadonlyMap<string, ReadonlyMap<number, Record<string, unknown>>>
   readonly orders: ReadonlyMap<number, Order>
   readonly serviceTime: number
 
@@ -282,9 +282,15 @@ export async function InteractiveBrokersStream(
     websocket.addListener('open', () => {
       serviceTime = Date.now()
 
+      debug.info(accountId, 'session submit')
+
       websocket.send(JSON.stringify({ session: session.tickleSessionToken }))
 
+      debug.info(accountId, 'subscription request - live order updates')
+
       websocket.send('sor+{}')
+
+      debug.info(accountId, 'subscription request - account ledger')
 
       websocket.send(`sld+${accountId}+{}`)
 
@@ -303,15 +309,18 @@ export async function InteractiveBrokersStream(
           }
 
           for (const contractID of contractIDs) {
-            const existingSnapshot = marketData[assetClass]?.get(contractID)
+            const existingSnapshot = marketData.get(assetClass)?.get(contractID)
 
             if (existingSnapshot === undefined) {
-              continue
+              throw new Error(`Missing market data for asset="${assetClass}" conID=${contractID}`)
             }
 
             const message = `smd+${contractID}+{"fields":${JSON.stringify(fields)}}`
 
-            debug.info(accountId, `market data request for asset="STK" symbol="${existingSnapshot['55']}"`)
+            debug.info(
+              accountId,
+              `subscription request - market data asset="${assetClass}" symbol="${existingSnapshot['55']}"`,
+            )
 
             websocket.send(message)
           }
@@ -426,12 +435,12 @@ export async function InteractiveBrokersStream(
                   for (const message of data.result) {
                     const currency3OrBase = message.key.substring('LedgerList'.length) as Currency3OrBase
 
-                    const existing = currency3OrBase in ledger ? ledger[currency3OrBase] : undefined
+                    const existing = ledger.get(currency3OrBase)
 
                     if (existing === undefined) {
-                      ledger[currency3OrBase] = assertReturn(LedgerMessage, message)
+                      ledger.set(currency3OrBase, assertReturn(LedgerMessage, message))
                     } else {
-                      ledger[currency3OrBase] = assertReturn(LedgerMessage, Object.assign({}, existing, message))
+                      ledger.set(currency3OrBase, assertReturn(LedgerMessage, Object.assign({}, existing, message)))
                     }
 
                     debug.info(accountId, `ledger data "${currency3OrBase}"`)
@@ -461,7 +470,7 @@ export async function InteractiveBrokersStream(
 
                   const partialProps = parsePayload(guard, payload)
 
-                  const existingSnapshot = marketData[expectedAssetClass]?.get(conID)
+                  const existingSnapshot = marketData.get(expectedAssetClass)?.get(conID)
 
                   if (existingSnapshot === undefined) {
                     return
@@ -558,8 +567,8 @@ type Writable<T> = { -readonly [P in keyof T]: T[P] }
 
 async function loadData(options: InteractiveBrokersStreamOptions): Promise<{
   accounts: Accounts
-  ledger: Record<Currency3OrBase, undefined | Writable<LedgerMessage>>
-  marketData: Record<string, ReadonlyMap<number, Record<string, unknown>>>
+  ledger: Map<Currency3OrBase, Writable<LedgerMessage>>
+  marketData: Map<string, ReadonlyMap<number, Record<string, unknown>>>
   orders: Map<number, Order>
 }> {
   return await Promise.allSettled([
@@ -592,42 +601,41 @@ async function loadData(options: InteractiveBrokersStreamOptions): Promise<{
       }
     }
 
-    const ledger = Object.values(ledgerResult.value)
-      .reduce((result, ledger) => {
-        if (ledger === undefined) {
-          return result
-        }
+    const ledger = new Map<Currency3OrBase, Writable<LedgerMessage>>()
 
-        result[ledger.secondkey] = {
-          acctCode: ledger.acctcode,
-          cashbalance: ledger.cashbalance,
-          cashBalanceFXSegment: ledger.cashbalancefxsegment,
-          commodityMarketValue: ledger.commoditymarketvalue,
-          corporateBondsMarketValue: ledger.corporatebondsmarketvalue,
-          dividends: ledger.dividends,
-          exchangeRate: ledger.exchangerate,
-          funds: ledger.funds,
-          interest: ledger.interest,
-          issueOptionsMarketValue: ledger.issueroptionsmarketvalue,
-          key: ledger.key === 'LedgerList' ? `LedgerList${ledger.secondkey}` : ledger.key,
-          marketValue: ledger.stockmarketvalue,
-          moneyFunds: ledger.moneyfunds,
-          netLiquidationValue: ledger.netliquidationvalue,
-          optionMarketValue: ledger.stockoptionmarketvalue,
-          realizedPnl: ledger.realizedpnl,
-          secondKey: ledger.secondkey,
-          settledCash: ledger.settledcash,
-          severity: ledger.severity,
-          stockMarketValue: ledger.stockmarketvalue,
-          tBillsMarketValue: ledger.tbillsmarketvalue,
-          tBondsMarketValue: ledger.tbondsmarketvalue,
-          timestamp: ledger.timestamp,
-          unrealizedPnl: ledger.unrealizedpnl,
-          warrantsMarketValue: ledger.warrantsmarketvalue,
-        }
+    for (const value of Object.values(ledgerResult.value)) {
+      if (value === undefined) {
+        continue
+      }
 
-        return result
-      }, {} as Record<Currency3OrBase, undefined | Writable<LedgerMessage>>)
+      ledger.set(value.secondkey, {
+        acctCode: value.acctcode,
+        cashbalance: value.cashbalance,
+        cashBalanceFXSegment: value.cashbalancefxsegment,
+        commodityMarketValue: value.commoditymarketvalue,
+        corporateBondsMarketValue: value.corporatebondsmarketvalue,
+        dividends: value.dividends,
+        exchangeRate: value.exchangerate,
+        funds: value.funds,
+        interest: value.interest,
+        issueOptionsMarketValue: value.issueroptionsmarketvalue,
+        key: value.key === 'LedgerList' ? `LedgerList${value.secondkey}` : value.key,
+        marketValue: value.stockmarketvalue,
+        moneyFunds: value.moneyfunds,
+        netLiquidationValue: value.netliquidationvalue,
+        optionMarketValue: value.stockoptionmarketvalue,
+        realizedPnl: value.realizedpnl,
+        secondKey: value.secondkey,
+        settledCash: value.settledcash,
+        severity: value.severity,
+        stockMarketValue: value.stockmarketvalue,
+        tBillsMarketValue: value.tbillsmarketvalue,
+        tBondsMarketValue: value.tbondsmarketvalue,
+        timestamp: value.timestamp,
+        unrealizedPnl: value.unrealizedpnl,
+        warrantsMarketValue: value.warrantsmarketvalue,
+      })
+    }
 
     return {
       accounts: accountsResult.value,
@@ -663,8 +671,8 @@ function parsePayload<T>(guard: Guard<T>, payload: unknown): T {
 async function loadMarketData(
   client: InteractiveBrokersClient<InteractiveBrokersClientOptions>,
   marketData: Record<string, ReadonlyArray<number>>,
-): Promise<Record<string, Map<number, Record<string, unknown>>>> {
-  const map: Record<string, Map<number, Record<string, unknown>>> = {}
+): Promise<Map<string, Map<number, Record<string, unknown>>>> {
+  const map = new Map<string, Map<number, Record<string, unknown>>>()
 
   await Promise.allSettled(
     Object.entries(marketData).map(async ([assetClass, conIDs]) => {
@@ -689,7 +697,7 @@ async function loadMarketData(
         assetMap.set(snapshot.conid, snapshot)
       }
 
-      map[assetClass] = assetMap
+      map.set(assetClass, assetMap)
     }),
   ).then((results) => {
     results.map((result) => {
