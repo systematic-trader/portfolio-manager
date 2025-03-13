@@ -122,6 +122,7 @@ export const ExchangeCodeValues = [
   'N.RIGA',
   'N.TALLINN',
   'N.VILNIUS',
+  'NASDAQ.NMS',
   'NASDAQ',
   'NASDAQBX',
   'NASDAQOM',
