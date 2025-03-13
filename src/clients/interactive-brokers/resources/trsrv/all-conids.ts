@@ -1,7 +1,22 @@
+import {
+  array,
+  type GuardType,
+  integer,
+  optional,
+  props,
+  string,
+} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { InteractiveBrokersResourceClient } from '../../resource-client.ts'
 import type { AssetClass } from '../../types/derived/asset-class.ts'
-import type { ExchangeCode } from '../../types/derived/exchange-code.ts'
-import { AllConidsResponse } from '../../types/record/all-conids-response.ts'
+import { ExchangeCode } from '../../types/derived/exchange-code.ts'
+
+export const AllConidsResponse = array(props({
+  ticker: string(),
+  conid: integer(),
+  exchange: ExchangeCode,
+}))
+
+export type AllConidsResponse = GuardType<typeof AllConidsResponse>
 
 export class AllConids {
   readonly #client: InteractiveBrokersResourceClient
@@ -21,14 +36,20 @@ export class AllConids {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<AllConidsResponse> {
-    return await this.#client.get({
+    const result = await this.#client.get({
       searchParams: {
         exchange,
         assetClass,
       },
-      guard: AllConidsResponse,
+      guard: optional(AllConidsResponse),
       signal,
       timeout,
     })
+
+    if (result === undefined) {
+      return []
+    }
+
+    return result
   }
 }
