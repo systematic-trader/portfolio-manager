@@ -29,14 +29,12 @@ const IncrementRules = array(props({
   lowerEdge: number(),
 }))
 
-// Once warm, the positions endpoint also returns information about the underlying security.
-// We don't nessesarily want to wait for this information, so we make everything optional.
-
 const Common = props({
   acctId: string(),
   conid: number(),
 
-  // "secdef" part (all of these fields are not specified before the position is "warm")
+  // Once warm, the positions endpoint also returns information about the underlying security.
+  // We don't nessesarily want to wait for this information, so we make everything optional.
   allExchanges: optional(string()), // comma separated list of ExchanceCode
   baseAvgCost: optional(number()),
   chineseName: optional(string()),
