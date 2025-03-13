@@ -32,7 +32,8 @@ export interface InteractiveBrokersClientOptions {
   readonly type: 'Live' | 'Paper'
 }
 
-export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOptions> implements AsyncDisposable {
+export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOptions = InteractiveBrokersClientOptions>
+  implements AsyncDisposable {
   static readonly CONFIG = {
     baseURL: new URL('https://api.ibkr.com'),
     websocketURL: new URL('wss://api.ibkr.com/v1/api/ws'),
@@ -113,7 +114,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
       privateSignatureKey: Deno.readTextFileSync(config.paths.privateSignatureKey),
     })
 
-    const requestsMap = new WeakMap<object, string>()
+    const requestsLiveSessionTokenMap = new WeakMap<object, string>()
     const goneMap = new WeakMap<object, number>()
 
     this.#http = new HTTPClient({
@@ -129,7 +130,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
         // 20250228-21:05 8V1j/Yzlty5KhqyUl0zz2bfOw3s=
         const { liveSessionToken } = await this.session.ensureActiveSession()
 
-        requestsMap.set(request, liveSessionToken)
+        requestsLiveSessionTokenMap.set(request, liveSessionToken)
 
         return HTTPClient.joinHeaders({
           'User-Agent': 'Systematic Trader IB Client',
@@ -151,7 +152,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
           return
         }
 
-        const liveSessionToken = requestsMap.get(request)
+        const liveSessionToken = requestsLiveSessionTokenMap.get(request)
 
         if (
           // There should always be a live session token
