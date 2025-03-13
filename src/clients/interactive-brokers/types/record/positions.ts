@@ -32,12 +32,13 @@ const IncrementRules = array(props({
 // Once warm, the positions endpoint also returns information about the underlying security.
 // We don't nessesarily want to wait for this information, so we make everything optional.
 
-const PositionBase = props({
+const Common = props({
   acctId: string(),
   conid: number(),
 
   // "secdef" part (all of these fields are not specified before the position is "warm")
-  allExchanges: optional(string()), // todo comma separated list of ExchanceCode
+  allExchanges: optional(string()), // comma separated list of ExchanceCode
+  baseAvgCost: optional(number()),
   chineseName: optional(string()),
   countryCode: optional(CountryCodeA2),
   displayRule: optional(DisplayRule),
@@ -48,71 +49,95 @@ const PositionBase = props({
   listingExchange: optional(ExchangeCode),
   multiplier: optional(number()),
   name: optional(string()),
-  pageSize: optional(integer()), // todo will this always be available?
+  pageSize: optional(integer()),
   ticker: optional(string()),
   time: optional(number()),
 })
 
-const PositionStock = PositionBase.merge({
-  assetClass: AssetClass.extract(['STK']),
+const Type = {
+  Stock: Common.merge({
+    assetClass: AssetClass.extract(['STK']),
 
-  avgCost: number(),
-  avgPrice: number(),
-  contractDesc: string(),
-  currency: Currency3,
-  mktPrice: number(),
-  mktValue: number(),
-  position: number(),
-  realizedPnl: number(),
-  strike: union([number(), string({ format: 'number' })]),
-  undConid: number(),
-  unrealizedPnl: number(),
+    avgCost: number(),
+    avgPrice: number(),
+    contractDesc: string(),
+    currency: Currency3,
+    mktPrice: number(),
+    mktValue: number(),
+    position: number(),
+    realizedPnl: number(),
+    strike: union([number(), string({ format: 'number' })]),
+    undConid: number(),
+    unrealizedPnl: number(),
 
-  // "secdef" part (all of these fields are not specified before the position is "warm")
-  group: optional(string()),
-  isUS: optional(boolean()),
-  sector: optional(string()),
-  sectorGroup: optional(string()),
-  type: optional(enums(['COMMON'])),
-})
+    // "secdef" part (all of these fields are not specified before the position is "warm")
+    baseAvgPrice: optional(number()),
+    baseMktPrice: optional(number()),
+    baseMktValue: optional(number()),
+    baseRealizedPnl: optional(number()),
+    baseUnrealizedPnl: optional(number()),
+    group: optional(string()),
+    isUS: optional(boolean()),
+    sector: optional(string()),
+    sectorGroup: optional(string()),
+    type: optional(enums(['COMMON'])),
+  }),
 
-const PositionFuture = PositionBase.merge({
-  assetClass: AssetClass.extract(['FUT']),
+  Future: Common.merge({
+    assetClass: AssetClass.extract(['FUT']),
 
-  avgCost: number(),
-  avgPrice: number(),
-  contractDesc: string(),
-  currency: Currency3,
-  mktPrice: number(),
-  mktValue: number(),
-  position: number(),
-  realizedPnl: number(),
-  strike: union([number(), string({ format: 'number' })]),
-  undConid: number(),
-  unrealizedPnl: number(),
+    avgCost: number(),
+    avgPrice: number(),
+    contractDesc: string(),
+    currency: Currency3,
+    mktPrice: number(),
+    mktValue: number(),
+    position: number(),
+    realizedPnl: number(),
+    strike: union([number(), string({ format: 'number' })]),
+    undConid: number(),
+    unrealizedPnl: number(),
 
-  // "secdef" part (all of these fields are not specified before the position is "warm")
-  baseAvgCost: optional(number()),
-  baseAvgPrice: optional(number()),
-  baseMktPrice: optional(number()),
-  baseMktValue: optional(number()),
-  baseRealizedPnl: optional(number()),
-  baseUnrealizedPnl: optional(number()),
-  expiry: optional(string()),
-  lastTradingDay: optional(string()),
-  undComp: optional(string()),
-  underExchange: optional(ExchangeCode),
-  undSym: optional(string()),
-})
+    // "secdef" part (all of these fields are not specified before the position is "warm")
+    baseAvgPrice: optional(number()),
+    baseMktPrice: optional(number()),
+    baseMktValue: optional(number()),
+    baseRealizedPnl: optional(number()),
+    baseUnrealizedPnl: optional(number()),
+    expiry: optional(string()),
+    lastTradingDay: optional(string()),
+    undComp: optional(string()),
+    underExchange: optional(ExchangeCode),
+    undSym: optional(string()),
+  }),
 
-const PositionTypeNotImplemented = PositionBase.merge({
-  assetClass: AssetClass.exclude(['STK', 'FUT']),
-}, { extendable: true })
+  Bond: Common.merge({
+    assetClass: AssetClass.extract(['BOND']),
+
+    avgCost: number(),
+    avgPrice: number(),
+    contractDesc: string(),
+    currency: Currency3,
+    mktPrice: number(),
+    mktValue: number(),
+    position: number(),
+    realizedPnl: number(),
+    strike: union([number(), string({ format: 'number' })]),
+    undConid: number(),
+    unrealizedPnl: number(),
+    // "secdef" part (all of these fields are not specified before the position is "warm")
+    // none besides "common"
+  }),
+
+  NotImplemented: Common.merge({
+    assetClass: AssetClass.exclude(['STK', 'FUT']),
+  }, { extendable: true }),
+}
 
 const PositionTypes = [
-  PositionFuture,
-  PositionStock,
-  PositionTypeNotImplemented,
+  Type.Stock,
+  Type.Future,
+  Type.NotImplemented,
 ]
 
 const Position = union(PositionTypes)

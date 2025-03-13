@@ -199,6 +199,8 @@ export const ExchangeCodeValues = [
   'TPLUS0',
   'NMS',
   'SCM',
+  'OTC',
+  'BONDDESKG',
   // #endregion
 
   // Finally, IB has a "SMART" exchange, which is a special exchange that allows IB to route orders to the best exchange

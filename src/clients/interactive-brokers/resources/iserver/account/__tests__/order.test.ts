@@ -20,6 +20,7 @@ const CONTRACTS = {
   'NOVO.B': 652806383,
   'ES@20270617': 649180661, // 17/06/2027
   'EUR.DKK': 39394687,
+  "US-T Govt Bond STRIPS Interest 0.0 May15'48": 317483224,
 }
 
 // todo check if we have enough funds to do what we need to do in the test
@@ -136,6 +137,28 @@ describe('iserver/account/order', () => {
         DKK: ledgerAfter.DKK.cashbalance - ledgerBefore.DKK.cashbalance,
         EUR: ledgerAfter.EUR.cashbalance - ledgerBefore.EUR.cashbalance,
       })
+    })
+  })
+
+  describe('bond', () => {
+    test('placing a market order', async () => {
+      await using client = new InteractiveBrokersClient({ type: 'Paper' })
+
+      const response = await client.iserver.account.orders.post(
+        {
+          orders: [{
+            cOID: `test-order-${Math.random()}`,
+            conidex: `${CONTRACTS["US-T Govt Bond STRIPS Interest 0.0 May15'48"]}@SMART`,
+            manualIndicator: false,
+            orderType: 'MKT',
+            quantity: 1,
+            side: 'BUY',
+            tif: 'DAY',
+          }],
+        } satisfies OrderPlacementParametersSingle,
+      )
+      debug('response', response)
+      expect(response).toBeDefined()
     })
   })
 
