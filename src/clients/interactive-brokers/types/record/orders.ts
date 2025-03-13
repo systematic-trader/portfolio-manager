@@ -79,6 +79,13 @@ const OrderStock = Common.merge({
   secType: AssetClass.extract(['STK']),
 })
 
+const OrderBond = Common.merge({
+  description2: string(),
+  outsideRTH: optional(boolean()),
+  price: string(), // seems to be empty
+  secType: AssetClass.extract(['BOND']),
+})
+
 const Type = {
   NotImplemented: Common.pick([
     'description1',
@@ -186,6 +193,15 @@ const Type = {
       stop_price: string({ format: 'number' }), // stop price
     }),
   },
+  Bond: {
+    Limit: OrderBond.merge({
+      orderType: OrderType.Limit,
+      price: string({ format: 'number' }),
+    }),
+    Market: OrderBond.merge({
+      orderType: OrderType.Market,
+    }),
+  },
 }
 
 // #endregion
@@ -212,6 +228,9 @@ export const OrderTypes = [
   Type.Future.StopLimit,
   Type.Future.TrailingStop,
   Type.Future.TrailingStopLimit,
+
+  Type.Bond.Limit,
+  Type.Bond.Market,
 
   // Remaining
   Type.NotImplemented,
