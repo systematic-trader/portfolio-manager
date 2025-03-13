@@ -197,6 +197,8 @@ export const ExchangeCodeValues = [
   'EUIBSI',
   'FOXRIVER',
   'TPLUS0',
+  'NMS',
+  'SCM',
   // #endregion
 
   // Finally, IB has a "SMART" exchange, which is a special exchange that allows IB to route orders to the best exchange
