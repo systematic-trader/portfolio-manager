@@ -601,6 +601,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
     },
   ): string {
     debug.session.authorizationHeader(this.#options.accountId)
+
     if (this.#error !== undefined) {
       throw this.#error
     }
