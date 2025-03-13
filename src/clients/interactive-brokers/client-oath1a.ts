@@ -406,12 +406,12 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
       return this.#loginPromise
     }
 
-    if (this.#controller.signal.aborted) {
-      throw new Error(`${this.constructor.name} is disposed`)
-    }
-
     if (this.#error !== undefined) {
       throw this.#error
+    }
+
+    if (this.#controller.signal.aborted) {
+      throw new Error(`${this.constructor.name} is disposed`)
     }
 
     if (this.#active !== undefined) {
