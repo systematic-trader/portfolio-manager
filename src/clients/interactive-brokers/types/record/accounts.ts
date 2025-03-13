@@ -3,7 +3,6 @@ import {
   boolean,
   type GuardType,
   integer,
-  optional,
   props,
   record,
   string,
@@ -18,7 +17,7 @@ export const Accounts = props({
     string(),
     props({
       allowCustomerTime: boolean(),
-      autoFx: optional(boolean()),
+      autoFx: boolean(),
       hasChildAccounts: boolean(),
       isProp: boolean(),
       liteUnderPro: boolean(),
