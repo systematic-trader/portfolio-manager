@@ -35,7 +35,7 @@
     "include": ["src/", "mod.ts"],
     "exclude": [],
     "useTabs": false,
-    "lineWidth": 120,
+    "lineWidth": 160,
     "indentWidth": 2,
     "semiColons": false,
     "singleQuote": true,
