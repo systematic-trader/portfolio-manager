@@ -95,43 +95,37 @@ export class Info {
 
     /** Security type of the requested contract of interest */
     readonly secType?: undefined | AssetClass
-
     /** Expiration month for the given derivative. */
-    // todo probably only relevant for options and futures
-    readonly month?: undefined | string // todo
+    // if specified, the symbol must be in the format "SYMBOL:CONID" - this will also change the response structure
+    // readonly month?: undefined | string // looks like it must be in the format "MMMYY", e.g. "JAN25"
 
     /** Designate the exchange you wish to receive information for in relation to the contract */
-    readonly exchange?: undefined | ExchangeCode
+    // readonly exchange?: undefined | ExchangeCode
 
     /** Set the strike price for the requested contract details */
-    // todo probably only relevant for options
-    readonly strike?: undefined | never // todo
+    // readonly strike?: undefined | never // todo probably only relevant for options
 
     /**
      * Set the right for the given contract.
      * C - for Call options.
      * P - for Put options.
      */
-    // todo probably only relevant for options
-    readonly right?: 'C' | 'P' // todo
+    // readonly right?: 'C' | 'P' // todo probably only relevant for options
 
     /** Set the issuerId for the given bond issuer type */
-    readonly issuerid?: undefined | string
+    // readonly issuerid?: undefined | string
 
     /** Comma separated list of additional filters. Applicable when SecTyp is BOND */
-    // todo probably only relevant for bonds
-    readonly filterd?: undefined | never
+    // readonly filterd?: undefined | never // todo probably only relevant for bonds
   }, { signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<SecurityInfo> {
     return await this.#client.get({
       searchParams: parameters,
-      guard: SecurityInfo, // todo write a guard for this
+      guard: SecurityInfo,
       signal,
       timeout,
     })
   }
-
-  // TODO getByAssetClass
 }
