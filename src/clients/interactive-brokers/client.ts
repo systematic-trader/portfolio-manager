@@ -127,7 +127,6 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
           throw new Error('InteractiveBrokersClient is disposed')
         }
 
-        // 20250228-21:05 8V1j/Yzlty5KhqyUl0zz2bfOw3s=
         const { liveSessionToken } = await this.session.ensureActiveSession()
 
         requestsLiveSessionTokenMap.set(request, liveSessionToken)
@@ -144,10 +143,26 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
       onError: async ({ request, error, retries }) => {
         const goneCount = goneMap.get(request) ?? 0
 
-        if (error instanceof HTTPClientError && error.statusCode === 410 && goneCount < 5) {
+        // IB periodically returns 410 Gone errors for requests that are still valid.
+        // And since all paths are known to be valid, we can safely retry them.
+        if (error instanceof HTTPClientError && error.statusCode === 410) {
           goneMap.set(request, goneCount + 1)
 
-          await Timeout.wait(1000)
+          const timeout = Timeout.wait(1000)
+
+          if (request.signal === undefined) {
+            await timeout
+          } else {
+            const listener = () => timeout.abort()
+
+            request.signal.addEventListener('abort', listener, { once: true })
+
+            try {
+              await Timeout.wait(1000)
+            } finally {
+              request.signal.removeEventListener('abort', listener)
+            }
+          }
 
           return
         }
