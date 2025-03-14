@@ -16,7 +16,7 @@ import { PromiseQueue } from '../../utils/promise-queue.ts'
 import { CombinedSignalController } from '../../utils/signal.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { urlJoin } from '../../utils/url.ts'
-import { HTTPClient, HTTPClientRequestAbortError } from '../http-client.ts'
+import { HTTPClient, HTTPClientError, HTTPClientRequestAbortError } from '../http-client.ts'
 import { StatusResponse } from './resources/iserver/auth/status.ts'
 import { SuppressibleMessageIdValues } from './types/derived/suppressible-message-ids.ts'
 import { ServerInfo } from './types/record/server-info.ts'
@@ -486,21 +486,56 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
 
         debug.session.login(this.#options.accountId, `token valid`)
 
-        const response = await HTTPClient.postOkJSON(loginUrl, {
-          headers: {
-            Authorization: generateSignedAuthorizationHeader({
-              signatureMethod: 'HMAC-SHA256',
-              method: 'POST',
-              liveSessionToken: liveSessionToken,
-              url: loginUrl,
-              accessToken: this.#options.accessToken,
-              consumerKey: this.#options.consumerKey,
-              realm: this.#options.realm,
-            }),
-          },
-          guard: LoginResponse,
-          signal: this.#controller.signal,
-        })
+        let response: undefined | LoginResponse = undefined
+
+        // IB periodically returns 401 Bad Request errors for requests that are still valid.
+        // For some unknown reason the signature is invalid, even though it is correct.
+        while (true) {
+          try {
+            response = await HTTPClient.postOkJSON(loginUrl, {
+              headers: {
+                Authorization: generateSignedAuthorizationHeader({
+                  signatureMethod: 'HMAC-SHA256',
+                  method: 'POST',
+                  liveSessionToken: liveSessionToken,
+                  url: loginUrl,
+                  accessToken: this.#options.accessToken,
+                  consumerKey: this.#options.consumerKey,
+                  realm: this.#options.realm,
+                }),
+              },
+              guard: LoginResponse,
+              signal: this.#controller.signal,
+            })
+          } catch (error) {
+            if (
+              error instanceof HTTPClientError &&
+              error.statusCode === 401 &&
+              typeof error.body === 'object' &&
+              error.body !== null &&
+              'error' in error.body &&
+              error.body.error === 'Invalid signature'
+            ) {
+              const timeout = Timeout.wait(1000)
+              const listener = () => timeout.abort()
+
+              this.#controller.signal.addEventListener('abort', listener, { once: true })
+
+              try {
+                await timeout
+              } finally {
+                this.#controller.signal.removeEventListener('abort', listener)
+              }
+
+              // Retry login
+              continue
+            }
+
+            throw error
+          }
+
+          break
+        }
 
         if (response.authenticated === false || response.connected === false) {
           debug.session.login(this.#options.accountId, 'failed - confirmation invalid')
