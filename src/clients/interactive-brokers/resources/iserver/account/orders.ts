@@ -1,20 +1,9 @@
-import {
-  type GuardType,
-  literal,
-  optional,
-  props,
-  string,
-  tuple,
-  union,
-} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { type GuardType, literal, optional, props, string, tuple, union } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import type { InteractiveBrokersResourceClient } from '../../../resource-client.ts'
-import type {
-  OrderParametersByOrderType,
-  OrderParametersByTimeInForce,
-  OrderParametersStatic,
-} from '../../../types/derived/order-parameters.ts'
+import type { OrderParametersByOrderType, OrderParametersByTimeInForce, OrderParametersStatic } from '../../../types/derived/order-parameters.ts'
 import { OrderStatus } from '../../../types/derived/order-status.ts'
 import { Orders as OrdersResponse } from '../../../types/record/orders.ts'
+import { WhatIf } from './orders/what-if.ts'
 
 // #region Get Orders
 // Filtering by other order statuses is will return a http 500 error (internal server error)
@@ -147,8 +136,12 @@ interface OrderPlacementResponseError extends GuardType<typeof OrderPlacementRes
 export class Orders {
   readonly #client: InteractiveBrokersResourceClient
 
+  readonly whatIf: WhatIf
+
   constructor(client: InteractiveBrokersResourceClient) {
     this.#client = client
+
+    this.whatIf = new WhatIf(client)
   }
 
   /**
