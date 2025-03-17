@@ -3,6 +3,7 @@ import {
   type GuardType,
   literal,
   number,
+  optional,
   pattern,
   props,
   string,
@@ -17,7 +18,7 @@ export const BondContractInfo = props({
   allow_sell_long: boolean(),
   company_name: string(),
   con_id: number(),
-  contract_clarification_type: literal('BOND_SIMPLE'),
+  contract_clarification_type: optional(literal('BOND_SIMPLE')),
   contract_month: pattern(/^\d{6}$/), // YYYYMM
   currency: Currency3,
   cusip: string(),
@@ -81,12 +82,12 @@ export interface FutureContractInfo extends GuardType<typeof FutureContractInfo>
 
 export const StockContractInfo = props({
   allow_sell_long: boolean(),
-  category: string(),
+  category: optional(string()),
   company_name: string(),
   con_id: number(),
   currency: Currency3,
   exchange: ExchangeCode,
-  industry: string(),
+  industry: optional(string()),
   instrument_type: AssetClass.extract(['STK']),
   is_zero_commission_security: boolean(),
   local_symbol: string(),
