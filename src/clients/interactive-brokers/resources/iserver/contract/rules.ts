@@ -76,6 +76,7 @@ export const RulesResponse = props({
   orderTypesOutside: optional(array(enums([
     'limit',
     'lit',
+    'market',
     'mit',
     'relative',
     'stop_limit',
@@ -94,7 +95,12 @@ export const RulesResponse = props({
     'GTD/o,a',
     'IOC/MARKET,LIMIT,RELATIVE,MARKETONCLOSE,MIDPRICE,LIMITONCLOSE,MKT_PROTECT,STPPRT,a',
     'OPG/LIMIT,MARKET,a',
+    'OVT/o,a,LIMIT',
+    'OND/o,a,LIMIT',
   ])),
+  displayMessage: optional(props({
+    url: string(),
+  })),
 })
 
 export interface RulesResponse extends GuardType<typeof RulesResponse> {}
