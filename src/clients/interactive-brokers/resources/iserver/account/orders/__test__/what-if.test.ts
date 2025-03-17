@@ -6,7 +6,8 @@ const debug = Debug('test')
 
 const CONTRACTS = {
   'AAPL': 265598,
-  'ESZ5': 495512563, // expiration 2025-12-19
+  // 'ESZ5': 495512563, // expiration 2025-12-19
+  // 'M6A': 748353593, // expiration 2025-06-16
 }
 
 describe('iserver/account/orders/whattif', () => {
@@ -15,12 +16,28 @@ describe('iserver/account/orders/whattif', () => {
 
     for (const [symbol, conid] of Object.entries(CONTRACTS)) {
       await step(symbol, async () => {
-        const response = await client.iserver.account.orders.whatIf.post({
+        const buyResponse = await client.iserver.account.orders.whatIf.post({
+          conid,
+          side: 'BUY',
+        })
+
+        debug('buy', buyResponse)
+        expect(buyResponse).toBeDefined()
+
+        const sellResponse = await client.iserver.account.orders.whatIf.post({
+          conid,
+          side: 'SELL',
+        })
+
+        debug('sell', sellResponse)
+        expect(sellResponse).toBeDefined()
+
+        const marginResponse = await client.iserver.account.orders.whatIf.margin({
           conid,
         })
 
-        debug(response)
-        expect(response).toBeDefined()
+        debug('margin', marginResponse)
+        expect(marginResponse).toBeDefined
       })
     }
   })

@@ -18,9 +18,21 @@ const WhatIfResponse = props({
   initial: CurrentChangeAfter,
   maintenance: CurrentChangeAfter,
   position: CurrentChangeAfter,
-})
+}, { extendable: true })
 
-interface WhatIfResponse extends GuardType<typeof WhatIfResponse> {}
+export interface WhatIfResponse extends GuardType<typeof WhatIfResponse> {}
+
+export interface Margin {
+  readonly buy: {
+    readonly initial: number
+    readonly maintenance: number
+  }
+
+  readonly sell: {
+    readonly initial: number
+    readonly maintenance: number
+  }
+}
 
 export class WhatIf {
   readonly #client: InteractiveBrokersResourceClient
@@ -31,6 +43,7 @@ export class WhatIf {
 
   async post(parameters: {
     readonly conid: string | number
+    readonly side: 'BUY' | 'SELL'
   }, { signal, timeout }: {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
@@ -43,12 +56,45 @@ export class WhatIf {
           orderType: 'MKT',
           manualIndicator: false,
           quantity: 1,
-          side: 'BUY',
+          side: parameters.side,
           tif: 'DAY',
         }],
       },
       signal,
       timeout,
     })
+  }
+
+  async margin(parameters: {
+    readonly conid: string | number
+  }, { signal, timeout }: {
+    readonly signal?: undefined | AbortSignal
+    readonly timeout?: undefined | number
+  } = {}): Promise<Margin> {
+    const [buy, sell] = await Promise.allSettled([
+      this.post({ conid: parameters.conid, side: 'BUY' }, { signal, timeout }),
+      this.post({ conid: parameters.conid, side: 'SELL' }, { signal, timeout }),
+    ]).then(([buyResult, sellResult]) => {
+      if (buyResult.status === 'rejected') {
+        throw buyResult.reason
+      }
+
+      if (sellResult.status === 'rejected') {
+        throw sellResult.reason
+      }
+
+      return [buyResult.value, sellResult.value] as const
+    })
+
+    return {
+      buy: {
+        initial: Number(buy.initial.change.replace(/,/g, '')),
+        maintenance: Number(buy.maintenance.change.replace(/,/g, '')),
+      },
+      sell: {
+        initial: Number(sell.initial.change.replace(/,/g, '')),
+        maintenance: Number(sell.maintenance.change.replace(/,/g, '')),
+      },
+    }
   }
 }
