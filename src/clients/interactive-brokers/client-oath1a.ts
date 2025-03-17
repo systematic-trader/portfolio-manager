@@ -1,12 +1,4 @@
-import {
-  boolean,
-  type GuardType,
-  integer,
-  optional,
-  props,
-  string,
-  unknown,
-} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { boolean, type GuardType, integer, optional, props, string, unknown } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { Buffer } from 'node:buffer'
 import crypto from 'node:crypto'
 import { Debug } from '../../utils/debug.ts'
@@ -563,7 +555,9 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
           expirationIn: liveSessionTokenResponse.live_session_token_expiration,
         }
 
-        this.emit('session', this.#active)
+        if (this.#error === undefined && this.#controller.signal.aborted === false) {
+          this.emit('session', this.#active)
+        }
 
         return this.#active
       } catch (error) {
@@ -765,8 +759,7 @@ function generateSignedAuthorizationHeader(
     }
 
     case 'RSA-SHA256': {
-      const baseString =
-        `${options.decryptedAccessTokenSecret}${options.method}&${urlEscaped}&${signatureHeadersString}`
+      const baseString = `${options.decryptedAccessTokenSecret}${options.method}&${urlEscaped}&${signatureHeadersString}`
 
       authorizationHeaders['oauth_signature'] = generateRSASHA256Signature({
         baseString,
