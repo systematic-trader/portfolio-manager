@@ -1,4 +1,6 @@
 import {
+  array,
+  assertReturn,
   boolean,
   type GuardType,
   literal,
@@ -28,7 +30,7 @@ export const BondSecurityInfo = props({
 
 export interface BondSecurityInfo extends GuardType<typeof BondSecurityInfo> {}
 
-export const CashSecurityInfo = props({
+const SecurityInfoCash = props({
   companyName: string(),
   conid: number(),
   currency: Currency3,
@@ -42,9 +44,9 @@ export const CashSecurityInfo = props({
   validExchanges: string(),
 })
 
-export interface CashSecurityInfo extends GuardType<typeof CashSecurityInfo> {}
+export interface SecurityInfoCash extends GuardType<typeof SecurityInfoCash> {}
 
-export const FutureSecurityInfo = props({
+const SecurityInfoFuture = props({
   companyName: string(),
   conid: number(),
   currency: Currency3,
@@ -58,9 +60,9 @@ export const FutureSecurityInfo = props({
   validExchanges: string(),
 })
 
-export interface FutureSecurityInfo extends GuardType<typeof FutureSecurityInfo> {}
+export interface SecurityInfoFuture extends GuardType<typeof SecurityInfoFuture> {}
 
-export const StockContractInfo = props({
+const SecurityInfoStock = props({
   companyName: string(),
   conid: number(),
   currency: Currency3,
@@ -73,9 +75,23 @@ export const StockContractInfo = props({
   validExchanges: string(),
 })
 
-export interface StockContractInfo extends GuardType<typeof StockContractInfo> {}
+export interface SecurityInfoStock extends GuardType<typeof SecurityInfoStock> {}
 
-export const SecurityInfo = union([BondSecurityInfo, CashSecurityInfo, FutureSecurityInfo, StockContractInfo])
+const SecurityInfoRaw = union([
+  BondSecurityInfo,
+  SecurityInfoCash,
+  SecurityInfoFuture,
+  SecurityInfoStock,
+])
+
+const ExchangeCodes = array(ExchangeCode)
+
+const SecurityInfo = union([
+  BondSecurityInfo.merge({ validExchanges: ExchangeCodes }),
+  SecurityInfoCash.merge({ validExchanges: ExchangeCodes }),
+  SecurityInfoFuture.merge({ validExchanges: ExchangeCodes }),
+  SecurityInfoStock.merge({ validExchanges: ExchangeCodes }),
+])
 
 export type SecurityInfo = GuardType<typeof SecurityInfo>
 
@@ -121,11 +137,16 @@ export class Info {
     readonly signal?: undefined | AbortSignal
     readonly timeout?: undefined | number
   } = {}): Promise<SecurityInfo> {
-    return await this.#client.get({
+    const response = await this.#client.get({
       searchParams: parameters,
-      guard: SecurityInfo,
+      guard: SecurityInfoRaw,
       signal,
       timeout,
     })
+
+    return {
+      ...response,
+      validExchanges: assertReturn(ExchangeCodes, response.validExchanges.split(',')),
+    }
   }
 }
