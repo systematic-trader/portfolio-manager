@@ -8,7 +8,7 @@ import { PromiseQueue } from '../../utils/promise-queue.ts'
 import { CombinedSignalController } from '../../utils/signal.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { urlJoin } from '../../utils/url.ts'
-import { HTTPClient, HTTPClientError, HTTPClientRequestAbortError } from '../http-client.ts'
+import { type HTTPClient, HTTPClientError, HTTPClientRequestAbortError } from '../http-client.ts'
 import { StatusResponse } from './resources/iserver/auth/status.ts'
 import { SuppressibleMessageIdValues } from './types/derived/suppressible-message-ids.ts'
 import { ServerInfo } from './types/record/server-info.ts'
@@ -74,6 +74,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
   readonly #queue: PromiseQueue
 
   readonly #options: {
+    readonly http: HTTPClient
     readonly accountId: string
     readonly baseURL: URL
     readonly consumerKey: string
@@ -108,6 +109,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
   #active: undefined | Writable<InteractiveBrokersOAuth1aSession>
 
   constructor(options: {
+    readonly http: HTTPClient
     readonly accountId: string
     readonly baseURL: URL
     readonly consumerKey: string
@@ -184,7 +186,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
   async #logout({ liveSessionToken }: { readonly liveSessionToken: string }): Promise<boolean> {
     const logoutUrl = urlJoin(this.#options.baseURL, 'v1/api/logout')
 
-    const response = await HTTPClient.postOkJSON(logoutUrl, {
+    const response = await this.#options.http.postOkJSON(logoutUrl, {
       headers: {
         Authorization: generateSignedAuthorizationHeader({
           method: 'POST',
@@ -264,7 +266,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
 
     // Silly (but required) warm-up specified by IBKR
     while (true) {
-      const response = await HTTPClient.getOkJSON(accountsURL, {
+      const response = await this.#options.http.getOkJSON(accountsURL, {
         headers: {
           Authorization: generateSignedAuthorizationHeader({
             signatureMethod: 'HMAC-SHA256',
@@ -291,7 +293,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
     // additional confirmation requests will add unacceptable latency to order execution.
     // Note: IBKR does not persist these suppressions between sessions
     const suppressQuestionsURL = urlJoin(this.#options.baseURL, 'v1/api/iserver/questions/suppress')
-    const suppressQuestionsResponsePromise = HTTPClient.postOkJSON(suppressQuestionsURL, {
+    const suppressQuestionsResponsePromise = this.#options.http.postOkJSON(suppressQuestionsURL, {
       headers: {
         Authorization: generateSignedAuthorizationHeader({
           signatureMethod: 'HMAC-SHA256',
@@ -328,7 +330,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
     // Without this warmup, we cannot reliably determine if a user truly has no orders
     // or if the endpoint simply hasn't been activated yet.
     const ordersURL = urlJoin(this.#options.baseURL, 'v1/api/iserver/account/orders')
-    const ordersPromise = HTTPClient.getOkJSON(ordersURL, {
+    const ordersPromise = this.#options.http.getOkJSON(ordersURL, {
       headers: {
         Authorization: generateSignedAuthorizationHeader({
           signatureMethod: 'HMAC-SHA256',
@@ -368,7 +370,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
   ): Promise<TickleResponse> {
     const tickleUrl = urlJoin(this.#options.baseURL, 'v1/api/tickle')
 
-    const response = await HTTPClient.postOkJSON(tickleUrl, {
+    const response = await this.#options.http.postOkJSON(tickleUrl, {
       headers: {
         Authorization: generateSignedAuthorizationHeader({
           signatureMethod: 'HMAC-SHA256',
@@ -439,7 +441,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
 
         debug.session.login(this.#options.accountId, 'token verification')
 
-        const liveSessionTokenResponse = await HTTPClient.postOkJSON(liveSessionTokenUrl, {
+        const liveSessionTokenResponse = await this.#options.http.postOkJSON(liveSessionTokenUrl, {
           guard: LiveSessionTokenResponse,
           headers: {
             'Authorization': authorizationHeader,
@@ -484,7 +486,7 @@ export class InteractiveBrokersOAuth1a extends EventSwitch<
         // For some unknown reason the signature is invalid, even though it is correct.
         while (true) {
           try {
-            response = await HTTPClient.postOkJSON(loginUrl, {
+            response = await this.#options.http.postOkJSON(loginUrl, {
               headers: {
                 Authorization: generateSignedAuthorizationHeader({
                   signatureMethod: 'HMAC-SHA256',

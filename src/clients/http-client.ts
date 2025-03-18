@@ -1,12 +1,9 @@
-import {
-  AssertionError,
-  assertReturn,
-  type Guard,
-} from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
+import { AssertionError, assertReturn, type Guard } from 'https://raw.githubusercontent.com/systematic-trader/type-guard/main/mod.ts'
 import { Debug } from '../utils/debug.ts'
 import { ensureError } from '../utils/error.ts'
 import { stringifyJSON } from '../utils/json.ts'
 import { CombinedSignalController } from '../utils/signal.ts'
+import { throttle } from '../utils/throttle.ts'
 import { Timeout } from '../utils/timeout.ts'
 
 const debug = {
@@ -172,10 +169,21 @@ export class HTTPServiceResponseInvalidError extends HTTPError {
   }
 }
 
+type Fetch = typeof fetch
+
 export type HTTPClientHeaders =
   | Record<string, undefined | null | string>
   | Headers
   | ReadonlyArray<readonly [string, undefined | null | string]>
+
+export interface HTTPClientOptions {
+  readonly headers?:
+    | undefined
+    | HTTPClientHeaders
+    | HTTPClientHeadersCallback
+  readonly onError?: undefined | HTTPClientOnErrorCallback
+  readonly maxPerSecond?: undefined | number
+}
 
 export class HTTPClient {
   static #client = new HTTPClient()
@@ -255,21 +263,41 @@ export class HTTPClient {
     return resultHeaders
   }
 
+  readonly maxPerSecond: number | undefined
+  #fetch: Fetch
   readonly headersCallback: HTTPClientHeadersCallback
   readonly #onError?: HTTPClientOnErrorCallback
 
-  constructor({ headers, onError }: {
-    readonly headers?:
-      | undefined
-      | HTTPClientHeaders
-      | HTTPClientHeadersCallback
-    readonly onError?: undefined | HTTPClientOnErrorCallback
-  } = {}) {
-    this.headersCallback = typeof headers === 'function'
-      ? headers
-      : ({ request }) => HTTPClient.joinHeaders(headers, request.headers)
+  constructor({ headers, onError, maxPerSecond }: HTTPClientOptions = {}) {
+    this.headersCallback = typeof headers === 'function' ? headers : ({ request }) => HTTPClient.joinHeaders(headers, request.headers)
 
     this.#onError = onError
+    this.maxPerSecond = maxPerSecond
+    this.#fetch = maxPerSecond === undefined ? fetch : throttle(maxPerSecond, fetch)
+  }
+
+  extend(options: Partial<HTTPClientOptions> = {}): HTTPClient {
+    if (options.maxPerSecond === undefined) {
+      const client = new HTTPClient({
+        headers: options.headers ?? this.headersCallback,
+        onError: options.onError ?? this.#onError,
+        maxPerSecond: options.maxPerSecond ?? this.maxPerSecond,
+      })
+
+      if (options.maxPerSecond === undefined) {
+        client.#fetch = this.#fetch
+
+        return client
+      }
+
+      return client
+    } else {
+      return new HTTPClient({
+        headers: options.headers ?? this.headersCallback,
+        onError: options.onError ?? this.#onError,
+        maxPerSecond: options.maxPerSecond ?? this.maxPerSecond,
+      })
+    }
   }
 
   async get(
@@ -293,6 +321,7 @@ export class HTTPClient {
       timeout,
       onError,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -318,6 +347,7 @@ export class HTTPClient {
       onError,
       onlyOk: true,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -458,6 +488,7 @@ export class HTTPClient {
       onError,
       body,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -486,6 +517,7 @@ export class HTTPClient {
       body,
       onlyOk: true,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -572,6 +604,7 @@ export class HTTPClient {
       onError,
       body,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -600,6 +633,7 @@ export class HTTPClient {
       body,
       onlyOk: true,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -686,6 +720,7 @@ export class HTTPClient {
       onError,
       body,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -714,6 +749,7 @@ export class HTTPClient {
       body,
       onlyOk: true,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -797,6 +833,7 @@ export class HTTPClient {
       timeout,
       onError,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -822,6 +859,7 @@ export class HTTPClient {
       onError,
       onlyOk: true,
       headersCallback: this.headersCallback,
+      throttledFetch: this.#fetch,
     })
   }
 
@@ -909,6 +947,7 @@ function assertResponseBody<T>(
 }
 
 async function executeRequest(url: string | URL, options: {
+  readonly throttledFetch: Fetch
   readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   readonly headers?: undefined | HTTPClientHeaders
   readonly body?: RequestInit['body']
@@ -955,6 +994,7 @@ async function executeRequest(url: string | URL, options: {
 
   return await callFetch(
     request,
+    options.throttledFetch,
     options.headersCallback,
     options.onError,
     options.onlyOk,
@@ -964,6 +1004,7 @@ async function executeRequest(url: string | URL, options: {
 
 async function callFetch(
   request: Writable<HTTPClientRequest>,
+  throttledFetch: Fetch,
   headersCallback: undefined | HTTPClientHeadersCallback,
   errorCallback: undefined | HTTPClientOnErrorCallback,
   onlyOk: undefined | boolean,
@@ -986,7 +1027,7 @@ async function callFetch(
   }
 
   try {
-    const response = await fetch(request.url, {
+    const response = await throttledFetch(request.url, {
       method: request.method,
       body: request.body,
       headers: request.headers,
@@ -1034,9 +1075,7 @@ async function callFetch(
 
         const stack = error.stack?.split('\n').slice(1).join('\n')
 
-        abortError.stack = abortError.message === ''
-          ? `${abortError.name}\n${stack}`
-          : `${abortError.name}: ${abortError.message}\n${stack}`
+        abortError.stack = abortError.message === '' ? `${abortError.name}\n${stack}` : `${abortError.name}: ${abortError.message}\n${stack}`
 
         // deno-lint-ignore no-ex-assign
         error = abortError
@@ -1054,6 +1093,6 @@ async function callFetch(
 
     request.headers = requestHeaders
 
-    return await callFetch(request, headersCallback, errorCallback, onlyOk, retries++)
+    return await callFetch(request, throttledFetch, headersCallback, errorCallback, onlyOk, retries++)
   }
 }

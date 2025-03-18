@@ -6,13 +6,7 @@ import { Environment } from '../../utils/environment.ts'
 import { CombinedSignalController } from '../../utils/signal.ts'
 import { Timeout } from '../../utils/timeout.ts'
 import { urlJoin } from '../../utils/url.ts'
-import {
-  HTTPClient,
-  HTTPClientError,
-  HTTPClientRequestAbortError,
-  HTTPError,
-  HTTPServiceError,
-} from '../http-client.ts'
+import { HTTPClient, HTTPClientError, HTTPClientRequestAbortError, HTTPError, HTTPServiceError } from '../http-client.ts'
 import { InteractiveBrokersOAuth1a } from './client-oath1a.ts'
 import { InteractiveBrokersResourceClient } from './resource-client.ts'
 import { Iserver } from './resources/iserver.ts'
@@ -32,8 +26,7 @@ export interface InteractiveBrokersClientOptions {
   readonly type: 'Live' | 'Paper'
 }
 
-export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOptions = InteractiveBrokersClientOptions>
-  implements AsyncDisposable {
+export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOptions = InteractiveBrokersClientOptions> implements AsyncDisposable {
   static readonly CONFIG = {
     baseURL: new URL('https://api.ibkr.com'),
     websocketURL: new URL('wss://api.ibkr.com/v1/api/ws'),
@@ -99,7 +92,10 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     this.type = options.type
     this.baseURL = InteractiveBrokersClient.CONFIG.baseURL
 
+    const http = new HTTPClient({ maxPerSecond: 10 })
+
     this.session = new InteractiveBrokersOAuth1a({
+      http,
       accountId: config.accountId,
       baseURL: InteractiveBrokersClient.CONFIG.baseURL,
       consumerKey: config.consumerKey,
@@ -117,7 +113,7 @@ export class InteractiveBrokersClient<Options extends InteractiveBrokersClientOp
     const requestsLiveSessionTokenMap = new WeakMap<object, string>()
     const goneMap = new WeakMap<object, number>()
 
-    this.#http = new HTTPClient({
+    this.#http = http.extend({
       headers: async ({ request }) => {
         if (this.session.error !== undefined) {
           throw this.session.error
